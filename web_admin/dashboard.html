@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard en Vivo 🌶️ | La Diabla Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Firebase App SDK (CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header>
+    <div class="navbar">
+      <div class="logo-container">
+        <span class="logo-icon">🌶️</span>
+        <div>
+          <span class="logo-text diabla-font">LA DIABLA</span>
+          <span style="font-size: 0.75rem; background: #DC2626; color: white; padding: 2px 6px; border-radius: 6px; margin-left: 6px; font-weight: bold;">EN VIVO 🔴</span>
+        </div>
+      </div>
+
+      <div class="nav-links">
+        <span style="font-size: 0.85rem; color: var(--text-muted);">Administrador: <strong style="color: white;">appladiabla@gmail.com</strong></span>
+        <button onclick="logoutAdmin()" class="btn-secondary" style="padding: 6px 14px; font-size: 0.85rem;">
+          Cerrar Sesión 🚪
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="admin-container">
+
+    <!-- Metrics Banner -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon-wrapper" style="background: rgba(22, 163, 74, 0.15); color: #16A34A;">💰</div>
+        <div>
+          <div class="stat-value diabla-font" id="statTotalSales">$0</div>
+          <div class="stat-label">Ventas Totales Hoy</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper" style="background: rgba(245, 158, 11, 0.15); color: #F59E0B;">⏳</div>
+        <div>
+          <div class="stat-value diabla-font" id="statActiveOrders">0</div>
+          <div class="stat-label">Pedidos en Proceso</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper" style="background: rgba(59, 130, 246, 0.15); color: #3B82F6;">🛵</div>
+        <div>
+          <div class="stat-value diabla-font" id="statDelivered">0</div>
+          <div class="stat-label">Pedidos Entregados</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper" style="background: rgba(220, 38, 38, 0.15); color: #DC2626;">📊</div>
+        <div>
+          <div class="stat-value diabla-font" id="statTotalOrders">0</div>
+          <div class="stat-label">Total Registrados</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Orders Management Section -->
+    <div class="dashboard-header">
+      <div>
+        <h2 class="diabla-font" style="font-size: 1.8rem; letter-spacing: 1px;">GESTIÓN DE PEDIDOS EN TIEMPO REAL 🔥</h2>
+        <p style="color: var(--text-muted); font-size: 0.85rem;">Cocina Central: Cl. 59 # 39W-24, Estoraques 1, Bucaramanga</p>
+      </div>
+
+      <!-- Search Input -->
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <input type="text" id="searchOrderInput" class="form-input" placeholder="🔍 Buscar por ID, cliente, dirección..." oninput="renderOrders()" style="width: 280px; padding: 8px 14px; font-size: 0.9rem;">
+      </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="tab-filter" style="margin-bottom: 1.5rem;">
+      <button class="tab-btn active" data-filter="all" onclick="setFilter('all')">Todos</button>
+      <button class="tab-btn" data-filter="pending" onclick="setFilter('pending')">⏳ Pendientes</button>
+      <button class="tab-btn" data-filter="confirmed" onclick="setFilter('confirmed')">✅ Confirmados</button>
+      <button class="tab-btn" data-filter="preparing" onclick="setFilter('preparing')">🍳 En Cocina</button>
+      <button class="tab-btn" data-filter="ready" onclick="setFilter('ready')">📦 Listos para Despacho</button>
+      <button class="tab-btn" data-filter="onTheWay" onclick="setFilter('onTheWay')">🛵 En Ruta</button>
+      <button class="tab-btn" data-filter="delivered" onclick="setFilter('delivered')">🎉 Entregados</button>
+      <button class="tab-btn" data-filter="refunds" onclick="setFilter('refunds')" style="border-color: #DC2626; color: #DC2626;">🔄 Reembolsos (<span id="refundCount">0</span>)</button>
+    </div>
+
+    <!-- Orders Live Grid -->
+    <div id="ordersGrid" class="orders-grid">
+      <!-- Injected by JavaScript -->
+    </div>
+
+    <!-- Refunds Live Grid -->
+    <div id="refundsGrid" class="orders-grid" style="display: none;">
+      <!-- Injected by JavaScript -->
+    </div>
+
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    function logoutAdmin() {
+      sessionStorage.removeItem('diabla_admin_auth');
+      window.location.href = 'login.html';
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,111 @@
+name: la_diabla
+description: "La Diabla — Comida mexicana a domicilio. Rápido, picante y digital."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # ─── State Management ────────────────────────────────────────────────────────
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+  hooks_riverpod: ^2.6.1
+  flutter_hooks: ^0.20.5
+
+  # ─── Navigation ──────────────────────────────────────────────────────────────
+  go_router: ^14.8.1
+
+  # ─── Firebase ────────────────────────────────────────────────────────────────
+  firebase_core: ^3.13.1
+  firebase_auth: ^5.5.4
+  cloud_firestore: ^5.6.8
+  firebase_storage: ^12.4.6
+  firebase_messaging: ^15.2.5
+  google_sign_in: ^6.2.2
+
+  # ─── Google Maps & Location ───────────────────────────────────────────────────
+  google_maps_flutter: ^2.10.0
+  geolocator: ^13.0.2
+  geocoding: ^3.0.0
+
+  # ─── Local Storage ───────────────────────────────────────────────────────────
+  # Hive: carrito de compra (estructurado, rápido, offline-first)
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  # SharedPreferences: datos simples (sesión, tema, flags)
+  shared_preferences: ^2.3.5
+
+  # ─── Typography ───────────────────────────────────────────────────────────────
+  google_fonts: ^6.2.1
+
+  # ─── UI & UX ─────────────────────────────────────────────────────────────────
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
+  lottie: ^3.3.1
+  flutter_svg: ^2.0.17
+
+  # ─── Utils ────────────────────────────────────────────────────────────────────
+  image_picker: ^1.1.2
+  url_launcher: ^6.3.1
+  dio: ^5.8.0+1
+  http: ^1.2.2
+  equatable: ^2.0.7
+  freezed_annotation: ^3.0.0
+  json_annotation: ^4.9.0
+  intl: ^0.20.2
+  uuid: ^4.5.1
+  logger: ^2.5.0
+  flutter_local_notifications: ^18.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  riverpod_generator: ^2.6.5
+  freezed: ^3.0.0
+  json_serializable: ^6.9.4
+  build_runner: ^2.4.15
+  mocktail: ^1.0.4
+  flutter_launcher_icons: ^0.14.3
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/animations/
+    - assets/icons/
+    - assets/fonts/
+
+  fonts:
+    - family: Bangers
+      fonts:
+        - asset: assets/fonts/Bangers-Regular.ttf
+
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"
+  min_sdk_android: 21
+  web:
+    generate: false
+  windows:
+    generate: false
+  macos:
+    generate: false

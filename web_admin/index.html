@@ -1,0 +1,125 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>La Diabla App 🌶️🔥 | Comida Mexicana & Delivery Bucaramanga</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header>
+    <div class="navbar">
+      <a href="index.html" class="logo-container">
+        <span class="logo-icon">🌶️</span>
+        <span class="logo-text diabla-font">LA DIABLA</span>
+      </a>
+      <div class="nav-links">
+        <a href="#menu" class="nav-link">Menú Diabólico</a>
+        <a href="#features" class="nav-link">Beneficios</a>
+        <a href="#descarga" class="nav-link">Descargar App</a>
+        <a href="login.html" class="btn-secondary">🔐 Panel Admin</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main>
+    <section class="hero">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <span>🛵 Delivery Rápido en Bucaramanga & Mutis</span>
+        </div>
+        <h1 class="hero-title diabla-font">
+          EL SABOR MÁS PICANTE Y CALIENTE <span>A TU PUERTA</span> 🔥
+        </h1>
+        <p class="hero-desc">
+          Pide tus tacos al pastor, burritos diabólicos, quesadillas con queso fundido y birria artesanal desde nuestra app oficial. ¡Rastreo GPS en tiempo real hasta tu mesa!
+        </p>
+        <div class="hero-buttons">
+          <a href="../build/app/outputs/flutter-apk/app-release.apk" download="LaDiabla-App.apk" class="btn-primary" style="font-size: 1.1rem; padding: 1rem 2rem;">
+            📱 Descargar APK para Android
+          </a>
+          <a href="login.html" class="btn-secondary" style="font-size: 1.1rem; padding: 1rem 1.8rem;">
+            👑 Portal de Administración
+          </a>
+        </div>
+      </div>
+
+      <div class="hero-visual" style="text-align: center;">
+        <div style="background: radial-gradient(circle, rgba(220,38,38,0.25) 0%, rgba(0,0,0,0) 70%); padding: 2rem; border-radius: 50%;">
+          <span style="font-size: 8rem; display: block; filter: drop-shadow(0 15px 25px rgba(220,38,38,0.6));">🌮</span>
+          <div class="diabla-font" style="font-size: 2.2rem; color: #FF8080; margin-top: 1rem;">
+            ¡100% ARTESANAL Y PICANTE!
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- App Highlights / Features -->
+    <section id="features" class="grid-cards">
+      <div class="feature-card">
+        <div class="feature-icon">🛵</div>
+        <h3 class="feature-title diabla-font">Ruta GPS en Tiempo Real</h3>
+        <p class="feature-desc">
+          Sigue a tu repartidor en vivo desde nuestra Cocina Central en Estoraques 1 (Cl. 59 # 39W-24) hasta tu puerta sin perderte ni un segundo.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🎟️</div>
+        <h3 class="feature-title diabla-font">Cupones y Descuentos</h3>
+        <p class="feature-desc">
+          Usa el cupón <strong>ENVIOGRATIS</strong> en tu primer pedido o <strong>DIABLO20</strong> para obtener hasta 20% de descuento en tus antojos.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">💳</div>
+        <h3 class="feature-title diabla-font">Múltiples Métodos de Pago</h3>
+        <p class="feature-desc">
+          Paga con Mercado Pago PSE / Tarjeta, transferencia bancaria (Nequi / Bancolombia), datáfono al recibir o efectivo con cambio exacto.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">❤️</div>
+        <h3 class="feature-title diabla-font">Guarda Tus Favoritos</h3>
+        <p class="feature-desc">
+          Guarda tus platillos favoritos con 1 toque en el corazón para re-ordenarlos cuando quieras desde tu perfil.
+        </p>
+      </div>
+    </section>
+
+    <!-- Download Section -->
+    <section id="descarga" style="background: #140E0A; border-top: 1px solid var(--card-border); border-bottom: 1px solid var(--card-border); padding: 4rem 2rem; text-align: center;">
+      <div style="max-width: 800px; margin: 0 auto;">
+        <span style="font-size: 3rem;">🔥</span>
+        <h2 class="diabla-font" style="font-size: 3rem; margin: 1rem 0;">¡DESCARGA LA DIABLA APP AHORA!</h2>
+        <p style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 2rem;">
+          Disponible para smartphones Android. Instala el archivo APK en segundos y disfruta de la mejor comida mexicana de Bucaramanga.
+        </p>
+        <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+          <a href="../build/app/outputs/flutter-apk/app-release.apk" download="LaDiabla-App.apk" class="btn-primary" style="padding: 1rem 2.5rem; font-size: 1.2rem;">
+            📥 Descargar APK (79.4 MB)
+          </a>
+          <a href="login.html" class="btn-secondary" style="padding: 1rem 2rem; font-size: 1.2rem;">
+            🔐 Acceso Administrativo
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer style="padding: 2rem; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+    <p>© 2026 La Diabla Restaurante & Delivery. Cl. 59 # 39W-24, Estoraques 1, Bucaramanga, Santander.</p>
+    <p style="margin-top: 8px;">Credenciales Admin por defecto: <code>appladiabla@gmail.com</code></p>
+  </footer>
+
+</body>
+</html>

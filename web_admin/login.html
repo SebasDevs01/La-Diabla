@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acceso Admin | La Diabla 🌶️</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header>
+    <div class="navbar">
+      <a href="index.html" class="logo-container">
+        <span class="logo-icon">🌶️</span>
+        <span class="logo-text diabla-font">LA DIABLA ADMIN</span>
+      </a>
+      <a href="index.html" class="nav-link">← Volver al Inicio</a>
+    </div>
+  </header>
+
+  <main style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem;">
+    <div class="login-card">
+      <div style="text-align: center; margin-bottom: 2rem;">
+        <span style="font-size: 3.5rem;">👑</span>
+        <h2 class="diabla-font" style="font-size: 2.2rem; color: var(--primary); margin-top: 0.5rem;">PANEL DE CONTROL</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Ingresa tus credenciales maestras de administración</p>
+      </div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label class="form-label" for="email">Correo Electrónico</label>
+          <input type="email" id="email" class="form-input" value="appladiabla@gmail.com" required placeholder="correo@ejemplo.com">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Contraseña Maestra</label>
+          <input type="password" id="password" class="form-input" value="diablaadmin1" required placeholder="••••••••">
+        </div>
+
+        <div id="loginError" style="display: none; background: rgba(239, 68, 68, 0.2); border: 1px solid #EF4444; color: #FCA5A5; padding: 10px 14px; border-radius: 10px; font-size: 0.85rem; margin-bottom: 1.2rem;">
+          ❌ Credenciales inválidas. Verifica tu correo y contraseña.
+        </div>
+
+        <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; padding: 0.9rem; font-size: 1.05rem;">
+          Ingresar al Dashboard 🚀
+        </button>
+      </form>
+
+      <div style="margin-top: 1.8rem; padding-top: 1.2rem; border-top: 1px dashed var(--card-border); text-align: center;">
+        <p style="font-size: 0.85rem; color: var(--text-muted);">
+          Credenciales de acceso rápido:<br>
+          <strong style="color: #FF8080;">appladiabla@gmail.com</strong> / <strong style="color: #FF8080;">diablaadmin1</strong>
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Firebase App SDK (CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyALoHHu4zV9IpwAljGHWjHskoqEvHSKMFQ",
+      authDomain: "ladiabla-11718.firebaseapp.com",
+      projectId: "ladiabla-11718",
+      storageBucket: "ladiabla-11718.firebasestorage.app",
+      messagingSenderId: "724540997267",
+      appId: "1:724540997267:web:c7932bc391104f4886612d"
+    };
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const errorDiv = document.getElementById('loginError');
+
+      if (email.toLowerCase() === 'appladiabla@gmail.com' && password === 'diablaadmin1') {
+        sessionStorage.setItem('diabla_admin_auth', 'true');
+        sessionStorage.setItem('diabla_admin_email', email);
+
+        // Autenticar sesión en Firebase
+        try {
+          await firebase.auth().signInWithEmailAndPassword(email, password);
+        } catch (err) {
+          try {
+            await firebase.auth().createUserWithEmailAndPassword(email, password);
+          } catch (_) {
+            try { await firebase.auth().signInAnonymously(); } catch (_) {}
+          }
+        }
+        window.location.href = 'dashboard.html';
+      } else {
+        errorDiv.style.display = 'block';
+      }
+    });
+  </script>
+
+</body>
+</html>
