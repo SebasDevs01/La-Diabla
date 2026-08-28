@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
+import '../../../../core/services/floating_bubble_service.dart';
 import '../../../../core/services/maps_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/permission_service.dart';
@@ -25,7 +26,11 @@ import '../../../../domain/entities/order_status.dart';
 import '../../../auth/providers/auth_notifier.dart';
 import '../../../orders/providers/orders_provider.dart';
 import '../../../profile/presentation/widgets/privacy_policy_sheet.dart';
+import '../../domain/driver_operational_state.dart';
 import '../../providers/driver_earnings_provider.dart';
+import '../../providers/driver_operational_provider.dart';
+import '../widgets/low_battery_modal.dart';
+import 'driver_permissions_screen.dart';
 
 class DriverDashboardScreen extends ConsumerStatefulWidget {
   const DriverDashboardScreen({super.key});
@@ -34,7 +39,8 @@ class DriverDashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DriverDashboardScreen> createState() => _DriverDashboardScreenState();
 }
 
-class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
+class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
+    with WidgetsBindingObserver {
   int _currentNavIndex = 0; // 0: Pedidos, 1: Mapa/Ruta, 2: Ganancias, 3: Perfil
   bool _isAvailable = true;
 
@@ -62,15 +68,32 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadDriverPreferences();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       ref.read(driverEarningsProvider.notifier).loadEarnings();
       // Solicitar permisos de ubicacion (tiempo real + segundo plano) al repartidor
       if (mounted) {
         await PermissionService.requestDriverLocationPermissions(context);
+        ref.read(driverOperationalProvider.notifier).checkLocationStatus();
       }
       _centerMapOnRealGps();
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Ocultar burbuja flotante al volver a primer plano
+      FloatingBubbleService.instance.hideBubble();
+      ref.read(driverOperationalProvider.notifier).checkLocationStatus();
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // Mostrar burbuja flotante si el repartidor está en servicio o en entrega activa
+      final opState = ref.read(driverOperationalProvider);
+      if (opState.isManualAvailable || opState.hasActiveDelivery) {
+        FloatingBubbleService.instance.showBubble();
+      }
+    }
   }
 
   Future<void> _centerMapOnRealGps() async {
@@ -106,6 +129,8 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    FloatingBubbleService.instance.hideBubble();
     _gpsStreamSubscription?.cancel();
     _flutterTts.stop();
     super.dispose();
@@ -222,6 +247,8 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
         _currentNavIndex = 1; // Ir a pestaña Mapa para presionar "INICIAR VIAJE"
       });
 
+      ref.read(driverOperationalProvider.notifier).setActiveDelivery(order.id);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -267,6 +294,8 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
       setState(() {
         _activeOrder = order.copyWith(status: OrderStatus.onTheWay);
       });
+
+      ref.read(driverOperationalProvider.notifier).setActiveDelivery(order.id);
 
       await _startGpsBroadcast(
         order,
@@ -411,6 +440,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
                 setState(() {
                   _activeOrder = null;
                 });
+                ref.read(driverOperationalProvider.notifier).setActiveDelivery(null);
 
                 showDialog(
                   context: context,
@@ -613,6 +643,14 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = ref.watch(authNotifierProvider).user;
+    final opState = ref.watch(driverOperationalProvider);
+
+    // Escuchar cambios de batería para mostrar modal reactivo (anti-spam)
+    ref.listen<DriverOperationalState>(driverOperationalProvider, (prev, next) {
+      if (next.isBatteryLow && (prev == null || !prev.isBatteryLow)) {
+        LowBatteryModal.showIfNeeded(context, next.batteryLevel);
+      }
+    });
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF1E1712) : const Color(0xFFFAF7F2),
@@ -649,30 +687,85 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
           ],
         ),
         actions: [
+          // Badge Nivel de Batería
+          Container(
+            margin: const EdgeInsets.only(right: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: opState.isBatteryLow
+                  ? const Color(0xFF991B1B)
+                  : Colors.black.withAlpha(50),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: opState.isBatteryLow
+                    ? const Color(0xFFFCA5A5)
+                    : Colors.white24,
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  opState.isBatteryLow
+                      ? Icons.battery_alert_rounded
+                      : Icons.battery_charging_full_rounded,
+                  color: opState.isBatteryLow
+                      ? const Color(0xFFFCA5A5)
+                      : Colors.white,
+                  size: 13,
+                ),
+                const SizedBox(width: 3),
+                Text(
+                  '${opState.batteryLevel}%',
+                  style: TextStyle(
+                    color: opState.isBatteryLow
+                        ? const Color(0xFFFCA5A5)
+                        : Colors.white,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Badge Estado Operativo
           Container(
             margin: const EdgeInsets.only(right: 12),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: _gpsActive
-                  ? const Color(0xFF0EA5E9)
-                  : (_isAvailable ? const Color(0xFF16A34A) : Colors.grey.shade700),
+              color: opState.isBatteryLow
+                  ? const Color(0xFFDC2626)
+                  : (_gpsActive
+                      ? const Color(0xFF0EA5E9)
+                      : (opState.canReceiveOrders
+                          ? const Color(0xFF16A34A)
+                          : Colors.grey.shade700)),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  _gpsActive
-                      ? Icons.gps_fixed_rounded
-                      : (_isAvailable ? Icons.check_circle_rounded : Icons.pause_circle_filled_rounded),
+                  opState.isBatteryLow
+                      ? Icons.battery_alert_rounded
+                      : (_gpsActive
+                          ? Icons.gps_fixed_rounded
+                          : (opState.canReceiveOrders
+                              ? Icons.check_circle_rounded
+                              : Icons.pause_circle_filled_rounded)),
                   color: Colors.white,
                   size: 14,
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  _gpsActive
-                      ? 'GPS ACTIVO'
-                      : (_isAvailable ? 'DISPONIBLE' : 'PAUSA'),
+                  opState.isBatteryLow
+                      ? 'BATERÍA BAJA'
+                      : (_gpsActive
+                          ? 'GPS ACTIVO'
+                          : (opState.canReceiveOrders
+                              ? 'DISPONIBLE'
+                              : 'NO DISPONIBLE')),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 10.5,
@@ -752,9 +845,8 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
   // PESTAÑA 0: DESPACHO / PEDIDOS DISPONIBLES EN COCINA
   // ═════════════════════════════════════════════════════════════════════════════
   Widget _buildDispatchTab(bool isDark) {
-    // Usa el stream que escucha TODOS los pedidos pendientes (sin filtrar por userId)
-    // para que el repartidor vea los pedidos de los clientes
     final allOrdersAsync = ref.watch(allPendingOrdersStreamProvider);
+    final opState = ref.watch(driverOperationalProvider);
 
     return allOrdersAsync.when(
       loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFDC2626))),
@@ -773,6 +865,97 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Banner de Batería Baja (< 10%)
+            if (opState.isBatteryLow) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDC2626).withAlpha(20),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFDC2626), width: 1.5),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.battery_alert_rounded, color: Color(0xFFDC2626), size: 34),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '⚠️ ¡CUIDADO, CARGA TU CELULAR! (${opState.batteryLevel}%)',
+                            style: const TextStyle(
+                              color: Color(0xFFDC2626),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          const Text(
+                            'Tienes menos del 10% de batería. No recibirás más pedidos hasta que cargues tu celular.',
+                            style: TextStyle(fontSize: 12, height: 1.3),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else if (!opState.isLocationEnabled) ...[
+              // Banner de Ubicación Desactivada
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0284C7).withAlpha(20),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFF0284C7), width: 1.5),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.location_off_rounded, color: Color(0xFF0284C7), size: 30),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '📍 UBICACIÓN REQUERIDA',
+                            style: TextStyle(
+                              color: Color(0xFF0284C7),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          const Text(
+                            'Activa el GPS para poder recibir y tomar pedidos.',
+                            style: TextStyle(fontSize: 12, height: 1.3),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0284C7),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const DriverPermissionsScreen()),
+                        );
+                      },
+                      child: const Text('Activar', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // Banner de Alerta si tiene pedido en curso
             if (activeOrders.isNotEmpty || _activeOrder != null) ...[
               GestureDetector(
@@ -879,14 +1062,26 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
                 ),
               )
             else
-              ...availableOrders.map((order) => _buildOrderCard(order, isDark, isAvailable: true)),
+              ...availableOrders.map((order) => _buildOrderCard(
+                    order,
+                    isDark,
+                    isAvailable: true,
+                    canReceive: opState.canReceiveOrders,
+                    blockingReason: opState.blockingReason,
+                  )),
           ],
         );
       },
     );
   }
 
-  Widget _buildOrderCard(OrderEntity order, bool isDark, {required bool isAvailable}) {
+  Widget _buildOrderCard(
+    OrderEntity order,
+    bool isDark, {
+    required bool isAvailable,
+    bool canReceive = true,
+    String? blockingReason,
+  }) {
     final address = order.address?.formattedAddress ?? 'Dirección de Entrega';
     final isPaid = order.paymentStatus == PaymentStatus.paid;
     final shortId = order.id.length > 6 ? order.id.substring(order.id.length - 6).toUpperCase() : order.id;
@@ -1001,21 +1196,61 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
             ],
           ),
           const SizedBox(height: 12),
+          if (!canReceive) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.orange.withAlpha(20),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.orange.shade300),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      blockingReason ?? 'No puedes tomar pedidos en este momento.',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: isDark ? Colors.orange.shade200 : Colors.orange.shade900,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           SizedBox(
             width: double.infinity,
             height: 44,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
+                backgroundColor: canReceive ? const Color(0xFFDC2626) : Colors.grey.shade600,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               icon: const Icon(Icons.two_wheeler_rounded, size: 20),
-              label: const Text(
-                'TOMAR Y SALIR EN RUTA 🛵',
-                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+              label: Text(
+                canReceive ? 'TOMAR Y SALIR EN RUTA 🛵' : 'BLOQUEADO PARA RECIBIR',
+                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
               ),
-              onPressed: () => _takeAndAcceptOrder(order),
+              onPressed: canReceive
+                  ? () => _takeAndAcceptOrder(order)
+                  : () {
+                      final op = ref.read(driverOperationalProvider);
+                      if (op.isBatteryLow) {
+                        LowBatteryModal.showIfNeeded(context, op.batteryLevel);
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const DriverPermissionsScreen()),
+                        );
+                      }
+                    },
             ),
           ),
         ],
@@ -2042,6 +2277,30 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
           ),
         ),
         const SizedBox(height: 16),
+
+        // Configuración de Permisos y Dispositivo (Soy Rappi / La Diabla)
+        Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF2C1B14) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark ? AppColors.dividerDark : Colors.grey.shade200,
+            ),
+          ),
+          child: ListTile(
+            leading: const Icon(Icons.settings_suggest_rounded, color: Color(0xFF0EA5E9)),
+            title: const Text('Configuración de Permisos y Dispositivo ⚙️', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+            subtitle: const Text('Ubicación, Batería, Notificaciones y Acceso Flotante', style: TextStyle(fontSize: 11.5)),
+            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DriverPermissionsScreen()),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 14),
 
         // Privacidad y Términos
         Container(
