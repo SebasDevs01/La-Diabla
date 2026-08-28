@@ -27,10 +27,15 @@ import '../../../auth/providers/auth_notifier.dart';
 import '../../../orders/providers/orders_provider.dart';
 import '../../../profile/presentation/widgets/privacy_policy_sheet.dart';
 import '../../domain/driver_operational_state.dart';
+import '../../domain/order_matching_engine.dart';
+import '../../domain/work_mode.dart';
 import '../../providers/driver_earnings_provider.dart';
 import '../../providers/driver_operational_provider.dart';
+import '../widgets/animated_driver_marker.dart';
 import '../widgets/low_battery_modal.dart';
+import '../widgets/work_mode_selector_sheet.dart';
 import 'driver_permissions_screen.dart';
+import 'driver_support_screen.dart';
 
 class DriverDashboardScreen extends ConsumerStatefulWidget {
   const DriverDashboardScreen({super.key});
@@ -56,6 +61,9 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   final Completer<GoogleMapController> _mapControllerCompleter = Completer<GoogleMapController>();
   OrderEntity? _activeOrder;
   LatLng _driverCurrentPos = MapsService.defaultLocation;
+  double _currentBearing = 0.0;
+  BitmapDescriptor? _driverMarkerIcon;
+  final Set<String> _autoAcceptedOrderIds = {};
 
   // Datos editables del vehículo y del repartidor
   String _vehicleModel = 'Motocicleta 125cc';
@@ -69,6 +77,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadMarkerIcon();
     _loadDriverPreferences();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       ref.read(driverEarningsProvider.notifier).loadEarnings();
@@ -109,6 +118,48 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           CameraPosition(target: newPos, zoom: 16.0),
         ));
       }
+    }
+  }
+
+  Future<void> _loadMarkerIcon() async {
+    try {
+      final icon = await AnimatedDriverMarker.getDriverIcon();
+      if (mounted) {
+        setState(() {
+          _driverMarkerIcon = icon;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _autoAcceptOrder(OrderEntity order, MatchResult match) async {
+    final shortId = order.id.length > 6 ? order.id.substring(order.id.length - 6).toUpperCase() : order.id;
+    try {
+      await _flutterTts.speak('¡Nuevo pedido autoaceptado de La Diabla!');
+    } catch (_) {}
+
+    await _takeAndAcceptOrder(order);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Text('🤖', style: TextStyle(fontSize: 22)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '¡Pedido #$shortId AUTOACEPTADO!\nRuta total: ${match.totalDistanceKm} km · Ganancia: +${PriceFormatter.formatSmart(match.deliveryFee)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF16A34A),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 5),
+        ),
+      );
     }
   }
 
@@ -168,8 +219,16 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     _gpsStreamSubscription = PermissionService.getPositionStream().listen(
       (Position position) async {
         final newPos = LatLng(position.latitude, position.longitude);
+        double bearing = position.heading;
+        if (bearing <= 0) {
+          bearing = MapsService.calculateBearing(_driverCurrentPos, newPos);
+        }
+
         if (mounted) {
-          setState(() => _driverCurrentPos = newPos);
+          setState(() {
+            _driverCurrentPos = newPos;
+            if (bearing > 0) _currentBearing = bearing;
+          });
         }
 
         // Transmitir coordenadas reales a Firestore cada actualización
@@ -180,7 +239,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               .update({
             'driverLatitude': position.latitude,
             'driverLongitude': position.longitude,
-            'driverHeading': position.heading,
+            'driverHeading': _currentBearing,
             'driverSpeed': position.speed,
             'updatedAt': FieldValue.serverTimestamp(),
           });
@@ -844,6 +903,142 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   // ═════════════════════════════════════════════════════════════════════════════
   // PESTAÑA 0: DESPACHO / PEDIDOS DISPONIBLES EN COCINA
   // ═════════════════════════════════════════════════════════════════════════════
+  Widget _buildTopControlHud(DriverOperationalState opState, bool isDark) {
+    final prefs = opState.preferences;
+    final workMode = WorkMode.getById(prefs.activeWorkModeId);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF2C1B14) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? AppColors.dividerDark : Colors.grey.shade200,
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(isDark ? 30 : 10),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // 🟢 Conectado / 🔴 Desconectado
+              Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: prefs.isConnected ? const Color(0xFF16A34A) : Colors.grey,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    prefs.isConnected ? 'CONECTADO' : 'DESCONECTADO',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                      color: prefs.isConnected ? const Color(0xFF16A34A) : Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Transform.scale(
+                    scale: 0.75,
+                    child: Switch(
+                      value: prefs.isConnected,
+                      activeThumbColor: const Color(0xFF16A34A),
+                      onChanged: (val) {
+                        ref.read(driverOperationalProvider.notifier).toggleConnection(val);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+
+              // 🤖 Autoaceptación Switch
+              Row(
+                children: [
+                  Text(
+                    'AUTOACEPTAR 🤖',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                      color: prefs.isAutoAcceptEnabled ? const Color(0xFF0284C7) : Colors.grey,
+                    ),
+                  ),
+                  Transform.scale(
+                    scale: 0.75,
+                    child: Switch(
+                      value: prefs.isAutoAcceptEnabled,
+                      activeThumbColor: const Color(0xFF0284C7),
+                      onChanged: (val) {
+                        ref.read(driverOperationalProvider.notifier).toggleAutoAccept(val);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const Divider(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Chip Modo de Trabajo
+              GestureDetector(
+                onTap: () => WorkModeSelectorSheet.show(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDC2626).withAlpha(20),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFDC2626), width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(workMode.emoji, style: const TextStyle(fontSize: 14)),
+                      const SizedBox(width: 6),
+                      Text(
+                        workMode.name,
+                        style: const TextStyle(
+                          color: Color(0xFFDC2626),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFFDC2626), size: 18),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Métricas de Filtros
+              Text(
+                'Máx: ${prefs.maxTotalDistanceKm.toStringAsFixed(0)} km · ${prefs.vehicleType.displayName}',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? AppColors.textMutedDark : Colors.grey.shade700,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDispatchTab(bool isDark) {
     final allOrdersAsync = ref.watch(allPendingOrdersStreamProvider);
     final opState = ref.watch(driverOperationalProvider);
@@ -862,9 +1057,38 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         final activeOrders = orders.where((o) =>
             o.status == OrderStatus.onTheWay || o.status == OrderStatus.assigned).toList();
 
+        // 🤖 Reactor de Autoaceptación Inteligente
+        if (opState.preferences.isAutoAcceptEnabled &&
+            opState.canReceiveOrders &&
+            availableOrders.isNotEmpty) {
+          for (final order in availableOrders) {
+            if (!_autoAcceptedOrderIds.contains(order.id)) {
+              final match = OrderMatchingEngine.evaluate(
+                order: order,
+                driverLocation: _driverCurrentPos,
+                preferences: opState.preferences,
+                batteryLevel: opState.batteryLevel,
+                isBatteryLow: opState.isBatteryLow,
+                isOnline: opState.isOnline,
+                hasActiveDelivery: opState.hasActiveDelivery,
+              );
+              if (match.isMatch) {
+                _autoAcceptedOrderIds.add(order.id);
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _autoAcceptOrder(order, match);
+                });
+                break;
+              }
+            }
+          }
+        }
+
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // HUD Superior de Control
+            _buildTopControlHud(opState, isDark),
+
             // Banner de Batería Baja (< 10%)
             if (opState.isBatteryLow) ...[
               Container(
@@ -1066,8 +1290,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                     order,
                     isDark,
                     isAvailable: true,
-                    canReceive: opState.canReceiveOrders,
-                    blockingReason: opState.blockingReason,
+                    opState: opState,
                   )),
           ],
         );
@@ -1079,12 +1302,24 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     OrderEntity order,
     bool isDark, {
     required bool isAvailable,
-    bool canReceive = true,
-    String? blockingReason,
+    required DriverOperationalState opState,
   }) {
     final address = order.address?.formattedAddress ?? 'Dirección de Entrega';
     final isPaid = order.paymentStatus == PaymentStatus.paid;
     final shortId = order.id.length > 6 ? order.id.substring(order.id.length - 6).toUpperCase() : order.id;
+
+    // Evaluación con OrderMatchingEngine
+    final match = OrderMatchingEngine.evaluate(
+      order: order,
+      driverLocation: _driverCurrentPos,
+      preferences: opState.preferences,
+      batteryLevel: opState.batteryLevel,
+      isBatteryLow: opState.isBatteryLow,
+      isOnline: opState.isOnline,
+      hasActiveDelivery: opState.hasActiveDelivery,
+    );
+
+    final canReceive = opState.canReceiveOrders;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -1093,8 +1328,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         color: isDark ? const Color(0xFF2C1B14) : Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isDark ? AppColors.dividerDark : Colors.grey.shade200,
-          width: 1.2,
+          color: match.isMatch
+              ? (isDark ? const Color(0xFF16A34A).withAlpha(120) : const Color(0xFF81C784))
+              : (isDark ? AppColors.dividerDark : Colors.grey.shade200),
+          width: match.isMatch ? 1.5 : 1.2,
         ),
         boxShadow: [
           BoxShadow(
@@ -1155,6 +1392,30 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
             ],
           ),
           const Divider(height: 16),
+
+          // Desglose de Ruta y Distancias
+          Container(
+            padding: const EdgeInsets.all(10),
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.black26 : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.route_rounded, size: 20, color: Color(0xFFDC2626)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '🛵 A cocina: ${match.storeDistanceKm} km  →  📍 Entrega: ${match.deliveryDistanceKm} km\nTotal: ${match.totalDistanceKm} km (~${match.estimatedMinutes} min)',
+                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, height: 1.3),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           Row(
             children: [
               const Icon(Icons.location_on_rounded, color: Color(0xFFDC2626), size: 20),
@@ -1186,7 +1447,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                 ),
               ),
               Text(
-                'Ganancia: +${PriceFormatter.formatSmart(7500)}',
+                'Ganancia: +${PriceFormatter.formatSmart(match.deliveryFee)}',
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -1195,34 +1456,47 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          if (!canReceive) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(
-                color: Colors.orange.withAlpha(20),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.orange.shade300),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      blockingReason ?? 'No puedes tomar pedidos en este momento.',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: isDark ? Colors.orange.shade200 : Colors.orange.shade900,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
+          const SizedBox(height: 10),
+
+          // Badge de Compatibilidad y Explicación Transparente
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: match.isMatch
+                  ? const Color(0xFF16A34A).withAlpha(15)
+                  : Colors.orange.withAlpha(20),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: match.isMatch ? const Color(0xFF16A34A) : Colors.orange.shade400,
               ),
             ),
-          ],
+            child: Row(
+              children: [
+                Icon(
+                  match.isMatch ? Icons.verified_rounded : Icons.info_outline_rounded,
+                  color: match.isMatch ? const Color(0xFF16A34A) : Colors.orange.shade800,
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    match.isMatch
+                        ? 'COMPATIBLE CON TU MODO (${opState.preferences.activeWorkModeId.toUpperCase()})'
+                        : 'NO COMPATIBLE: ${match.explanation}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: match.isMatch
+                          ? (isDark ? Colors.green.shade300 : const Color(0xFF16A34A))
+                          : (isDark ? Colors.orange.shade200 : Colors.orange.shade900),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           SizedBox(
             width: double.infinity,
             height: 44,
@@ -1263,6 +1537,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   // ═════════════════════════════════════════════════════════════════════════════
   Widget _buildMapRouteTab(bool isDark) {
     final activeOrder = _activeOrder;
+    final opState = ref.watch(driverOperationalProvider);
 
     final destLat = activeOrder?.address?.latitude ?? activeOrder?.latitude ?? 7.092758;
     final destLng = activeOrder?.address?.longitude ?? activeOrder?.longitude ?? -73.142590;
@@ -1279,8 +1554,11 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       Marker(
         markerId: const MarkerId('driver'),
         position: _driverCurrentPos,
-        infoWindow: const InfoWindow(title: 'Mi Posición 🛵 (Repartidor)'),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
+        rotation: _currentBearing,
+        flat: true,
+        anchor: const Offset(0.5, 0.5),
+        infoWindow: const InfoWindow(title: 'Mi Posición 🛵 (La Diabla)'),
+        icon: _driverMarkerIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose),
       ),
       if (activeOrder != null)
         Marker(
@@ -1327,10 +1605,18 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           },
         ),
 
+        // HUD Superior Flotante sobre el Mapa
+        Positioned(
+          top: 14,
+          left: 14,
+          right: 70,
+          child: _buildTopControlHud(opState, isDark),
+        ),
+
         // Botón flotante para centrar en GPS Real
         Positioned(
-          top: 16,
-          right: 16,
+          top: 20,
+          right: 14,
           child: FloatingActionButton.small(
             backgroundColor: isDark ? const Color(0xFF1E1712) : Colors.white,
             foregroundColor: const Color(0xFFDC2626),
@@ -2278,6 +2564,25 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         ),
         const SizedBox(height: 16),
 
+        // Modos y Preferencias de Trabajo (La Diabla)
+        Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF2C1B14) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark ? AppColors.dividerDark : Colors.grey.shade200,
+            ),
+          ),
+          child: ListTile(
+            leading: const Icon(Icons.tune_rounded, color: Color(0xFFDC2626)),
+            title: const Text('Modos y Preferencias de Trabajo 🛵', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+            subtitle: const Text('Cercano, Eléctrico, Normal, Maximizar Ganancias', style: TextStyle(fontSize: 11.5)),
+            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+            onTap: () => WorkModeSelectorSheet.show(context),
+          ),
+        ),
+        const SizedBox(height: 14),
+
         // Configuración de Permisos y Dispositivo (Soy Rappi / La Diabla)
         Container(
           decoration: BoxDecoration(
@@ -2296,6 +2601,32 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const DriverPermissionsScreen()),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Centro de Ayuda y Soporte al Repartidor
+        Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF2C1B14) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark ? AppColors.dividerDark : Colors.grey.shade200,
+            ),
+          ),
+          child: ListTile(
+            leading: const Icon(Icons.support_agent_rounded, color: Color(0xFF16A34A)),
+            title: const Text('Centro de Ayuda y Soporte 🆘', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+            subtitle: const Text('Asesor humano, problemas con pedidos y liquidación', style: TextStyle(fontSize: 11.5)),
+            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DriverSupportScreen(activeOrder: _activeOrder),
+                ),
               );
             },
           ),

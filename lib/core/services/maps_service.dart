@@ -41,17 +41,51 @@ class MapsService {
     return double.parse(km.toStringAsFixed(1));
   }
 
+  /// Calcula el rumbo (bearing) en grados (0 - 360) entre dos puntos para orientar la moto.
+  static double calculateBearing(LatLng start, LatLng end) {
+    final lat1 = start.latitude * (math.pi / 180.0);
+    final lon1 = start.longitude * (math.pi / 180.0);
+    final lat2 = end.latitude * (math.pi / 180.0);
+    final lon2 = end.longitude * (math.pi / 180.0);
+
+    final dLon = lon2 - lon1;
+    final y = math.sin(dLon) * math.cos(lat2);
+    final x = math.cos(lat1) * math.sin(lat2) -
+        math.sin(lat1) * math.cos(lat2) * math.cos(dLon);
+
+    final radians = math.atan2(y, x);
+    return (radians * (180.0 / math.pi) + 360.0) % 360.0;
+  }
+
+  /// Calcula la distancia total compuesta de entrega:
+  /// Tramo 1: Repartidor -> Cocina Central
+  /// Tramo 2: Cocina Central -> Cliente
+  static ({double storeDistanceKm, double deliveryDistanceKm, double totalDistanceKm})
+      calculateCompositeDistance({
+    required LatLng driverLocation,
+    LatLng storeLocation = defaultLocation,
+    required LatLng customerLocation,
+  }) {
+    final storeDist = calculateDistanceKm(driverLocation, storeLocation);
+    final deliveryDist = calculateDistanceKm(storeLocation, customerLocation);
+    final total = double.parse((storeDist + deliveryDist).toStringAsFixed(1));
+    return (
+      storeDistanceKm: storeDist,
+      deliveryDistanceKm: deliveryDist,
+      totalDistanceKm: total,
+    );
+  }
+
   /// Calcula la distancia desde la cocina central hasta la ubicación destino.
   static double distanceFromKitchenKm(LatLng destination) {
     return calculateDistanceKm(defaultLocation, destination);
   }
 
   /// Tiempo estimado de entrega en moto según distancia.
-  static String estimateDeliveryTime(double distanceKm) {
-    if (distanceKm <= 2.5) return '15 - 25 min';
-    if (distanceKm <= 5.0) return '25 - 35 min';
-    if (distanceKm <= 8.0) return '35 - 45 min';
-    return '45 - 60 min';
+  static String estimateDeliveryTime(double distanceKm, {double speedKmh = 35.0}) {
+    final minutes = (distanceKm / speedKmh * 60).round() + 10; // +10 min preparación/despacho
+    if (minutes <= 25) return '$minutes - ${minutes + 10} min';
+    return '$minutes - ${minutes + 15} min';
   }
 
   // ─── Geocodificación Inversa (coordenadas → dirección) ────────────────────

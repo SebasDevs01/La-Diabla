@@ -1,4 +1,5 @@
 // lib/features/driver/domain/driver_operational_state.dart
+import 'driver_preferences.dart';
 
 /// Estados operativos del repartidor según condiciones del dispositivo.
 enum DriverOperationalStatus {
@@ -7,6 +8,7 @@ enum DriverOperationalStatus {
   locationUnavailable,
   offline,
   activeDelivery,
+  disconnected,
   paused;
 
   String get displayName {
@@ -16,6 +18,7 @@ enum DriverOperationalStatus {
       DriverOperationalStatus.locationUnavailable => 'No disponible — sin ubicación GPS',
       DriverOperationalStatus.offline => 'Sin conexión a internet',
       DriverOperationalStatus.activeDelivery => 'En entrega activa',
+      DriverOperationalStatus.disconnected => 'Desconectado',
       DriverOperationalStatus.paused => 'En pausa',
     };
   }
@@ -27,6 +30,7 @@ enum DriverOperationalStatus {
       DriverOperationalStatus.locationUnavailable => 'LOCATION_UNAVAILABLE',
       DriverOperationalStatus.offline => 'OFFLINE',
       DriverOperationalStatus.activeDelivery => 'ACTIVE_DELIVERY',
+      DriverOperationalStatus.disconnected => 'DISCONNECTED',
       DriverOperationalStatus.paused => 'PAUSED',
     };
   }
@@ -43,6 +47,7 @@ class DriverOperationalState {
   final bool isManualAvailable;
   final bool hasActiveDelivery;
   final String? activeOrderId;
+  final DriverPreferences preferences;
   final DateTime lastUpdated;
 
   const DriverOperationalState({
@@ -55,13 +60,15 @@ class DriverOperationalState {
     this.isManualAvailable = true,
     this.hasActiveDelivery = false,
     this.activeOrderId,
+    this.preferences = const DriverPreferences(),
     required this.lastUpdated,
   });
 
   /// Regla de negocio estricta: Solo puede recibir pedidos si está online,
-  /// disponible manualmente, con batería >= 10%, con ubicación activa y sin entrega activa en curso.
+  /// conectado, disponible, con batería >= 10%, con GPS activo y sin entrega activa en curso.
   bool get canReceiveOrders =>
       isOnline &&
+      preferences.isConnected &&
       isManualAvailable &&
       !isBatteryLow &&
       isLocationEnabled &&
@@ -69,6 +76,9 @@ class DriverOperationalState {
 
   /// Motivo de bloqueo en caso de no poder recibir pedidos.
   String? get blockingReason {
+    if (!preferences.isConnected) {
+      return 'Te encuentras desconectado. Toca "Conectar" para recibir oportunidades.';
+    }
     if (isBatteryLow) {
       return 'Batería menor al 10%. Conecta el cargador para volver a recibir pedidos.';
     }
@@ -97,6 +107,7 @@ class DriverOperationalState {
     bool? isManualAvailable,
     bool? hasActiveDelivery,
     String? activeOrderId,
+    DriverPreferences? preferences,
     DateTime? lastUpdated,
   }) {
     return DriverOperationalState(
@@ -110,6 +121,7 @@ class DriverOperationalState {
       isManualAvailable: isManualAvailable ?? this.isManualAvailable,
       hasActiveDelivery: hasActiveDelivery ?? this.hasActiveDelivery,
       activeOrderId: activeOrderId ?? this.activeOrderId,
+      preferences: preferences ?? this.preferences,
       lastUpdated: lastUpdated ?? DateTime.now(),
     );
   }
@@ -125,6 +137,11 @@ class DriverOperationalState {
       'isOnline': isOnline,
       'hasActiveDelivery': hasActiveDelivery,
       'activeOrderId': activeOrderId,
+      'isConnected': preferences.isConnected,
+      'isAutoAcceptEnabled': preferences.isAutoAcceptEnabled,
+      'workMode': preferences.activeWorkModeId,
+      'vehicleType': preferences.vehicleType.name,
+      'maxDistanceKm': preferences.maxTotalDistanceKm,
       'lastHeartbeat': DateTime.now().toIso8601String(),
     };
   }
