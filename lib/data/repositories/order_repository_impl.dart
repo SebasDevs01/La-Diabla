@@ -43,10 +43,23 @@ class OrderRepositoryImpl implements OrderRepository {
     try {
       final query = await _ordersCol
           .where('userId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
-          .get();
+          .get()
+          .timeout(const Duration(seconds: 4));
       if (query.docs.isNotEmpty) {
-        return query.docs.map((doc) => OrderModel.fromFirestore(doc)).toList();
+        final list = query.docs.map((doc) {
+          try {
+            return OrderModel.fromFirestore(doc);
+          } catch (_) {
+            return null;
+          }
+        }).whereType<OrderEntity>().toList();
+
+        list.sort((a, b) {
+          final dateA = a.createdAt ?? DateTime.now();
+          final dateB = b.createdAt ?? DateTime.now();
+          return dateB.compareTo(dateA);
+        });
+        return list;
       }
     } catch (e) {
       _logger.w('Error fetching orders from Firestore: $e');
@@ -57,7 +70,7 @@ class OrderRepositoryImpl implements OrderRepository {
   @override
   Future<OrderEntity?> getOrderById(String orderId) async {
     try {
-      final doc = await _ordersCol.doc(orderId).get();
+      final doc = await _ordersCol.doc(orderId).get().timeout(const Duration(seconds: 3));
       if (doc.exists) {
         return OrderModel.fromFirestore(doc);
       }
@@ -76,15 +89,19 @@ class OrderRepositoryImpl implements OrderRepository {
     try {
       yield* _ordersCol.doc(orderId).snapshots().map((doc) {
         if (doc.exists) {
-          final fromDb = OrderModel.fromFirestore(doc);
-          final idx = _inMemoryOrders.indexWhere((o) => o.id == orderId);
-          if (idx != -1) {
-            _inMemoryOrders[idx] = fromDb;
-          } else {
-            _inMemoryOrders.insert(0, fromDb);
-          }
-          return fromDb;
+          try {
+            final fromDb = OrderModel.fromFirestore(doc);
+            final idx = _inMemoryOrders.indexWhere((o) => o.id == orderId);
+            if (idx != -1) {
+              _inMemoryOrders[idx] = fromDb;
+            } else {
+              _inMemoryOrders.insert(0, fromDb);
+            }
+            return fromDb;
+          } catch (_) {}
         }
+        return _inMemoryOrders.where((o) => o.id == orderId).firstOrNull;
+      }).handleError((_) {
         return _inMemoryOrders.where((o) => o.id == orderId).firstOrNull;
       });
     } catch (e) {
@@ -99,15 +116,46 @@ class OrderRepositoryImpl implements OrderRepository {
       yield const [];
       return;
     }
+
+    // 1. Emitir inmediatamente lo que esté en memoria para evitar estado offline/vacío
+    final local = _inMemoryOrders.where((o) => o.userId == userId).toList();
+    if (local.isNotEmpty) {
+      yield local;
+    }
+
+    // 2. Escuchar Firestore con ordenamiento en memoria (sin requerir índices compuestos)
     try {
       yield* _ordersCol
           .where('userId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
           .snapshots()
           .map((snapshot) {
-        return snapshot.docs
-            .map((doc) => OrderModel.fromFirestore(doc))
-            .toList();
+        final list = snapshot.docs.map((doc) {
+          try {
+            return OrderModel.fromFirestore(doc);
+          } catch (e) {
+            return null;
+          }
+        }).whereType<OrderEntity>().toList();
+
+        list.sort((a, b) {
+          final dateA = a.createdAt ?? DateTime.now();
+          final dateB = b.createdAt ?? DateTime.now();
+          return dateB.compareTo(dateA);
+        });
+
+        for (final o in list) {
+          final idx = _inMemoryOrders.indexWhere((item) => item.id == o.id);
+          if (idx != -1) {
+            _inMemoryOrders[idx] = o;
+          } else {
+            _inMemoryOrders.add(o);
+          }
+        }
+
+        return list;
+      }).handleError((error) {
+        _logger.w('watchActiveOrders stream error: $error');
+        return _inMemoryOrders.where((o) => o.userId == userId).toList();
       });
     } catch (e) {
       _logger.w('watchActiveOrders error: $e');
@@ -118,10 +166,10 @@ class OrderRepositoryImpl implements OrderRepository {
   @override
   Future<void> cancelOrder(String orderId) async {
     try {
-      await _ordersCol.doc(orderId).update({
+      await _ordersCol.doc(orderId).set({
         'status': OrderStatus.cancelled.name,
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
     } catch (e) {
       _logger.w('cancelOrder error: $e');
     }
@@ -138,10 +186,10 @@ class OrderRepositoryImpl implements OrderRepository {
   @override
   Future<void> updateOrderStatus(String orderId, OrderStatus status) async {
     try {
-      await _ordersCol.doc(orderId).update({
+      await _ordersCol.doc(orderId).set({
         'status': status.name,
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
     } catch (e) {
       _logger.w('updateOrderStatus error: $e');
     }

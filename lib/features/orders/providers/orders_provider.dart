@@ -1,5 +1,6 @@
 // lib/features/orders/providers/orders_provider.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/repositories/order_repository_impl.dart';
 import '../../../data/models/order_model.dart';
@@ -16,7 +17,7 @@ final orderRepositoryProvider = Provider<OrderRepository>((ref) {
 // Stream de Pedidos del Usuario (cliente)
 final userOrdersStreamProvider = StreamProvider<List<OrderEntity>>((ref) async* {
   final authState = ref.watch(authNotifierProvider);
-  final userId = authState.user?.id ?? '';
+  final userId = authState.user?.id ?? FirebaseAuth.instance.currentUser?.uid ?? '';
   final repo = ref.watch(orderRepositoryProvider);
   if (userId.isEmpty) {
     yield [];

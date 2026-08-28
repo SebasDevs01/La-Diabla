@@ -406,6 +406,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final couponState = ref.watch(couponProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // 🐛 DEBUG: Ayuda a diagnosticar pantalla en blanco
+    debugPrint('🛒 CheckoutScreen.build: items=${cartState.items.length}, isEmpty=${cartState.items.isEmpty}, user=${authState.user?.id ?? "null"}');
+
     final subtotal = cartState.total;
     final couponDiscount = couponState.coupon?.calculateDiscount(subtotal) ?? 0;
     final total = (subtotal - couponDiscount).clamp(0.0, double.infinity);
@@ -418,23 +421,40 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         title: const Text('Confirmar y Pagar 🌶️', style: TextStyle(fontFamily: AppTypography.displayFamily, fontSize: 22)),
         centerTitle: true,
       ),
-      body: cartState.items.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.shopping_cart_outlined, size: 64, color: AppColors.textMuted),
-                  const SizedBox(height: 16),
-                  const Text('Tu carrito está vacío', style: TextStyle(fontSize: 16)),
-                  const SizedBox(height: 20),
-                  DiablaButton(
-                    text: 'Ver Menú 🔥',
-                    onPressed: () => context.go('/menu'),
-                  ),
-                ],
-              ),
-            )
-          : ListView(
+      body: SafeArea(
+        top: false,
+        child: cartState.items.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.shopping_cart_outlined, size: 64, color: AppColors.textMuted),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Tu carrito está vacío',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Agrega productos desde el menú para continuar',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? AppColors.textMutedDark : AppColors.textMuted,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    DiablaButton(
+                      text: 'Ver Menú 🔥',
+                      onPressed: () => context.go('/menu'),
+                    ),
+                  ],
+                ),
+              )
+            : ListView(
               padding: const EdgeInsets.all(AppSpacing.screenHorizontal),
               children: [
                 // ─── 1. DIRECCIÓN DE ENTREGA ────────────────────────────────
@@ -779,6 +799,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                   padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                                  minimumSize: Size.zero,
                                   elevation: 2,
                                 ),
                                 onPressed: couponState.isLoading
@@ -979,6 +1000,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 const SizedBox(height: 30),
               ],
             ),
+        ),
     );
   }
 
@@ -1343,6 +1365,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFDC2626),
               foregroundColor: Colors.white,
+              minimumSize: const Size(120, 44),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () {
@@ -1498,7 +1521,8 @@ class _LoyaltyCouponsSection extends ConsumerWidget {
           .collection('orders')
           .where('userId', isEqualTo: userId)
           .where('status', isEqualTo: 'delivered')
-          .get();
+          .get()
+          .timeout(const Duration(seconds: 2));
       return snapshot.docs.length;
     } catch (_) {
       return 0;

@@ -38,28 +38,36 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     _controller.forward();
 
-    Future.delayed(const Duration(milliseconds: 1500), () async {
+    Future.delayed(const Duration(milliseconds: 1400), () async {
+      if (!mounted) return;
+
       final prefs = await SharedPreferences.getInstance();
-      final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
+      if (!mounted) return;
+
       final isDelivery = prefs.getBool('is_delivery_mode') ?? false;
+
+      // Firebase Auth es la fuente de verdad para la sesión.
+      // SharedPreferences sólo se usa para el rol/modo (driver, admin).
+      final authState = ref.read(authNotifierProvider);
+      final repo = ref.read(authRepositoryProvider);
+      final currentUser = repo.currentUser;
+
+      // Considerar sesión activa solo si Firebase tiene usuario o AuthNotifier lo tiene listo
+      final effectiveUser = authState.user ?? currentUser;
+      final hasSession = effectiveUser != null;
 
       if (!mounted) return;
 
-      final repo = ref.read(authRepositoryProvider);
-      final currentUser = repo.currentUser;
-      final authState = ref.read(authNotifierProvider);
-      final hasRealSession = isLoggedIn || (currentUser != null);
-
-      if (hasRealSession && authState.user != null) {
-        if (authState.user!.isAdmin) {
+      if (hasSession) {
+        if (effectiveUser.isAdmin) {
           context.go('/admin');
-        } else if (isDelivery || authState.user!.isDriver) {
+        } else if (isDelivery || effectiveUser.isDriver) {
           context.go('/driver');
         } else {
           context.go('/home');
         }
       } else {
-        // Primera vez o sesión cerrada → Siempre mostrar pantalla de inicio de sesión
+        // Sin sesión → pantalla de login
         context.go('/auth');
       }
     });

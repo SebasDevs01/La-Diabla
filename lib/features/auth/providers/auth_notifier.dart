@@ -1,5 +1,6 @@
 // lib/features/auth/providers/auth_notifier.dart
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -83,63 +84,73 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await prefs.remove('guest_name');
       await prefs.remove('guest_phone');
       await prefs.remove('guest_address');
+      await prefs.remove('saved_addresses');
     } catch (_) {}
   }
 
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
-    final isGuest = prefs.getBool('is_guest_user') ?? false;
-    final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
 
-    if (isGuest) {
-      final guestName = prefs.getString('guest_name') ?? 'Invitado Diabla';
-      final guestPhone = prefs.getString('guest_phone') ?? '3000000000';
-      final guestAddress = prefs.getString('guest_address') ?? 'Direccion de entrega';
+    // ── 1. VERIFICAR FIREBASE AUTH PRIMERO (es la fuente de verdad)
+    final fbUser = FirebaseAuth.instance.currentUser;
 
-      final guestUser = UserEntity(
-        id: 'guest_${guestPhone.replaceAll(' ', '')}',
-        name: guestName,
-        email: 'invitado@ladiabla.app',
-        role: UserRole.customer,
-        phone: guestPhone,
-        isGuest: true,
-        guestAddress: guestAddress,
-        referralCode: 'DIABLA-INV${guestPhone.length >= 4 ? guestPhone.substring(guestPhone.length - 4) : "7824"}',
-      );
-      state = state.copyWith(user: guestUser, isLoading: false);
+    if (fbUser == null) {
+      // No hay sesión de Firebase → limpiar SharedPreferences por si quedaron datos
+      // de una instalación anterior (reinstall) o sesión cerrada incorrectamente
+      await _clearUserSession();
+      state = state.copyWith(user: null, isLoading: false);
+      // Suscribir al stream para detectar futuros logins
+      final repo = _ref.read(authRepositoryProvider);
+      _authSubscription = repo.authStateChanges.listen((user) {
+        if (user != null) {
+          state = state.copyWith(user: user, isLoading: false);
+          _saveUserSession(user);
+        } else {
+          state = state.copyWith(user: null, isLoading: false, clearUser: true);
+          _clearUserSession();
+        }
+      });
       return;
     }
 
-    if (isLoggedIn) {
-      final savedId = prefs.getString('saved_user_id') ?? 'user_cached';
-      final savedName = prefs.getString('saved_user_name') ?? 'Usuario La Diabla';
-      final savedEmail = prefs.getString('saved_user_email') ?? '';
-      final savedPhone = prefs.getString('saved_user_phone');
-      final savedPhoto = prefs.getString('saved_user_photo');
-      final savedRole = prefs.getString('saved_user_role') == 'driver' ? UserRole.driver : UserRole.customer;
+    // ── 2. Firebase SÍ tiene usuario activo → reconstruir sesión
+    final isGuest = prefs.getBool('is_guest_user') ?? false;
+    final savedRole = prefs.getString('saved_user_role');
 
-      final cachedUser = UserEntity(
-        id: savedId,
-        name: savedName,
-        email: savedEmail,
-        role: savedRole,
-        phone: savedPhone,
-        photoUrl: savedPhoto,
-      );
-      state = state.copyWith(user: cachedUser, isLoading: false);
+    // Si tiene sesión de Firebase pero guardado como guest, ignorar el flag guest
+    // (puede pasar si la sesión se corrompió)
+    if (isGuest && !fbUser.isAnonymous) {
+      await prefs.setBool('is_guest_user', false);
     }
 
+    final effectiveRole = savedRole == 'driver' || fbUser.email == 'repartidor@ladiabla.app'
+        ? UserRole.driver
+        : (fbUser.email == 'admin@ladiabla.app' ? UserRole.admin : UserRole.customer);
+
+    final userEntity = UserEntity(
+      id: fbUser.uid,
+      name: (fbUser.displayName != null && fbUser.displayName!.isNotEmpty)
+          ? fbUser.displayName!
+          : (prefs.getString('saved_user_name') ?? 'Usuario La Diabla'),
+      email: fbUser.email ?? prefs.getString('saved_user_email') ?? '',
+      role: effectiveRole,
+      phone: fbUser.phoneNumber ?? prefs.getString('saved_user_phone'),
+      photoUrl: fbUser.photoURL ?? prefs.getString('saved_user_photo'),
+      createdAt: DateTime.now(),
+    );
+    state = state.copyWith(user: userEntity, isLoading: false);
+    await _saveUserSession(userEntity);
+
+    // ── 3. Suscribir al stream para cambios de sesión en tiempo real
     final repo = _ref.read(authRepositoryProvider);
-    final initialUser = repo.currentUser;
-    if (initialUser != null) {
-      state = state.copyWith(user: initialUser, isLoading: false);
-      await _saveUserSession(initialUser);
-    }
-
     _authSubscription = repo.authStateChanges.listen((user) {
       if (user != null) {
         state = state.copyWith(user: user, isLoading: false);
         _saveUserSession(user);
+      } else {
+        // Firebase cerró sesión → limpiar estado local
+        state = state.copyWith(user: null, isLoading: false, clearUser: true);
+        _clearUserSession();
       }
     });
   }
@@ -372,6 +383,26 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final fbUser = FirebaseAuth.instance.currentUser;
       if (fbUser != null) {
+        final uid = fbUser.uid;
+        // 1. Limpiar datos personales y direcciones en Firestore
+        try {
+          final addrSnap = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('addresses')
+              .get()
+              .timeout(const Duration(seconds: 4));
+          for (final doc in addrSnap.docs) {
+            await doc.reference.delete();
+          }
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .delete()
+              .timeout(const Duration(seconds: 4));
+        } catch (_) {}
+
+        // 2. Eliminar de Firebase Auth
         try {
           await fbUser.delete();
         } catch (_) {}

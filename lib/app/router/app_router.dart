@@ -114,7 +114,10 @@ final GoRouter appRouter = GoRouter(
     ),
 
     // Rutas fuera del Shell (pantallas completas)
+    // parentNavigatorKey: rootNavigatorKey es OBLIGATORIO para que estas rutas
+    // se rendericen encima del shell (no dentro del navigator de una rama).
     GoRoute(
+      parentNavigatorKey: rootNavigatorKey,
       path: '/product/:productId',
       name: RouteNames.productDetail,
       builder: (context, state) {
@@ -123,16 +126,19 @@ final GoRouter appRouter = GoRouter(
       },
     ),
     GoRoute(
+      parentNavigatorKey: rootNavigatorKey,
       path: '/checkout',
       name: RouteNames.checkout,
       builder: (context, state) => const CheckoutScreen(),
     ),
     GoRoute(
+      parentNavigatorKey: rootNavigatorKey,
       path: '/addresses',
       name: RouteNames.addresses,
       builder: (context, state) => const AddressesScreen(),
     ),
     GoRoute(
+      parentNavigatorKey: rootNavigatorKey,
       path: '/orders/:orderId',
       name: RouteNames.orderDetail,
       builder: (context, state) {
@@ -141,6 +147,7 @@ final GoRouter appRouter = GoRouter(
       },
     ),
     GoRoute(
+      parentNavigatorKey: rootNavigatorKey,
       path: '/tracking/:orderId',
       name: RouteNames.tracking,
       builder: (context, state) {
@@ -149,26 +156,31 @@ final GoRouter appRouter = GoRouter(
       },
     ),
     GoRoute(
+      parentNavigatorKey: rootNavigatorKey,
       path: '/notifications',
       name: RouteNames.notifications,
       builder: (context, state) => const NotificationsScreen(),
     ),
     GoRoute(
+      parentNavigatorKey: rootNavigatorKey,
       path: '/wallet',
       name: 'wallet',
       builder: (context, state) => const WalletScreen(),
     ),
     GoRoute(
+      parentNavigatorKey: rootNavigatorKey,
       path: '/qr',
       name: RouteNames.qr,
       builder: (context, state) => const QrScreen(),
     ),
     GoRoute(
+      parentNavigatorKey: rootNavigatorKey,
       path: '/driver',
       name: 'driver',
       builder: (context, state) => const DriverDashboardScreen(),
     ),
     GoRoute(
+      parentNavigatorKey: rootNavigatorKey,
       path: '/admin',
       name: 'admin',
       builder: (context, state) => const AdminDashboardScreen(),

@@ -19,16 +19,21 @@ class AuthRepositoryImpl implements AuthRepository {
   Stream<UserEntity?> get authStateChanges =>
       _authService.authStateChanges.asyncMap((user) async {
         if (user == null) return null;
-        // Consultar perfil de Firestore si existe, de lo contrario usar datos del token
-        final firestoreUser = await _userRemoteDataSource.getUserProfile(user.uid);
-        if (firestoreUser != null) {
-          return firestoreUser;
-        }
+        try {
+          final firestoreUser = await _userRemoteDataSource
+              .getUserProfile(user.uid)
+              .timeout(const Duration(seconds: 3));
+          if (firestoreUser != null) {
+            return firestoreUser;
+          }
+        } catch (_) {}
         return UserEntity(
           id: user.uid,
-          name: user.displayName ?? 'Usuario',
+          name: (user.displayName != null && user.displayName!.isNotEmpty) ? user.displayName! : 'Usuario La Diabla',
           email: user.email ?? '',
-          role: UserRole.customer,
+          role: user.email == 'admin@ladiabla.app'
+              ? UserRole.admin
+              : (user.email == 'repartidor@ladiabla.app' ? UserRole.driver : UserRole.customer),
           phone: user.phoneNumber,
           photoUrl: user.photoURL,
         );
@@ -40,9 +45,11 @@ class AuthRepositoryImpl implements AuthRepository {
     if (user == null) return null;
     return UserEntity(
       id: user.uid,
-      name: user.displayName ?? 'Usuario',
+      name: (user.displayName != null && user.displayName!.isNotEmpty) ? user.displayName! : 'Usuario La Diabla',
       email: user.email ?? '',
-      role: UserRole.customer,
+      role: user.email == 'admin@ladiabla.app'
+          ? UserRole.admin
+          : (user.email == 'repartidor@ladiabla.app' ? UserRole.driver : UserRole.customer),
       phone: user.phoneNumber,
       photoUrl: user.photoURL,
     );

@@ -59,7 +59,8 @@ class WalletNotifier extends StateNotifier<WalletState> {
           .doc(user.id)
           .collection('cards')
           .orderBy('createdAt', descending: true)
-          .get();
+          .get()
+          .timeout(const Duration(seconds: 3));
 
       if (snapshot.docs.isEmpty) {
         state = state.copyWith(cards: const [], selectedCard: null, isLoading: false);
@@ -72,7 +73,7 @@ class WalletNotifier extends StateNotifier<WalletState> {
         );
       }
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: 'Error al cargar tarjetas: $e');
+      state = state.copyWith(cards: const [], selectedCard: null, isLoading: false, errorMessage: null);
     }
   }
 

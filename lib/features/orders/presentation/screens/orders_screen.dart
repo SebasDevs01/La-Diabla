@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/utils/price_formatter.dart';
-import '../../../../core/widgets/diabla_offline_view.dart';
 import '../../../../domain/entities/order_entity.dart';
 import '../../../../domain/entities/order_status.dart';
 import '../../providers/orders_provider.dart';
@@ -22,6 +21,15 @@ class OrdersScreen extends ConsumerStatefulWidget {
 
 class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   String _selectedFilter = 'all'; // 'all', 'active', 'completed', 'cancelled'
+
+  @override
+  void initState() {
+    super.initState();
+    // Forzar recarga al entrar en la pantalla para evitar pantalla en blanco
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.invalidate(userOrdersStreamProvider);
+    });
+  }
 
   String _formatDate(DateTime? dt) {
     if (dt == null) return 'Hoy';
@@ -68,18 +76,21 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     return Scaffold(
       backgroundColor: isDark ? AppColors.surfaceDark : const Color(0xFFFAF7F2),
       body: SafeArea(
-        child: ordersAsync.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.primary),
-          ),
-          error: (err, _) => DiablaOfflineView(
-            title: 'Ups, algo salió mal.',
-            subtitle: 'No pudimos cargar tus pedidos. Comprueba tu conexión a internet.',
-            onRetry: () => ref.invalidate(userOrdersStreamProvider),
-          ),
-          data: (realOrders) {
-            return _buildOrdersView(realOrders, isDark);
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: () async {
+            ref.invalidate(userOrdersStreamProvider);
+            await Future.delayed(const Duration(milliseconds: 800));
           },
+          child: ordersAsync.when(
+            loading: () => const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+            error: (err, _) => _buildOrdersView(const [], isDark),
+            data: (realOrders) {
+              return _buildOrdersView(realOrders, isDark);
+            },
+          ),
         ),
       ),
     );
@@ -392,9 +403,9 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                     ),
                     const SizedBox(height: 8),
 
-                    // Número de Pedido
+                    // Número de Pedido (mismo formato que el admin: primeros 8 caracteres)
                     Text(
-                      'Pedido #${order.id.length > 6 ? order.id.substring(order.id.length - 6).toUpperCase() : order.id}',
+                      'Pedido #${order.id.length > 8 ? order.id.substring(0, 8).toUpperCase() : order.id.toUpperCase()}',
                       style: TextStyle(
                         fontFamily: AppTypography.bodyFamily,
                         fontSize: 17,
@@ -605,7 +616,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Pedido #${order.id.length > 6 ? order.id.substring(order.id.length - 6).toUpperCase() : order.id}',
+                  'Pedido #${order.id.length > 8 ? order.id.substring(0, 8).toUpperCase() : order.id.toUpperCase()}',
                   style: TextStyle(
                     fontFamily: AppTypography.bodyFamily,
                     fontSize: 15,

@@ -48,11 +48,12 @@ class OrderModel {
   }
 
   static OrderEntity fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>? ?? {};
+    final rawData = doc.data();
+    final data = rawData is Map ? Map<String, dynamic>.from(rawData) : <String, dynamic>{};
 
     final rawItems = data['items'] as List<dynamic>? ?? [];
     final items = rawItems.map((i) {
-      final itemMap = i as Map<String, dynamic>;
+      final itemMap = i is Map ? Map<String, dynamic>.from(i) : <String, dynamic>{};
       return CartItemEntity(
         id: itemMap['productId'] as String? ?? doc.id,
         product: ProductEntity(
@@ -64,7 +65,7 @@ class OrderModel {
           categoryId: '',
           spicyLevel: 1,
         ),
-        quantity: itemMap['quantity'] as int? ?? 1,
+        quantity: (itemMap['quantity'] as num?)?.toInt() ?? 1,
         selectedExtras: const [],
         notes: itemMap['notes'] as String?,
       );
@@ -74,8 +75,25 @@ class OrderModel {
     final paymentMethodStr = data['paymentMethod'] as String? ?? 'card';
     final paymentStatusStr = data['paymentStatus'] as String? ?? 'pending';
 
-    final createdTs = data['createdAt'] as Timestamp?;
-    final updatedTs = data['updatedAt'] as Timestamp?;
+    DateTime createdAt = DateTime.now();
+    final createdRaw = data['createdAt'];
+    if (createdRaw is Timestamp) {
+      createdAt = createdRaw.toDate();
+    } else if (createdRaw is int) {
+      createdAt = DateTime.fromMillisecondsSinceEpoch(createdRaw);
+    } else if (createdRaw is String) {
+      createdAt = DateTime.tryParse(createdRaw) ?? DateTime.now();
+    }
+
+    DateTime updatedAt = createdAt;
+    final updatedRaw = data['updatedAt'];
+    if (updatedRaw is Timestamp) {
+      updatedAt = updatedRaw.toDate();
+    } else if (updatedRaw is int) {
+      updatedAt = DateTime.fromMillisecondsSinceEpoch(updatedRaw);
+    } else if (updatedRaw is String) {
+      updatedAt = DateTime.tryParse(updatedRaw) ?? createdAt;
+    }
 
     final address = AddressEntity(
       id: doc.id,
@@ -109,8 +127,8 @@ class OrderModel {
       driverId: data['driverId'] as String?,
       driverLatitude: (data['driverLatitude'] as num?)?.toDouble(),
       driverLongitude: (data['driverLongitude'] as num?)?.toDouble(),
-      createdAt: createdTs?.toDate() ?? DateTime.now(),
-      updatedAt: updatedTs?.toDate() ?? DateTime.now(),
+      createdAt: createdAt,
+      updatedAt: updatedAt,
     );
   }
 }

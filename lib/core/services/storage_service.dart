@@ -38,6 +38,17 @@ class StorageService {
     );
   }
 
+  /// Sube la foto de prueba de entrega de un pedido.
+  Future<String> uploadDeliveryProof({
+    required String orderId,
+    required File file,
+  }) async {
+    return _uploadFile(
+      path: 'orders/$orderId/delivery_proof.jpg',
+      file: file,
+    );
+  }
+
   /// Elimina un archivo del storage dado su URL de descarga.
   Future<void> deleteFileByUrl(String downloadUrl) async {
     try {

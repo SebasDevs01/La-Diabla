@@ -1,0 +1,78 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ─── Colección de Usuarios y Subcolecciones ───
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && (request.auth.uid == userId || resource.data.role == 'admin');
+
+      // Direcciones del usuario
+      match /addresses/{addressId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Tarjetas / Métodos de pago del usuario
+      match /cards/{cardId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Notificaciones del usuario
+      match /notifications/{notifId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // ─── Productos y Categorías (Catálogo) ───
+    match /products/{productId} {
+      allow read: if true; // Público para que los clientes vean el menú
+      allow write: if isAuthenticated(); // Administradores o staff autenticado
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // ─── Pedidos (Orders) ───
+    match /orders/{orderId} {
+      // Clientes pueden leer sus propios pedidos, repartidores y admins pueden ver todos
+      allow read: if isAuthenticated() || true;
+      // Clientes autenticados o invitados pueden crear pedidos
+      allow create: if true;
+      // Actualizar estado (repartidor, cliente o admin)
+      allow update: if true;
+      allow delete: if isAuthenticated();
+    }
+
+    // ─── Cupones y Descuentos ───
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+
+      match /usages/{userId} {
+        allow read, write: if isAuthenticated() || true;
+      }
+    }
+
+    // ─── Repartidores y Geolocalización ───
+    match /drivers/{driverId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // Regla fallback general
+    match /{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}

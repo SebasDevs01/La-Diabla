@@ -34,13 +34,18 @@ class ProductModel extends ProductEntity {
       available: map['available'] as bool? ?? true,
       ingredients: ingredientsRaw.map((e) => e.toString()).toList(),
       extras: extrasRaw
-          .map((e) => ExtraModel.fromMap(e as Map<String, dynamic>))
+          .whereType<Map>()
+          .map((e) => ExtraModel.fromMap(Map<String, dynamic>.from(e)))
           .toList(),
       createdAt: map['createdAt'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int)
+          ? (map['createdAt'] is int
+              ? DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int)
+              : DateTime.tryParse(map['createdAt'].toString()))
           : null,
       updatedAt: map['updatedAt'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] as int)
+          ? (map['updatedAt'] is int
+              ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] as int)
+              : DateTime.tryParse(map['updatedAt'].toString()))
           : null,
     );
   }

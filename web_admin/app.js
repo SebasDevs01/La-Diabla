@@ -68,10 +68,7 @@ function formatTime(timestamp) {
 const statusFlow = {
   'pending': { next: 'confirmed', label: '✅ Confirmar Pedido', btnClass: 'btn-confirm' },
   'confirmed': { next: 'preparing', label: '🍳 Mandar a Cocina', btnClass: 'btn-cook' },
-  'preparing': { next: 'ready', label: '📦 Marcar Listo / Despachar', btnClass: 'btn-ready' },
-  'ready': { next: 'on_the_way', label: '🛵 En Camino (Asignar)', btnClass: 'btn-deliver' },
-  'onTheWay': { next: 'delivered', label: '🎉 Marcar Entregado', btnClass: 'btn-deliver' },
-  'on_the_way': { next: 'delivered', label: '🎉 Marcar Entregado', btnClass: 'btn-deliver' }
+  'preparing': { next: 'ready', label: '📦 Marcar Listo / Despachar', btnClass: 'btn-ready' }
 };
 
 const statusBadges = {
@@ -79,6 +76,7 @@ const statusBadges = {
   'confirmed': { label: '✅ CONFIRMADO', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.15)' },
   'preparing': { label: '🍳 PREPARANDO', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)' },
   'ready': { label: '📦 LISTO PARA DESPACHO', color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.15)' },
+  'assigned': { label: '🛵 REPARTIDOR ASIGNADO', color: '#0284C7', bg: 'rgba(2, 132, 199, 0.15)' },
   'onTheWay': { label: '🛵 EN RUTA', color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)' },
   'on_the_way': { label: '🛵 EN RUTA', color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)' },
   'delivered': { label: '🎉 ENTREGADO', color: '#16A34A', bg: 'rgba(22, 163, 74, 0.15)' },
@@ -199,7 +197,7 @@ function renderOrders() {
   if (currentFilter !== 'all') {
     filtered = filtered.filter(o => {
       if (currentFilter === 'onTheWay' || currentFilter === 'on_the_way') {
-        return o.status === 'onTheWay' || o.status === 'on_the_way';
+        return o.status === 'onTheWay' || o.status === 'on_the_way' || o.status === 'assigned';
       }
       return o.status === currentFilter;
     });
@@ -263,6 +261,8 @@ function renderOrders() {
             <div class="customer-name">👤 ${customer}</div>
             <div class="customer-address">📍 ${addressStr}</div>
             ${order.customerPhone ? `<div style="font-size: 0.85rem; color: #60A5FA; margin-top: 2px;">📞 ${order.customerPhone}</div>` : ''}
+            ${order.driverName ? `<div style="font-size: 0.85rem; color: #10B981; margin-top: 2px;">🛵 Repartidor: ${order.driverName}</div>` : ''}
+            ${order.cancelReason ? `<div style="font-size: 0.85rem; color: #F87171; margin-top: 6px; font-weight: bold; background: rgba(220, 38, 38, 0.1); padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(220, 38, 38, 0.2);">❌ Motivo: ${order.cancelReason}</div>` : ''}
           </div>
 
           <div class="order-items-list">
@@ -275,6 +275,7 @@ function renderOrders() {
             <div>
               <div style="font-size: 0.75rem; color: var(--text-muted);">MÉTODO: ${(order.paymentMethod || 'Efectivo').toUpperCase()}</div>
               ${order.couponCode ? `<div style="font-size: 0.75rem; color: #16A34A;">🎟️ Cupón: ${order.couponCode}</div>` : ''}
+              ${order.deliveryProofUrl ? `<div style="margin-top: 6px;"><a href="${order.deliveryProofUrl}" target="_blank" style="font-size: 0.75rem; color: #10B981; font-weight: bold; text-decoration: underline;">📸 Ver foto de entrega</a></div>` : ''}
             </div>
             <div class="order-total diabla-font">${formatCOP(order.total || 0)}</div>
           </div>
@@ -310,23 +311,29 @@ async function advanceStatus(orderId, nextStatus) {
   }
 
   try {
-    await db.collection('orders').doc(orderId).update({
+    await db.collection('orders').doc(orderId).set({
       status: nextStatus,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    showNotificationToast(`✅ Pedido actualizado a ${statusBadges[nextStatus].label}`);
+    }, { merge: true });
+    showNotificationToast(`✅ Pedido actualizado a ${statusBadges[nextStatus]?.label ?? nextStatus}`);
   } catch (e) {
     alert("Error al actualizar estado: " + e.message);
   }
 }
 
 async function cancelOrder(orderId) {
-  if (!confirm("¿Seguro que deseas cancelar este pedido?")) return;
+  const reason = prompt("Por favor ingresa el motivo de la cancelación de este pedido:");
+  if (reason === null) return; // Se canceló la ventana
+  if (!reason.trim()) {
+    alert("Debes ingresar un motivo de cancelación obligatorio.");
+    return;
+  }
 
   if (!db) {
     const order = allOrders.find(o => o.id === orderId);
     if (order) {
       order.status = 'cancelled';
+      order.cancelReason = reason;
       updateStats();
       renderOrders();
     }
@@ -334,10 +341,11 @@ async function cancelOrder(orderId) {
   }
 
   try {
-    await db.collection('orders').doc(orderId).update({
+    await db.collection('orders').doc(orderId).set({
       status: 'cancelled',
+      cancelReason: reason,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    }, { merge: true });
     showNotificationToast("❌ Pedido cancelado");
   } catch (e) {
     alert("Error al cancelar: " + e.message);

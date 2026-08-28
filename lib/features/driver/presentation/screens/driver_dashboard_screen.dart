@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -15,6 +16,7 @@ import '../../../../app/theme/app_typography.dart';
 import '../../../../core/services/maps_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/permission_service.dart';
+import '../../../../core/services/storage_service.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/widgets/diabla_offline_view.dart';
 import '../../../../core/widgets/navigation_app_picker.dart';
@@ -39,6 +41,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
   // GPS real — stream de posición del repartidor
   StreamSubscription<Position>? _gpsStreamSubscription;
   bool _gpsActive = false;
+  bool _arrivalAlertSpoken = false; // Evitar repetir el aviso de voz
+
+  // TTS para aviso de llegada
+  final FlutterTts _flutterTts = FlutterTts();
 
   // Mapa y Ruta
   final Completer<GoogleMapController> _mapControllerCompleter = Completer<GoogleMapController>();
@@ -57,8 +63,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
   void initState() {
     super.initState();
     _loadDriverPreferences();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       ref.read(driverEarningsProvider.notifier).loadEarnings();
+      // Solicitar permisos de ubicacion (tiempo real + segundo plano) al repartidor
+      if (mounted) {
+        await PermissionService.requestDriverLocationPermissions(context);
+      }
       _centerMapOnRealGps();
     });
   }
@@ -97,11 +107,13 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
   @override
   void dispose() {
     _gpsStreamSubscription?.cancel();
+    _flutterTts.stop();
     super.dispose();
   }
 
   /// Solicita permiso de ubicación y arranca el stream GPS real hacia Firestore.
-  Future<void> _startGpsBroadcast(OrderEntity order) async {
+  /// [destLat]/[destLng]: coordenadas del cliente para calcular proximidad.
+  Future<void> _startGpsBroadcast(OrderEntity order, {double? destLat, double? destLng}) async {
     // Solicitar permiso al repartidor si no lo tiene
     final hasPermission = await PermissionService.requestLocationPermission();
     if (!hasPermission) {
@@ -119,8 +131,14 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
 
     // Cancelar stream previo si existía
     await _gpsStreamSubscription?.cancel();
+    _arrivalAlertSpoken = false;
 
     if (mounted) setState(() => _gpsActive = true);
+
+    // Configurar TTS en español
+    await _flutterTts.setLanguage('es-CO');
+    await _flutterTts.setSpeechRate(0.5);
+    await _flutterTts.setVolume(1.0);
 
     _gpsStreamSubscription = PermissionService.getPositionStream().listen(
       (Position position) async {
@@ -142,6 +160,22 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
             'updatedAt': FieldValue.serverTimestamp(),
           });
         } catch (_) {}
+
+        // Calcular distancia al cliente y emitir aviso de voz al llegar a < 100m
+        if (destLat != null && destLng != null && !_arrivalAlertSpoken) {
+          final distanceMeters = Geolocator.distanceBetween(
+            position.latitude,
+            position.longitude,
+            destLat,
+            destLng,
+          );
+          if (distanceMeters < 100) {
+            _arrivalAlertSpoken = true;
+            await _flutterTts.speak(
+              '¡Atención! Has llegado a la ubicación del cliente. Por favor marca el pedido como entregado cuando hagas la entrega.',
+            );
+          }
+        }
       },
       onError: (e) {
         debugPrint('GPS stream error: $e');
@@ -158,42 +192,43 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
     if (mounted) setState(() => _gpsActive = false);
   }
 
+  /// Toma el pedido (estado -> assigned) y cambia al mapa para iniciar el viaje.
   Future<void> _takeAndAcceptOrder(OrderEntity order) async {
     try {
       final user = ref.read(authNotifierProvider).user;
       final driverId = user?.id ?? 'driver_01';
       final driverName = user?.name ?? 'Repartidor Diabla';
 
+      // Estado: assigned (repartidor asignado, aún no ha salido)
       await FirebaseFirestore.instance.collection('orders').doc(order.id).update({
-        'status': OrderStatus.onTheWay.name,
+        'status': OrderStatus.assigned.name,
         'driverId': driverId,
         'driverName': driverName,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Guardar notificación para el cliente en tiempo real
+      // Notificar al cliente que ya hay repartidor asignado
       NotificationService().saveOrderNotification(
         userId: order.userId,
         orderId: order.id,
-        title: '🛵 ¡El repartidor va en camino!',
-        body: 'Tu comida de La Diabla está en ruta hacia tu puerta 🔥',
+        title: '🛵 ¡Repartidor asignado!',
+        body: 'Tu repartidor ya recibió tu pedido y pronto saldrá de La Diabla 🔥',
         emoji: '🛵',
-        status: OrderStatus.onTheWay.name,
+        status: OrderStatus.assigned.name,
       );
 
       setState(() {
-        _activeOrder = order.copyWith(status: OrderStatus.onTheWay);
-        _currentNavIndex = 1; // Cambiar automáticamente a la pestaña de Mapa/Ruta
+        _activeOrder = order.copyWith(status: OrderStatus.assigned);
+        _currentNavIndex = 1; // Ir a pestaña Mapa para presionar "INICIAR VIAJE"
       });
-
-      await _startGpsBroadcast(order);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('🛵 Pedido #${order.id.substring(0, order.id.length > 6 ? 6 : order.id.length).toUpperCase()} tomado. ¡Ruta iniciada!'),
-            backgroundColor: const Color(0xFF16A34A),
+            content: Text('✅ Pedido #${order.id.substring(0, order.id.length > 6 ? 6 : order.id.length).toUpperCase()} aceptado. Presiona INICIAR VIAJE cuando salgas.'),
+            backgroundColor: const Color(0xFF0369A1),
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -208,90 +243,48 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
       }
     }
   }
-  Future<void> _markOrderAsDelivered(OrderEntity order) async {
+
+  /// Inicia el viaje: estado -> onTheWay, arranca GPS y TTS.
+  Future<void> _startTripWithGps(OrderEntity order) async {
     try {
-      final driverId = ref.read(authNotifierProvider).user?.id ?? 'driver_01';
-      final fee = order.deliveryFee > 0 ? order.deliveryFee : 7500.0;
+      final destLat = order.address?.latitude ?? order.latitude;
+      final destLng = order.address?.longitude ?? order.longitude;
+
       await FirebaseFirestore.instance.collection('orders').doc(order.id).update({
-        'status': OrderStatus.delivered.name,
-        'driverId': driverId,
-        'driverName': _driverName,
-        'deliveredAt': FieldValue.serverTimestamp(),
+        'status': OrderStatus.onTheWay.name,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Registrar ganancia en Firestore para el repartidor
-      try {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(driverId)
-            .collection('earnings')
-            .doc(order.id)
-            .set({
-          'orderId': order.id,
-          'amount': fee,
-          'date': FieldValue.serverTimestamp(),
-          'customerAddress': order.address?.formattedAddress ?? '',
-          'orderTotal': order.total,
-        }, SetOptions(merge: true));
-
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(driverId)
-            .collection('earnings')
-            .doc('__summary__')
-            .set({
-          'totalEarned': FieldValue.increment(fee),
-          'totalDeliveries': FieldValue.increment(1),
-          'lastUpdated': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-
-        ref.read(driverEarningsProvider.notifier).loadEarnings();
-      } catch (_) {}
-
-      // Guardar notificación para el cliente en tiempo real
       NotificationService().saveOrderNotification(
         userId: order.userId,
         orderId: order.id,
-        title: '✅ ¡Pedido entregado! ¡Buen provecho!',
-        body: '¿Qué tal estuvo tu experiencia? Califica al repartidor y la comida 🌮⭐',
-        emoji: '✅',
-        status: OrderStatus.delivered.name,
+        title: '🛵 ¡El repartidor va en camino!',
+        body: 'Tu comida de La Diabla está en ruta hacia tu puerta 🔥',
+        emoji: '🛵',
+        status: OrderStatus.onTheWay.name,
       );
 
-      await _stopGpsBroadcast();
-
       setState(() {
-        _activeOrder = null;
+        _activeOrder = order.copyWith(status: OrderStatus.onTheWay);
       });
 
+      await _startGpsBroadcast(
+        order,
+        destLat: destLat,
+        destLng: destLng,
+      );
+
+      // Abrir mapa externo si el cliente tiene coordenadas
+      if (destLat != null && destLng != null && mounted) {
+        _openExternalMap(destLat, destLng, address: order.address?.formattedAddress);
+      }
+
       if (mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Row(
-              children: [
-                Text('🎉', style: TextStyle(fontSize: 26)),
-                SizedBox(width: 8),
-                Text('¡ENTREGA EXITOSA!'),
-              ],
-            ),
-            content: Text(
-              'Has completado la entrega de la orden #${order.id.substring(0, order.id.length > 6 ? 6 : order.id.length).toUpperCase()}.\n\nGanancia acreditada a tu cuenta: +${PriceFormatter.formatSmart(fee)} COP 💵',
-            ),
-            actions: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF16A34A),
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  setState(() => _currentNavIndex = 2); // Ver panel de ganancias
-                },
-                child: const Text('Ver Mis Ganancias 💵'),
-              ),
-            ],
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('🛵 ¡Viaje iniciado! #${order.id.substring(0, order.id.length > 6 ? 6 : order.id.length).toUpperCase()} — GPS activo.'),
+            backgroundColor: const Color(0xFF16A34A),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -299,12 +292,289 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al marcar entrega: $e'),
+            content: Text('Error al iniciar viaje: $e'),
             backgroundColor: AppColors.error,
           ),
         );
       }
     }
+  }
+  Future<void> _markOrderAsDelivered(OrderEntity order) async {
+    File? proofImage;
+    bool isUploading = false;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          final isDark = Theme.of(ctx).brightness == Brightness.dark;
+          final shortId = order.id.length > 6 ? order.id.substring(order.id.length - 6).toUpperCase() : order.id;
+
+          Future<void> pickProofImage(ImageSource source) async {
+            try {
+              final picker = ImagePicker();
+              final picked = await picker.pickImage(
+                source: source,
+                maxWidth: 1200,
+                maxHeight: 1200,
+                imageQuality: 80,
+              );
+              if (picked != null) {
+                setModalState(() {
+                  proofImage = File(picked.path);
+                });
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error al capturar imagen: $e')),
+                );
+              }
+            }
+          }
+
+          Future<void> submitDelivery() async {
+            setModalState(() => isUploading = true);
+            try {
+              String? proofUrl;
+              if (proofImage != null) {
+                proofUrl = await StorageService().uploadDeliveryProof(
+                  orderId: order.id,
+                  file: proofImage!,
+                );
+              }
+
+              final driverId = ref.read(authNotifierProvider).user?.id ?? 'driver_01';
+              final fee = order.deliveryFee > 0 ? order.deliveryFee : 7500.0;
+
+              final updateData = <String, dynamic>{
+                'status': OrderStatus.delivered.name,
+                'driverId': driverId,
+                'driverName': _driverName,
+                'deliveredAt': FieldValue.serverTimestamp(),
+                'updatedAt': FieldValue.serverTimestamp(),
+              };
+              if (proofUrl != null) {
+                updateData['deliveryProofUrl'] = proofUrl;
+              }
+
+              await FirebaseFirestore.instance.collection('orders').doc(order.id).update(updateData);
+
+              // Registrar ganancia en Firestore para el repartidor
+              try {
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(driverId)
+                    .collection('earnings')
+                    .doc(order.id)
+                    .set({
+                  'orderId': order.id,
+                  'amount': fee,
+                  'date': FieldValue.serverTimestamp(),
+                  'customerAddress': order.address?.formattedAddress ?? '',
+                  'orderTotal': order.total,
+                }, SetOptions(merge: true));
+
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(driverId)
+                    .collection('earnings')
+                    .doc('__summary__')
+                    .set({
+                  'totalEarned': FieldValue.increment(fee),
+                  'totalDeliveries': FieldValue.increment(1),
+                  'lastUpdated': FieldValue.serverTimestamp(),
+                }, SetOptions(merge: true));
+
+                ref.read(driverEarningsProvider.notifier).loadEarnings();
+              } catch (_) {}
+
+              // Guardar notificación para el cliente en tiempo real
+              NotificationService().saveOrderNotification(
+                userId: order.userId,
+                orderId: order.id,
+                title: '✅ ¡Pedido entregado! ¡Buen provecho!',
+                body: '¿Qué tal estuvo tu experiencia? Califica al repartidor y la comida 🌮⭐',
+                emoji: '✅',
+                status: OrderStatus.delivered.name,
+              );
+
+              await _stopGpsBroadcast();
+
+              if (ctx.mounted) {
+                Navigator.pop(ctx);
+              }
+
+              if (mounted) {
+                setState(() {
+                  _activeOrder = null;
+                });
+
+                showDialog(
+                  context: context,
+                  builder: (dialogCtx) => AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    title: const Row(
+                      children: [
+                        Text('🎉', style: TextStyle(fontSize: 26)),
+                        SizedBox(width: 8),
+                        Text('¡ENTREGA EXITOSA!'),
+                      ],
+                    ),
+                    content: Text(
+                      'Has completado la entrega de la orden #$shortId.\n\nGanancia acreditada a tu cuenta: +${PriceFormatter.formatSmart(fee)} COP 💵',
+                    ),
+                    actions: [
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF16A34A),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(dialogCtx);
+                          setState(() => _currentNavIndex = 2); // Ver panel de ganancias
+                        },
+                        child: const Text('Ver Mis Ganancias 💵'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+            } catch (e) {
+              setModalState(() => isUploading = false);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error al marcar entrega: $e'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+              }
+            }
+          }
+
+          return Container(
+            padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1712) : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade400,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(Icons.camera_alt_rounded, color: Color(0xFFDC2626), size: 24),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Confirmar Entrega #$shortId',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Toma o adjunta una foto como comprobante de entrega del pedido:',
+                    style: TextStyle(fontSize: 13, color: isDark ? AppColors.textMutedDark : Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 16),
+                  if (proofImage != null) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Stack(
+                        alignment: Alignment.topRight,
+                        children: [
+                          Image.file(
+                            proofImage!,
+                            height: 180,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                          IconButton(
+                            icon: const CircleAvatar(
+                              backgroundColor: Colors.black54,
+                              child: Icon(Icons.close, color: Colors.white, size: 18),
+                            ),
+                            onPressed: () => setModalState(() => proofImage = null),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ] else ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            icon: const Icon(Icons.camera_alt_rounded, color: Color(0xFFDC2626)),
+                            label: const Text('Tomar Foto 📸', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.bold)),
+                            onPressed: isUploading ? null : () => pickProofImage(ImageSource.camera),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            icon: const Icon(Icons.photo_library_rounded, color: Color(0xFF0EA5E9)),
+                            label: const Text('Galería 🖼️', style: TextStyle(color: Color(0xFF0EA5E9), fontWeight: FontWeight.bold)),
+                            onPressed: isUploading ? null : () => pickProofImage(ImageSource.gallery),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF16A34A),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 2,
+                    ),
+                    icon: isUploading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.check_circle_rounded, size: 20),
+                    label: Text(
+                      isUploading ? 'Finalizando entrega...' : 'FINALIZAR ENTREGA ✅',
+                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                    ),
+                    onPressed: isUploading ? null : submitDelivery,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _openExternalMap(double lat, double lng, {String? address}) async {
@@ -494,14 +764,11 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
         onRetry: () => ref.invalidate(allPendingOrdersStreamProvider),
       ),
       data: (orders) {
-        // Pedidos listos o en preparación
-        final availableOrders = orders.where((o) =>
-            o.status == OrderStatus.confirmed ||
-            o.status == OrderStatus.preparing ||
-            o.status == OrderStatus.ready ||
-            o.status == OrderStatus.pending).toList();
+        // Pedidos listos para despacho (único estado visible para repartidores)
+        final availableOrders = orders.where((o) => o.status == OrderStatus.ready).toList();
 
-        final activeOrders = orders.where((o) => o.status == OrderStatus.onTheWay).toList();
+        final activeOrders = orders.where((o) =>
+            o.status == OrderStatus.onTheWay || o.status == OrderStatus.assigned).toList();
 
         return ListView(
           padding: const EdgeInsets.all(16),
@@ -1064,24 +1331,44 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
                       ),
                       const SizedBox(height: 10),
 
-                      // Botón Marcar Entregado
-                      SizedBox(
-                        width: double.infinity,
-                        height: 46,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF16A34A),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      // Botón principal: INICIAR VIAJE (si assigned) o ENTREGA COMPLETADA (si onTheWay)
+                      if (activeOrder.status == OrderStatus.assigned)
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0EA5E9),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              elevation: 4,
+                            ),
+                            icon: const Icon(Icons.two_wheeler_rounded, size: 22),
+                            label: const Text(
+                              'INICIAR VIAJE 🏍️',
+                              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+                            ),
+                            onPressed: () => _startTripWithGps(activeOrder),
                           ),
-                          icon: const Icon(Icons.check_circle_rounded, size: 20),
-                          label: const Text(
-                            'ENTREGA COMPLETADA ✅',
-                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5),
+                        )
+                      else
+                        SizedBox(
+                          width: double.infinity,
+                          height: 46,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF16A34A),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            icon: const Icon(Icons.check_circle_rounded, size: 20),
+                            label: const Text(
+                              'ENTREGA COMPLETADA ✅',
+                              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5),
+                            ),
+                            onPressed: () => _markOrderAsDelivered(activeOrder),
                           ),
-                          onPressed: () => _markOrderAsDelivered(activeOrder),
                         ),
-                      ),
                     ],
                   ),
                 ),
