@@ -966,13 +966,17 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
 
               // 🤖 Autoaceptación Switch
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    'AUTOACEPTAR 🤖',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 11,
-                      color: prefs.isAutoAcceptEnabled ? const Color(0xFF0284C7) : Colors.grey,
+                  Flexible(
+                    child: Text(
+                      'AUTOACEPTAR 🤖',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                        color: prefs.isAutoAcceptEnabled ? const Color(0xFF0284C7) : Colors.grey,
+                      ),
                     ),
                   ),
                   Transform.scale(
@@ -1024,12 +1028,15 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               ),
 
               // Métricas de Filtros
-              Text(
-                'Máx: ${prefs.maxTotalDistanceKm.toStringAsFixed(0)} km · ${prefs.vehicleType.displayName}',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? AppColors.textMutedDark : Colors.grey.shade700,
+              Flexible(
+                child: Text(
+                  'Máx: ${prefs.maxTotalDistanceKm.toStringAsFixed(0)} km · ${prefs.vehicleType.displayName}',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? AppColors.textMutedDark : Colors.grey.shade700,
+                  ),
                 ),
               ),
             ],
