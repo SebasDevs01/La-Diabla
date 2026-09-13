@@ -15,14 +15,38 @@ final orderRepositoryProvider = Provider<OrderRepository>((ref) {
 });
 
 // Stream de Pedidos del Usuario (cliente)
+// Solo muestra pedidos del usuario autenticado real. Invitados y sesiones
+// anónimas reciben lista vacía para evitar filtración de datos de otros usuarios.
 final userOrdersStreamProvider = StreamProvider<List<OrderEntity>>((ref) async* {
   final authState = ref.watch(authNotifierProvider);
-  final userId = authState.user?.id ?? FirebaseAuth.instance.currentUser?.uid ?? '';
+  final currentUser = authState.user;
   final repo = ref.watch(orderRepositoryProvider);
-  if (userId.isEmpty) {
+
+  // No mostrar pedidos a usuarios no autenticados, invitados o sesiones anónimas
+  if (currentUser == null || currentUser.isGuest) {
+    if (repo is OrderRepositoryImpl) repo.clearCache();
     yield [];
     return;
   }
+
+  final userId = currentUser.id;
+  if (userId.isEmpty) {
+    if (repo is OrderRepositoryImpl) repo.clearCache();
+    yield [];
+    return;
+  }
+
+  // Verificar que el Firebase user actual NO sea anónimo
+  final fbUser = FirebaseAuth.instance.currentUser;
+  if (fbUser != null && fbUser.isAnonymous) {
+    if (repo is OrderRepositoryImpl) repo.clearCache();
+    yield [];
+    return;
+  }
+
+  // Limpiar caché antes de cargar los pedidos del usuario actual
+  if (repo is OrderRepositoryImpl) repo.clearCache();
+
   yield* repo.watchActiveOrders(userId);
 });
 
@@ -140,7 +164,11 @@ class CreateOrderNotifier extends StateNotifier<CreateOrderState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final user = _ref.read(authNotifierProvider).user;
-      final finalOrder = order.copyWith(userId: user?.id ?? 'guest');
+      final finalOrder = order.copyWith(
+        userId: user?.id ?? 'guest',
+        customerName: order.customerName ?? user?.name ?? 'Cliente La Diabla',
+        customerPhone: (order.customerPhone?.isNotEmpty == true) ? order.customerPhone : (user?.phone ?? ''),
+      );
       final result = await _repo.createOrder(finalOrder);
       state = state.copyWith(isLoading: false, createdOrder: result);
       return result;

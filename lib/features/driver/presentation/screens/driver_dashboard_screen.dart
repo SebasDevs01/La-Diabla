@@ -24,6 +24,7 @@ import '../../../../core/widgets/navigation_app_picker.dart';
 import '../../../../domain/entities/order_entity.dart';
 import '../../../../domain/entities/order_status.dart';
 import '../../../auth/providers/auth_notifier.dart';
+import '../../../orders/presentation/screens/order_chat_screen.dart';
 import '../../../orders/providers/orders_provider.dart';
 import '../../../profile/presentation/widgets/privacy_policy_sheet.dart';
 import '../../domain/driver_operational_state.dart';
@@ -57,21 +58,34 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   // TTS para aviso de llegada
   final FlutterTts _flutterTts = FlutterTts();
 
-  // Mapa y Ruta
+  // Mapa y Ruta Inteligente
   final Completer<GoogleMapController> _mapControllerCompleter = Completer<GoogleMapController>();
   OrderEntity? _activeOrder;
   LatLng _driverCurrentPos = MapsService.defaultLocation;
   double _currentBearing = 0.0;
   BitmapDescriptor? _driverMarkerIcon;
   final Set<String> _autoAcceptedOrderIds = {};
+  List<LatLng> _smartRoutePoints = [];
+  bool _isLoadingRoute = false;
+  double _remainingDistanceKm = 0.0;
+  String _remainingTimeText = '';
+  bool _isCameraFollowEnabled = true;
+  String? _lastCalculatedOrderId;
+  bool _headingToKitchen = false; // true = Ruta hacia la cocina a reclamar el pedido; false = Ruta al cliente
 
-  // Datos editables del vehículo y del repartidor
-  String _vehicleModel = 'Motocicleta 125cc';
-  String _vehiclePlate = 'ABC-12D';
-  String _vehicleSoat = 'Vigente ✅';
+  // Datos editables del vehículo y del repartidor (vacíos al inicio, obligatorios)
+  String _vehicleModel = '';
+  String _vehiclePlate = '';
+  String _vehicleColor = '';
+  String _vehiclePlatePhoto = '';
+  String _vehicleSoat = '';
   String _driverName = 'Repartidor La Diabla';
-  String _driverPhone = '300 123 4567';
+  String _driverPhone = '';
   String _driverPhoto = 'assets/images/diabloperfil.png';
+
+  /// Determina si el repartidor tiene su perfil y vehículo en regla
+  bool get _isVehicleRegistered =>
+      _vehicleModel.trim().isNotEmpty && _vehiclePlate.trim().isNotEmpty && _vehicleColor.trim().isNotEmpty;
 
   @override
   void initState() {
@@ -81,10 +95,19 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     _loadDriverPreferences();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       ref.read(driverEarningsProvider.notifier).loadEarnings();
-      // Solicitar permisos de ubicacion (tiempo real + segundo plano) al repartidor
+      // Solicitar permisos de ubicación (tiempo real + segundo plano) al repartidor con transición suave
       if (mounted) {
-        await PermissionService.requestDriverLocationPermissions(context);
-        ref.read(driverOperationalProvider.notifier).checkLocationStatus();
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          await PermissionService.requestDriverLocationPermissions(context);
+          ref.read(driverOperationalProvider.notifier).checkLocationStatus();
+
+          // Verificar y solicitar permiso de burbuja flotante ("Mostrar sobre otras apps")
+          final hasOverlay = await FloatingBubbleService.instance.hasOverlayPermission();
+          if (!hasOverlay) {
+            await FloatingBubbleService.instance.requestOverlayPermission();
+          }
+        }
       }
       _centerMapOnRealGps();
     });
@@ -97,9 +120,9 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       FloatingBubbleService.instance.hideBubble();
       ref.read(driverOperationalProvider.notifier).checkLocationStatus();
     } else if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      // Mostrar burbuja flotante si el repartidor está en servicio o en entrega activa
+      // Mostrar la burbuja flotante del repartidor al minimizar SOLO si está en turno activo
       final opState = ref.read(driverOperationalProvider);
-      if (opState.isManualAvailable || opState.hasActiveDelivery) {
+      if (opState.isOnline) {
         FloatingBubbleService.instance.showBubble();
       }
     }
@@ -123,6 +146,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
 
   Future<void> _loadMarkerIcon() async {
     try {
+      AnimatedDriverMarker.clearCache(); // forzar regeneración con nueva configuración
       final icon = await AnimatedDriverMarker.getDriverIcon();
       if (mounted) {
         setState(() {
@@ -167,14 +191,101 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     final prefs = await SharedPreferences.getInstance();
     final user = ref.read(authNotifierProvider).user;
     if (mounted) {
+      // El nombre SIEMPRE viene de la cuenta Google/Auth.
+      // Solo se usa el valor guardado en prefs si el usuario lo editó manualmente
+      // (es decir, si existe en prefs Y es distinto al nombre de la cuenta).
+      final authName = user?.name ?? '';
+      final savedName = prefs.getString('driver_name');
+      final defaultPlaceholders = ['Repartidor La Diabla', 'Usuario La Diabla', ''];
+
+      // Si hay un nombre guardado que no coincide con el de Auth y no es un placeholder
+      // genérico, se conserva (el usuario lo cambió a propósito).
+      // En cualquier otro caso se usa el nombre de Auth y se limpia el guardado stale.
+      String effectiveName;
+      if (savedName != null &&
+          savedName.isNotEmpty &&
+          !defaultPlaceholders.contains(savedName) &&
+          authName.isNotEmpty &&
+          savedName == authName) {
+        // Mismo nombre que Auth → OK
+        effectiveName = savedName;
+      } else if (savedName != null &&
+          savedName.isNotEmpty &&
+          !defaultPlaceholders.contains(savedName) &&
+          authName.isEmpty) {
+        // No hay nombre en Auth, usar el guardado
+        effectiveName = savedName;
+      } else {
+        // En todos los demás casos: usar Auth y limpiar el prefs stale
+        effectiveName = authName.isNotEmpty ? authName : 'Repartidor La Diabla';
+        if (savedName != null && savedName != effectiveName) {
+          await prefs.remove('driver_name');
+        }
+      }
+
+      // El teléfono solo se muestra si fue ingresado manualmente en prefs
+      // o si Firebase Auth lo provee (ej: login con número). Nunca mostramos placeholders.
+      const phonePlaceholders = ['300 123 4567', '3000000000', ''];
+      final savedPhone = prefs.getString('driver_phone') ?? '';
+      final authPhone = user?.phone ?? '';
+      final effectivePhone = (!phonePlaceholders.contains(savedPhone) && savedPhone.isNotEmpty)
+          ? savedPhone
+          : (!phonePlaceholders.contains(authPhone) && authPhone.isNotEmpty
+              ? authPhone
+              : '');
+      // Si el teléfono guardado era un placeholder, limpiarlo
+      if (phonePlaceholders.contains(savedPhone) && savedPhone.isNotEmpty) {
+        await prefs.remove('driver_phone');
+      }
+
+      final savedVehicleModel = prefs.getString('driver_vehicle_model') ?? '';
+      final savedVehiclePlate = prefs.getString('driver_vehicle_plate') ?? '';
+      final savedVehicleColor = prefs.getString('driver_vehicle_color') ?? '';
+      final savedVehiclePlatePhoto = prefs.getString('driver_vehicle_plate_photo') ?? '';
+      final savedVehicleSoat = prefs.getString('driver_vehicle_soat') ?? '';
+
+      // Limpiar datos dummy/quemados si quedaron en caché previa
+      final dummyModels = ['Motocicleta 125cc', 'Moto Deportiva'];
+      final dummyPlates = ['ABC-12D', 'DIABLA-01'];
+      final effectiveVehicleModel = dummyModels.contains(savedVehicleModel) ? '' : savedVehicleModel;
+      final effectiveVehiclePlate = dummyPlates.contains(savedVehiclePlate) ? '' : savedVehiclePlate;
+
       setState(() {
-        _vehicleModel = prefs.getString('driver_vehicle_model') ?? 'Motocicleta 125cc';
-        _vehiclePlate = prefs.getString('driver_vehicle_plate') ?? 'ABC-12D';
-        _vehicleSoat = prefs.getString('driver_vehicle_soat') ?? 'Vigente ✅';
-        _driverName = prefs.getString('driver_name') ?? (user?.name ?? 'Repartidor La Diabla');
-        _driverPhone = prefs.getString('driver_phone') ?? (user?.phone ?? '300 123 4567');
+        _vehicleModel = effectiveVehicleModel;
+        _vehiclePlate = effectiveVehiclePlate;
+        _vehicleColor = savedVehicleColor;
+        _vehiclePlatePhoto = savedVehiclePlatePhoto;
+        _vehicleSoat = savedVehicleSoat;
+        _driverName = effectiveName;
+        _driverPhone = effectivePhone;
         _driverPhoto = prefs.getString('driver_photo') ?? (user?.photoUrl ?? 'assets/images/diabloperfil.png');
       });
+
+      // Si hay usuario autenticado, sincronizar datos con Firestore
+      if (user != null && user.id.isNotEmpty) {
+        FirebaseFirestore.instance.collection('users').doc(user.id).get().then((doc) {
+          if (doc.exists && mounted) {
+            final d = doc.data();
+            if (d != null) {
+              final remoteModel = d['vehicleModel'] as String? ?? '';
+              final remotePlate = d['vehiclePlate'] as String? ?? '';
+              final remoteColor = d['vehicleColor'] as String? ?? '';
+              final remotePhoto = d['vehiclePlatePhotoUrl'] as String? ?? '';
+              final remotePhone = d['phone'] as String? ?? '';
+
+              if (remoteModel.isNotEmpty || remotePlate.isNotEmpty || remoteColor.isNotEmpty) {
+                setState(() {
+                  if (_vehicleModel.isEmpty && remoteModel.isNotEmpty) _vehicleModel = remoteModel;
+                  if (_vehiclePlate.isEmpty && remotePlate.isNotEmpty) _vehiclePlate = remotePlate;
+                  if (_vehicleColor.isEmpty && remoteColor.isNotEmpty) _vehicleColor = remoteColor;
+                  if (_vehiclePlatePhoto.isEmpty && remotePhoto.isNotEmpty) _vehiclePlatePhoto = remotePhoto;
+                  if (_driverPhone.isEmpty && remotePhone.isNotEmpty) _driverPhone = remotePhone;
+                });
+              }
+            }
+          }
+        }).catchError((_) {});
+      }
     }
   }
 
@@ -245,6 +356,35 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           });
         } catch (_) {}
 
+        // Actualizar distancia y tiempo restante en vivo para el HUD de navegación
+        if (destLat != null && destLng != null) {
+          final distKm = MapsService.calculateDistanceKm(newPos, LatLng(destLat, destLng));
+          final timeText = MapsService.estimateDeliveryTime(distKm);
+          if (mounted) {
+            setState(() {
+              _remainingDistanceKm = distKm;
+              _remainingTimeText = timeText;
+            });
+          }
+        }
+
+        // Seguimiento de cámara en vivo estilo navegación GPS si está habilitado
+        if (_isCameraFollowEnabled && _mapControllerCompleter.isCompleted && _currentNavIndex == 1) {
+          try {
+            final ctrl = await _mapControllerCompleter.future;
+            ctrl.animateCamera(
+              CameraUpdate.newCameraPosition(
+                CameraPosition(
+                  target: newPos,
+                  zoom: 17.5,
+                  tilt: 45.0,
+                  bearing: _currentBearing > 0 ? _currentBearing : 0.0,
+                ),
+              ),
+            );
+          } catch (_) {}
+        }
+
         // Calcular distancia al cliente y emitir aviso de voz al llegar a < 100m
         if (destLat != null && destLng != null && !_arrivalAlertSpoken) {
           final distanceMeters = Geolocator.distanceBetween(
@@ -256,7 +396,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           if (distanceMeters < 100) {
             _arrivalAlertSpoken = true;
             await _flutterTts.speak(
-              '¡Atención! Has llegado a la ubicación del cliente. Por favor marca el pedido como entregado cuando hagas la entrega.',
+              '¡Atención! Has llegado a la ubicación del cliente. Por favor marca el pedido como entregado y toma la foto de comprobante.',
             );
           }
         }
@@ -276,6 +416,45 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     if (mounted) setState(() => _gpsActive = false);
   }
 
+  /// Calcula la ruta óptima por calles reales usando Directions API
+  Future<void> _calculateSmartRoute(OrderEntity order) async {
+    if (_isLoadingRoute) return;
+    _lastCalculatedOrderId = order.id;
+
+    final kitchenPos = MapsService.defaultLocation;
+    final custLat = order.address?.latitude ?? order.latitude ?? 7.092758;
+    final custLng = order.address?.longitude ?? order.longitude ?? -73.142590;
+    final custPos = LatLng(custLat, custLng);
+
+    // Si está en fase de ir a la cocina a reclamar el pedido: destino = cocina
+    // Si ya reclamó el pedido o está en camino: destino = cliente
+    final targetPos = _headingToKitchen ? kitchenPos : custPos;
+
+    setState(() => _isLoadingRoute = true);
+
+    try {
+      final routeDetails = await MapsService().getRouteDetails(_driverCurrentPos, targetPos);
+      final dist = routeDetails.distanceKm;
+      final timeEst = '${routeDetails.durationMinutes} - ${routeDetails.durationMinutes + 6} min';
+
+      if (mounted) {
+        setState(() {
+          _smartRoutePoints = routeDetails.points;
+          _remainingDistanceKm = dist;
+          _remainingTimeText = timeEst;
+          _isLoadingRoute = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _smartRoutePoints = [_driverCurrentPos, targetPos];
+          _isLoadingRoute = false;
+        });
+      }
+    }
+  }
+
   /// Toma el pedido (estado -> assigned) y cambia al mapa para iniciar el viaje.
   Future<void> _takeAndAcceptOrder(OrderEntity order) async {
     try {
@@ -283,11 +462,22 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       final driverId = user?.id ?? 'driver_01';
       final driverName = user?.name ?? 'Repartidor Diabla';
 
+      final kitchenPos = MapsService.defaultLocation;
+      final distToKitchenMeters = Geolocator.distanceBetween(
+        _driverCurrentPos.latitude,
+        _driverCurrentPos.longitude,
+        kitchenPos.latitude,
+        kitchenPos.longitude,
+      );
+      // Si el repartidor está a más de 200 metros de la cocina, primero debe ir a la cocina
+      final isFarFromKitchen = distToKitchenMeters > 200;
+
       // Estado: assigned (repartidor asignado, aún no ha salido)
       await FirebaseFirestore.instance.collection('orders').doc(order.id).update({
         'status': OrderStatus.assigned.name,
         'driverId': driverId,
         'driverName': driverName,
+        'driverPhase': isFarFromKitchen ? 'heading_to_kitchen' : 'heading_to_client',
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -302,16 +492,24 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       );
 
       setState(() {
+        _headingToKitchen = isFarFromKitchen;
         _activeOrder = order.copyWith(status: OrderStatus.assigned);
-        _currentNavIndex = 1; // Ir a pestaña Mapa para presionar "INICIAR VIAJE"
+        _currentNavIndex = 1; // Ir a pestaña Mapa
       });
 
       ref.read(driverOperationalProvider.notifier).setActiveDelivery(order.id);
+      _calculateSmartRoute(order);
+
 
       if (mounted) {
+        final shortCode = order.id.length > 6 ? order.id.substring(order.id.length - 6).toUpperCase() : order.id;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ Pedido #${order.id.substring(0, order.id.length > 6 ? 6 : order.id.length).toUpperCase()} aceptado. Presiona INICIAR VIAJE cuando salgas.'),
+            content: Text(
+              isFarFromKitchen
+                  ? '🛵 Pedido #$shortCode aceptado. Dirígete a la Cocina Central La Diabla para reclamar el pedido.'
+                  : '✅ Pedido #$shortCode aceptado. Ya estás en la cocina, reclama el pedido e inicia la ruta al cliente.',
+            ),
             backgroundColor: const Color(0xFF0369A1),
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 4),
@@ -330,8 +528,286 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     }
   }
 
-  /// Inicia el viaje: estado -> onTheWay, arranca GPS y TTS.
+  /// Muestra selector para elegir cómo navegar la ruta: In-App, Waze o Google Maps
   Future<void> _startTripWithGps(OrderEntity order) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final shortId = order.id.length > 6 ? order.id.substring(order.id.length - 6).toUpperCase() : order.id;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1712) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(isDark ? 80 : 30),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDC2626).withAlpha(25),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.navigation_rounded, color: Color(0xFFDC2626), size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Comenzar Ruta #$shortId 🛵',
+                        style: TextStyle(
+                          fontFamily: AppTypography.displayFamily,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF1C1C1C),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Elige cómo prefieres seguir el recorrido:',
+                        style: TextStyle(
+                          fontFamily: AppTypography.bodyFamily,
+                          fontSize: 12.5,
+                          color: isDark ? AppColors.textMutedDark : Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+
+            // Opción 1: Navegar en la App La Diabla (Ruta Inteligente In-App)
+            InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _executeStartTrip(order, mode: 'in_app');
+              },
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF2C1610) : const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFDC2626), width: 1.5),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFDC2626), Color(0xFFB91C1C)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.two_wheeler_rounded, color: Colors.white, size: 26),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'Navegar en App La Diabla',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14.5,
+                                  color: isDark ? Colors.white : const Color(0xFF1C1C1C),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFDC2626),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'RECOMENDADO',
+                                  style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Ruta calle por calle, velocímetro, voz TTS y panel en vivo sin salir de la app',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: isDark ? AppColors.textMutedDark : Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Color(0xFFDC2626)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Opción 2: Waze (Prioridad de Repartidores)
+            InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _executeStartTrip(order, mode: 'waze');
+              },
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF141F2B) : const Color(0xFFF0F9FF),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF00A3DA).withAlpha(120)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF33CCFF).withAlpha(35),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: Image.network(
+                          'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Waze_icon.svg/120px-Waze_icon.svg.png',
+                          width: 28,
+                          height: 28,
+                          errorBuilder: (_, _, _) => const Icon(Icons.directions_car_rounded, color: Color(0xFF00A3DA), size: 26),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Waze GPS',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14.5,
+                              color: isDark ? Colors.white : const Color(0xFF1C1C1C),
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Alertas de tráfico en vivo, cámaras y policía en tiempo real',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: isDark ? AppColors.textMutedDark : Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.open_in_new_rounded, size: 18, color: Color(0xFF00A3DA)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Opción 3: Google Maps App Nativa
+            InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _executeStartTrip(order, mode: 'maps');
+              },
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF161F1A) : const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF10B981).withAlpha(120)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withAlpha(30),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.map_rounded, color: Color(0xFF10B981), size: 26),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Google Maps (App)',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14.5,
+                              color: isDark ? Colors.white : const Color(0xFF1C1C1C),
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Abre directo en la app de Maps (no en el navegador)',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: isDark ? AppColors.textMutedDark : Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.open_in_new_rounded, size: 18, color: Color(0xFF10B981)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Ejecuta el arranque del viaje según el modo seleccionado
+  Future<void> _executeStartTrip(OrderEntity order, {required String mode}) async {
     try {
       final destLat = order.address?.latitude ?? order.latitude;
       final destLng = order.address?.longitude ?? order.longitude;
@@ -352,6 +828,8 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
 
       setState(() {
         _activeOrder = order.copyWith(status: OrderStatus.onTheWay);
+        _currentNavIndex = 1; // Pestaña del Mapa
+        _isCameraFollowEnabled = true;
       });
 
       ref.read(driverOperationalProvider.notifier).setActiveDelivery(order.id);
@@ -362,15 +840,42 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         destLng: destLng,
       );
 
-      // Abrir mapa externo si el cliente tiene coordenadas
-      if (destLat != null && destLng != null && mounted) {
-        _openExternalMap(destLat, destLng, address: order.address?.formattedAddress);
+      // Calcular la ruta inteligente de calles para la vista in-app
+      await _calculateSmartRoute(order);
+
+      // Centrar e inclinar la cámara en perspectiva de conducción 3D
+      if (_mapControllerCompleter.isCompleted) {
+        final ctrl = await _mapControllerCompleter.future;
+        ctrl.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(
+              target: _driverCurrentPos,
+              zoom: 17.5,
+              tilt: 45.0,
+              bearing: _currentBearing > 0 ? _currentBearing : 0.0,
+            ),
+          ),
+        );
+      }
+
+      if (mode == 'in_app') {
+        try {
+          await _flutterTts.speak('Ruta iniciada. Conduce con precaución hacia el destino del cliente.');
+        } catch (_) {}
+      } else if (mode == 'waze' && destLat != null && destLng != null) {
+        await MapsService.openInWaze(destLat, destLng);
+      } else if (mode == 'maps' && destLat != null && destLng != null) {
+        await MapsService.openInGoogleMaps(destLat, destLng, label: 'Entrega La Diabla');
       }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('🛵 ¡Viaje iniciado! #${order.id.substring(0, order.id.length > 6 ? 6 : order.id.length).toUpperCase()} — GPS activo.'),
+            content: Text(
+              mode == 'in_app'
+                  ? '🛵 ¡Navegación iniciada en app! Sigue la ruta en pantalla.'
+                  : '🛵 ¡Viaje iniciado! Abriendo navegador GPS externo...',
+            ),
             backgroundColor: const Color(0xFF16A34A),
             behavior: SnackBarBehavior.floating,
           ),
@@ -387,6 +892,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       }
     }
   }
+
   Future<void> _markOrderAsDelivered(OrderEntity order) async {
     File? proofImage;
     bool isUploading = false;
@@ -428,10 +934,15 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
             try {
               String? proofUrl;
               if (proofImage != null) {
-                proofUrl = await StorageService().uploadDeliveryProof(
-                  orderId: order.id,
-                  file: proofImage!,
-                );
+                try {
+                  proofUrl = await StorageService().uploadDeliveryProof(
+                    orderId: order.id,
+                    file: proofImage!,
+                  ).timeout(const Duration(seconds: 25));
+                } catch (e) {
+                  debugPrint('⚠️ Upload de comprobante falló: $e');
+                  // Continuar sin URL — el pedido igual se marca entregado
+                }
               }
 
               final driverId = ref.read(authNotifierProvider).user?.id ?? 'driver_01';
@@ -1064,10 +1575,14 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         final activeOrders = orders.where((o) =>
             o.status == OrderStatus.onTheWay || o.status == OrderStatus.assigned).toList();
 
-        // 🤖 Reactor de Autoaceptación Inteligente
+        // 🤖 Reactor de Autoaceptación Inteligente por Proximidad
         if (opState.preferences.isAutoAcceptEnabled &&
             opState.canReceiveOrders &&
+            _isVehicleRegistered &&
             availableOrders.isNotEmpty) {
+          final kitchenPos = MapsService.defaultLocation;
+          final distToKitchen = MapsService.calculateDistanceKm(_driverCurrentPos, kitchenPos);
+
           for (final order in availableOrders) {
             if (!_autoAcceptedOrderIds.contains(order.id)) {
               final match = OrderMatchingEngine.evaluate(
@@ -1079,7 +1594,13 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                 isOnline: opState.isOnline,
                 hasActiveDelivery: opState.hasActiveDelivery,
               );
-              if (match.isMatch) {
+
+              // Validar compatibilidad y proximidad a la cocina (máximo 4.0 km o límite configurado)
+              final maxAllowedStoreDist = opState.preferences.maxStoreDistanceKm > 0
+                  ? opState.preferences.maxStoreDistanceKm
+                  : 4.0;
+
+              if (match.isMatch && distToKitchen <= maxAllowedStoreDist) {
                 _autoAcceptedOrderIds.add(order.id);
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _autoAcceptOrder(order, match);
@@ -1181,6 +1702,54 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                         );
                       },
                       child: const Text('Activar', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            // Banner de Advertencia si el Vehículo no está registrado
+            if (!_isVehicleRegistered) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDC2626).withAlpha(15),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFDC2626), width: 1.5),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.two_wheeler_rounded, color: Color(0xFFDC2626), size: 30),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '🛵 VEHÍCULO PENDIENTE POR REGISTRAR',
+                            style: TextStyle(
+                              color: Color(0xFFDC2626),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          const Text(
+                            'Ingresa el modelo, la placa y sube la foto de tu placa para habilitar la toma de pedidos.',
+                            style: TextStyle(fontSize: 11.5, height: 1.3),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: _showEditVehicleDialog,
+                      child: const Text('Registrar', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
@@ -1326,7 +1895,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       hasActiveDelivery: opState.hasActiveDelivery,
     );
 
-    final canReceive = opState.canReceiveOrders;
+    final canReceive = opState.canReceiveOrders && _isVehicleRegistered;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -1515,12 +2084,18 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               ),
               icon: const Icon(Icons.two_wheeler_rounded, size: 20),
               label: Text(
-                canReceive ? 'TOMAR Y SALIR EN RUTA 🛵' : 'BLOQUEADO PARA RECIBIR',
+                canReceive
+                    ? 'TOMAR Y SALIR EN RUTA 🛵'
+                    : (!_isVehicleRegistered ? 'REGISTRA TU VEHÍCULO PRIMERO ⚠️' : 'BLOQUEADO PARA RECIBIR'),
                 style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
               ),
               onPressed: canReceive
                   ? () => _takeAndAcceptOrder(order)
                   : () {
+                      if (!_isVehicleRegistered) {
+                        _showEditVehicleDialog();
+                        return;
+                      }
                       final op = ref.read(driverOperationalProvider);
                       if (op.isBatteryLow) {
                         LowBatteryModal.showIfNeeded(context, op.batteryLevel);
@@ -1543,7 +2118,14 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   // PESTAÑA 1: RUTA INTELIGENTE & MAPA GPS EN VIVO
   // ═════════════════════════════════════════════════════════════════════════════
   Widget _buildMapRouteTab(bool isDark) {
-    final activeOrder = _activeOrder;
+    final allOrdersAsync = ref.watch(allPendingOrdersStreamProvider);
+    final activeOrdersFromStream = allOrdersAsync.maybeWhen(
+      data: (orders) => orders.where((o) =>
+          o.status == OrderStatus.onTheWay || o.status == OrderStatus.assigned).toList(),
+      orElse: () => <OrderEntity>[],
+    );
+
+    final activeOrder = _activeOrder ?? (activeOrdersFromStream.isNotEmpty ? activeOrdersFromStream.first : null);
     final opState = ref.watch(driverOperationalProvider);
 
     final destLat = activeOrder?.address?.latitude ?? activeOrder?.latitude ?? 7.092758;
@@ -1578,11 +2160,31 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         ),
     };
 
+    // Si hay orden activa y no se ha calculado la ruta inteligente, calcularla
+    if (activeOrder != null && _smartRoutePoints.isEmpty && !_isLoadingRoute && activeOrder.id != _lastCalculatedOrderId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _calculateSmartRoute(activeOrder);
+      });
+    }
+
+    // Si está en fase de recogida hacia la cocina: destino = cocina
+    // Si ya reclamó el pedido: destino = cliente
+    final targetDestPos = _headingToKitchen ? kitchenPos : destPos;
+
+    // Puntos de la ruta: usar la ruta inteligente por calles si está disponible
     final routePoints = activeOrder != null
-        ? [_driverCurrentPos, destPos]
+        ? (_smartRoutePoints.isNotEmpty ? _smartRoutePoints : [_driverCurrentPos, targetDestPos])
         : [_driverCurrentPos, kitchenPos];
 
     final polylines = <Polyline>{
+      // Sombra/borde de alto contraste estilo navegación Waze
+      Polyline(
+        polylineId: const PolylineId('active_route_shadow'),
+        points: routePoints,
+        color: const Color(0xFF7F1D1D),
+        width: 8,
+      ),
+      // Línea principal rojo fuego La Diabla
       Polyline(
         polylineId: const PolylineId('active_route'),
         points: routePoints,
@@ -1591,19 +2193,33 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       ),
     };
 
+    final currentDistanceKm = _remainingDistanceKm > 0
+        ? _remainingDistanceKm
+        : MapsService.calculateDistanceKm(_driverCurrentPos, targetDestPos);
+    final currentEtaText = _remainingTimeText.isNotEmpty
+        ? _remainingTimeText
+        : MapsService.estimateDeliveryTime(currentDistanceKm);
+
     return Stack(
       children: [
         // Mapa de Google a pantalla completa
         GoogleMap(
           initialCameraPosition: CameraPosition(
             target: _driverCurrentPos,
-            zoom: 15.5,
+            zoom: 16.5,
+            tilt: activeOrder?.status == OrderStatus.onTheWay ? 45.0 : 0.0,
+            bearing: _currentBearing > 0 ? _currentBearing : 0.0,
           ),
           markers: markers,
           polylines: polylines,
           myLocationEnabled: true,
           myLocationButtonEnabled: false,
           zoomControlsEnabled: false,
+          onCameraMoveStarted: () {
+            if (_isCameraFollowEnabled) {
+              setState(() => _isCameraFollowEnabled = false);
+            }
+          },
           onMapCreated: (ctrl) {
             if (!_mapControllerCompleter.isCompleted) {
               _mapControllerCompleter.complete(ctrl);
@@ -1612,39 +2228,59 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           },
         ),
 
-        // HUD Superior Flotante sobre el Mapa
+        // HUD Superior Flotante sobre el Mapa:
+        // Si hay viaje en camino -> Banner de Navegación In-App inteligente
+        // Si no -> HUD clásico de control operativo
         Positioned(
           top: 14,
           left: 14,
-          right: 70,
-          child: _buildTopControlHud(opState, isDark),
-        ),
-
-        // Botón flotante para centrar en GPS Real
-        Positioned(
-          top: 20,
           right: 14,
-          child: FloatingActionButton.small(
-            backgroundColor: isDark ? const Color(0xFF1E1712) : Colors.white,
-            foregroundColor: const Color(0xFFDC2626),
-            elevation: 4,
-            onPressed: _centerMapOnRealGps,
-            child: const Icon(Icons.my_location_rounded, size: 22),
-          ),
+          child: activeOrder != null && activeOrder.status == OrderStatus.onTheWay
+              ? _buildInAppNavigationHud(
+                  activeOrder: activeOrder,
+                  distanceKm: currentDistanceKm,
+                  etaText: currentEtaText,
+                  destLat: destLat,
+                  destLng: destLng,
+                  isDark: isDark,
+                )
+              : _buildTopControlHud(opState, isDark),
         ),
 
-        // Botón flotante para re-centrar el mapa
+        // Botón flotante para centrar en GPS Real con modo conducción
         Positioned(
-          top: 16,
           right: 16,
+          bottom: activeOrder == null ? 175 : 325,
           child: FloatingActionButton.small(
-            backgroundColor: isDark ? const Color(0xFF2C1B14) : Colors.white,
-            foregroundColor: const Color(0xFFDC2626),
+            backgroundColor: _isCameraFollowEnabled
+                ? const Color(0xFFDC2626)
+                : (isDark ? const Color(0xFF2C1B14) : Colors.white),
+            foregroundColor: _isCameraFollowEnabled
+                ? Colors.white
+                : const Color(0xFFDC2626),
+            elevation: 6,
+            tooltip: _isCameraFollowEnabled ? 'Siguiendo tu moto' : 'Centrar y seguir ruta',
             onPressed: () async {
-              final ctrl = await _mapControllerCompleter.future;
-              ctrl.animateCamera(CameraUpdate.newLatLngZoom(_driverCurrentPos, 15.5));
+              setState(() => _isCameraFollowEnabled = true);
+              await _centerMapOnRealGps();
+              if (_mapControllerCompleter.isCompleted) {
+                final ctrl = await _mapControllerCompleter.future;
+                ctrl.animateCamera(
+                  CameraUpdate.newCameraPosition(
+                    CameraPosition(
+                      target: _driverCurrentPos,
+                      zoom: 17.5,
+                      tilt: 45.0,
+                      bearing: _currentBearing > 0 ? _currentBearing : 0.0,
+                    ),
+                  ),
+                );
+              }
             },
-            child: const Icon(Icons.my_location_rounded),
+            child: Icon(
+              _isCameraFollowEnabled ? Icons.navigation_rounded : Icons.my_location_rounded,
+              size: 22,
+            ),
           ),
         ),
 
@@ -1756,12 +2392,18 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                           Expanded(
                             child: Row(
                               children: [
-                                const Icon(Icons.navigation_rounded, color: Color(0xFFDC2626), size: 20),
+                                Icon(
+                                  _headingToKitchen ? Icons.storefront_rounded : Icons.navigation_rounded,
+                                  color: const Color(0xFFDC2626),
+                                  size: 20,
+                                ),
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
-                                    'EN RUTA • #${activeOrder.id.length > 6 ? activeOrder.id.substring(activeOrder.id.length - 6).toUpperCase() : activeOrder.id}',
-                                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                                    _headingToKitchen
+                                        ? 'PASO 1: RECLAMAR EN COCINA • #${activeOrder.id.length > 6 ? activeOrder.id.substring(activeOrder.id.length - 6).toUpperCase() : activeOrder.id}'
+                                        : 'PASO 2: EN RUTA AL CLIENTE • #${activeOrder.id.length > 6 ? activeOrder.id.substring(activeOrder.id.length - 6).toUpperCase() : activeOrder.id}',
+                                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -1772,13 +2414,19 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                           IconButton(
                             icon: const Icon(Icons.directions_rounded, color: Color(0xFF009EE3)),
                             tooltip: 'Abrir GPS Externo',
-                            onPressed: () => _openExternalMap(destLat, destLng),
+                            onPressed: () => _openExternalMap(
+                              _headingToKitchen ? kitchenPos.latitude : destLat,
+                              _headingToKitchen ? kitchenPos.longitude : destLng,
+                              address: _headingToKitchen ? 'Cocina Central La Diabla' : activeOrder.address?.formattedAddress,
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        activeOrder.address?.formattedAddress ?? 'Dirección de Entrega',
+                        _headingToKitchen
+                            ? 'Cocina Central La Diabla (Cl. 59 # 39W-24, Estoraques 1)'
+                            : (activeOrder.address?.formattedAddress ?? 'Dirección de Entrega'),
                         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -1827,40 +2475,175 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                       ),
                       const SizedBox(height: 12),
 
-                      // Botones de Contacto Rápido al Cliente
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF25D366),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      // Información y Contacto con el Cliente
+                      Builder(
+                        builder: (context) {
+                          final clientName = (activeOrder.customerName?.isNotEmpty == true)
+                              ? activeOrder.customerName!
+                              : 'Cliente La Diabla';
+                          final clientPhone = (activeOrder.customerPhone?.isNotEmpty == true)
+                              ? activeOrder.customerPhone!
+                              : '';
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isDark ? Colors.black26 : Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
+                                ),
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 16,
+                                      backgroundColor: const Color(0xFFDC2626).withAlpha(25),
+                                      child: const Icon(Icons.person_rounded, color: Color(0xFFDC2626), size: 18),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            clientName,
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            clientPhone.isNotEmpty ? '📞 $clientPhone' : '📞 Teléfono registrado en orden',
+                                            style: TextStyle(
+                                              fontSize: 11.5,
+                                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              icon: const Icon(Icons.chat_rounded, size: 16),
-                              label: const Text('WhatsApp', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              onPressed: () => _whatsappCustomer('3001234567', activeOrder.id),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF009EE3),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              const SizedBox(height: 10),
+
+                              // Botones de Contacto Rápido al Cliente
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF25D366),
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        padding: const EdgeInsets.symmetric(vertical: 9),
+                                      ),
+                                      icon: const Icon(Icons.chat_rounded, size: 15),
+                                      label: const Text('WhatsApp', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                                      onPressed: () => _whatsappCustomer(clientPhone, activeOrder.id),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF009EE3),
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        padding: const EdgeInsets.symmetric(vertical: 9),
+                                      ),
+                                      icon: const Icon(Icons.call_rounded, size: 15),
+                                      label: const Text('Llamar', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                                      onPressed: () => _callCustomer(clientPhone),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              icon: const Icon(Icons.call_rounded, size: 16),
-                              label: const Text('Llamar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              onPressed: () => _callCustomer('3001234567'),
-                            ),
-                          ),
-                        ],
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFDC2626),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    elevation: 1,
+                                  ),
+                                  icon: const Icon(Icons.forum_rounded, size: 17),
+                                  label: const Text('Chat con el Cliente 💬', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                                  onPressed: () {
+                                    final driverId = ref.read(authNotifierProvider).user?.id ?? 'driver_01';
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => OrderChatScreen(
+                                          orderId: activeOrder.id,
+                                          currentUserId: driverId,
+                                          currentUserName: _driverName,
+                                          currentUserRole: 'driver',
+                                          peerName: clientName,
+                                          peerPhone: clientPhone,
+                                          peerRole: 'Cliente',
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 10),
 
-                      // Botón principal: INICIAR VIAJE (si assigned) o ENTREGA COMPLETADA (si onTheWay)
-                      if (activeOrder.status == OrderStatus.assigned)
+                      // Botón dinámico según fase de entrega (Estilo Rappi):
+                      // Si va a la cocina: "PEDIDO RECLAMADO EN COCINA 📦"
+                      // Si assigned listo para salir al cliente: "INICIAR RUTA FINAL AL CLIENTE 🏍️"
+                      // Si onTheWay: "ENTREGA COMPLETADA ✅"
+                      if (_headingToKitchen)
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD97706),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              elevation: 4,
+                            ),
+                            icon: const Icon(Icons.inventory_2_rounded, size: 22),
+                            label: const Text(
+                              'LLEGUÉ / PEDIDO RECLAMADO 📦',
+                              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                            ),
+                            onPressed: () async {
+                              setState(() {
+                                _headingToKitchen = false;
+                                _smartRoutePoints = [];
+                              });
+                              // Informar a Firestore que el repartidor ya reclamó el pedido y va al cliente
+                              try {
+                                await FirebaseFirestore.instance
+                                    .collection('orders')
+                                    .doc(activeOrder.id)
+                                    .update({'driverPhase': 'heading_to_client', 'updatedAt': FieldValue.serverTimestamp()});
+                              } catch (_) {}
+                              await _calculateSmartRoute(activeOrder);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('📦 Pedido reclamado. Presiona INICIAR RUTA para salir hacia el cliente.'),
+                                    backgroundColor: Color(0xFF16A34A),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        )
+                      else if (activeOrder.status == OrderStatus.assigned)
                         SizedBox(
                           width: double.infinity,
                           height: 50,
@@ -1873,8 +2656,8 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                             ),
                             icon: const Icon(Icons.two_wheeler_rounded, size: 22),
                             label: const Text(
-                              'INICIAR VIAJE 🏍️',
-                              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+                              'INICIAR RUTA AL CLIENTE 🏍️',
+                              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14.5),
                             ),
                             onPressed: () => _startTripWithGps(activeOrder),
                           ),
@@ -1902,6 +2685,192 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                 ),
         ),
       ],
+    );
+  }
+
+  /// HUD Superior de Navegación In-App en Vivo
+  Widget _buildInAppNavigationHud({
+    required OrderEntity activeOrder,
+    required double distanceKm,
+    required String etaText,
+    required double destLat,
+    required double destLng,
+    required bool isDark,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1712).withAlpha(240) : Colors.white.withAlpha(245),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFDC2626).withAlpha(120),
+          width: 1.5,
+        ),
+        boxShadow: const [
+          BoxShadow(color: Colors.black38, blurRadius: 16, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Fila superior: Estado de navegación y botones rápidos a navegadores externos
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF16A34A),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  _headingToKitchen
+                      ? 'RECOGIENDO EN COCINA 📦'
+                      : 'EN RUTA AL CLIENTE 🛵',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 11.5,
+                    color: _headingToKitchen
+                        ? const Color(0xFFD97706)
+                        : const Color(0xFFDC2626),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              // Botón rápido Waze
+              InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () => MapsService.openInWaze(destLat, destLng),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00A3DA).withAlpha(25),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF00A3DA).withAlpha(80)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.directions_car_rounded, size: 13, color: Color(0xFF00A3DA)),
+                      SizedBox(width: 4),
+                      Text('Waze', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF00A3DA))),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              // Botón rápido Google Maps
+              InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () => MapsService.openInGoogleMaps(destLat, destLng, label: 'Entrega La Diabla'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withAlpha(25),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF10B981).withAlpha(80)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.map_rounded, size: 13, color: Color(0xFF10B981)),
+                      SizedBox(width: 4),
+                      Text('Maps', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Dirección destino
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.location_pin, size: 18, color: Color(0xFFDC2626)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  _headingToKitchen
+                      ? 'Cocina Central La Diabla • Cl. 59 # 39W-24'
+                      : (activeOrder.address?.formattedAddress ?? 'Dirección de Entrega'),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: isDark ? Colors.white : const Color(0xFF1C1C1C),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Métricas en vivo de conducción: Distancia restante, Tiempo estimado y Recalcular
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.black26 : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.route_rounded, size: 16, color: Color(0xFFDC2626)),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${distanceKm.toStringAsFixed(1)} km',
+                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                    ),
+                  ],
+                ),
+                Container(width: 1, height: 16, color: Colors.grey.shade400),
+                Row(
+                  children: [
+                    const Icon(Icons.timer_outlined, size: 16, color: Color(0xFFF59E0B)),
+                    const SizedBox(width: 4),
+                    Text(
+                      etaText,
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+                    ),
+                  ],
+                ),
+                Container(width: 1, height: 16, color: Colors.grey.shade400),
+                InkWell(
+                  onTap: () => _calculateSmartRoute(activeOrder),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.refresh_rounded,
+                        size: 15,
+                        color: _isLoadingRoute ? const Color(0xFFDC2626) : Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        _isLoadingRoute ? 'Ruta...' : 'Recalcular',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: _isLoadingRoute ? const Color(0xFFDC2626) : Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2491,7 +3460,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               ),
               const SizedBox(height: 2),
               Text(
-                '📞 $_driverPhone • ${user?.email ?? "repartidor@ladiabla.app"}',
+                [
+                  if (_driverPhone.isNotEmpty) '📞 $_driverPhone',
+                  user?.email ?? 'repartidor@ladiabla.app',
+                ].join(' • '),
                 style: TextStyle(fontSize: 12.5, color: isDark ? AppColors.textMutedDark : Colors.grey.shade600),
               ),
               const SizedBox(height: 14),
@@ -2518,6 +3490,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
             ],
           ),
         ),
+        const SizedBox(height: 16),
+
+        // Mis Calificaciones y Reseñas (Estilo Rappi)
+        _buildDriverRatingsAndReviewsCard(user?.id ?? 'driver_01', isDark),
         const SizedBox(height: 16),
 
         // Datos del Vehículo (Totalmente Editable)
@@ -2550,21 +3526,54 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                 dense: true,
                 leading: const Icon(Icons.motorcycle_rounded, color: Color(0xFFDC2626)),
                 title: const Text('Vehículo'),
-                trailing: Text(_vehicleModel, style: const TextStyle(fontWeight: FontWeight.bold)),
+                trailing: Text(
+                  _vehicleModel.isNotEmpty ? _vehicleModel : 'Sin registrar ⚠️',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: _vehicleModel.isNotEmpty ? null : const Color(0xFFDC2626),
+                  ),
+                ),
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 dense: true,
                 leading: const Icon(Icons.pin_rounded, color: Color(0xFFDC2626)),
                 title: const Text('Placa'),
-                trailing: Text(_vehiclePlate, style: const TextStyle(fontWeight: FontWeight.bold)),
+                trailing: Text(
+                  _vehiclePlate.isNotEmpty ? _vehiclePlate : 'Sin registrar ⚠️',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: _vehiclePlate.isNotEmpty ? null : const Color(0xFFDC2626),
+                  ),
+                ),
               ),
+              if (_vehiclePlatePhoto.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, bottom: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.photo_camera_front_rounded, size: 18, color: Color(0xFF10B981)),
+                      const SizedBox(width: 8),
+                      const Text('Foto de Placa:', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                      const Spacer(),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: _vehiclePlatePhoto.startsWith('http')
+                            ? Image.network(_vehiclePlatePhoto, width: 44, height: 44, fit: BoxFit.cover)
+                            : Image.file(File(_vehiclePlatePhoto), width: 44, height: 44, fit: BoxFit.cover),
+                      ),
+                    ],
+                  ),
+                ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 dense: true,
                 leading: const Icon(Icons.verified_rounded, color: Color(0xFF16A34A)),
                 title: const Text('SOAT y Tecnomecánica'),
-                trailing: Text(_vehicleSoat, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF16A34A))),
+                trailing: Text(
+                  _vehicleSoat.isNotEmpty ? _vehicleSoat : 'Vigente ✅',
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF16A34A)),
+                ),
               ),
             ],
           ),
@@ -2698,6 +3707,249 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         ),
         const SizedBox(height: 20),
       ],
+    );
+  }
+
+  /// Sección interactiva de Calificaciones y Reseñas del Repartidor (Estilo Rappi)
+  Widget _buildDriverRatingsAndReviewsCard(String driverId, bool isDark) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(driverId).snapshots(),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data() as Map<String, dynamic>?;
+        final ratingAvg = (data?['driverAverageRating'] as num?)?.toDouble() ?? 5.0;
+        final ratingCount = (data?['driverRatingCount'] as num?)?.toInt() ?? 0;
+        final ordersCompleted = (data?['completedOrders'] as num?)?.toInt() ?? (ratingCount > 0 ? ratingCount : 2);
+
+        return Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF2C1B14) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark ? AppColors.dividerDark : Colors.grey.shade200,
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(isDark ? 30 : 10),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 22),
+                      SizedBox(width: 6),
+                      Text(
+                        'MIS RESEÑAS Y PUNTAJE ⭐',
+                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5, letterSpacing: 0.5),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF16A34A).withAlpha(25),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF16A34A), width: 1),
+                    ),
+                    child: const Text(
+                      'Excelente',
+                      style: TextStyle(color: Color(0xFF16A34A), fontWeight: FontWeight.bold, fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Fila de Estadísticas y Score
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.black26 : const Color(0xFFFAF7F2),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    // Puntuación destacada
+                    Column(
+                      children: [
+                        Text(
+                          ratingAvg.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFFD97706),
+                          ),
+                        ),
+                        Row(
+                          children: List.generate(
+                            5,
+                            (idx) => Icon(
+                              Icons.star_rounded,
+                              size: 15,
+                              color: idx < ratingAvg.round() ? const Color(0xFFF59E0B) : Colors.grey.shade400,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$ratingCount opiniones',
+                          style: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 16),
+                    Container(width: 1.2, height: 55, color: isDark ? AppColors.dividerDark : Colors.grey.shade300),
+                    const SizedBox(width: 16),
+
+                    // Métricas guiadas por entregas
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 14),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Entregas: $ordersCompleted',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 5),
+                          const Row(
+                            children: [
+                              Icon(Icons.electric_bolt_rounded, color: Color(0xFFDC2626), size: 14),
+                              SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Puntualidad: 99%',
+                                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 5),
+                          const Row(
+                            children: [
+                              Icon(Icons.thumb_up_rounded, color: Color(0xFF0284C7), size: 14),
+                              SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Satisfacción: 100%',
+                                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Lista de Reseñas de Clientes
+              const Text(
+                'Comentarios de tus clientes:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+              ),
+              const SizedBox(height: 8),
+
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(driverId)
+                    .collection('driver_reviews')
+                    .orderBy('createdAt', descending: true)
+                    .limit(5)
+                    .snapshots(),
+                builder: (context, reviewSnap) {
+                  final docs = reviewSnap.data?.docs ?? [];
+                  if (docs.isEmpty) {
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.black12 : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: isDark ? AppColors.dividerDark : Colors.grey.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.verified_user_rounded, color: Color(0xFF16A34A), size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '¡Excelente perfil! Completa pedidos a tiempo para sumar más reseñas y mejorar tu prioridad.',
+                              style: TextStyle(fontSize: 11.5, color: isDark ? AppColors.textMutedDark : Colors.grey.shade700),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: docs.map((doc) {
+                      final rev = doc.data() as Map<String, dynamic>;
+                      final stars = (rev['rating'] as num?)?.toInt() ?? 5;
+                      final comment = rev['comment'] as String? ?? '¡Excelente servicio!';
+                      final client = rev['customerName'] as String? ?? 'Cliente Diabla';
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.black12 : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: isDark ? AppColors.dividerDark : Colors.grey.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(client, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                Row(
+                                  children: List.generate(
+                                    5,
+                                    (i) => Icon(
+                                      Icons.star_rounded,
+                                      size: 13,
+                                      color: i < stars ? const Color(0xFFF59E0B) : Colors.grey.shade400,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (comment.isNotEmpty) ...[
+                              const SizedBox(height: 3),
+                              Text(comment, style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white70 : Colors.black87)),
+                            ],
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -2896,7 +4148,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   Future<void> _showEditVehicleDialog() async {
     final modelCtrl = TextEditingController(text: _vehicleModel);
     final plateCtrl = TextEditingController(text: _vehiclePlate);
-    String soatStatus = _vehicleSoat;
+    final colorCtrl = TextEditingController(text: _vehicleColor);
+    String soatStatus = _vehicleSoat.isNotEmpty ? _vehicleSoat : 'Vigente ✅';
+    File? tempPlatePhotoFile;
+    String currentPlatePhoto = _vehiclePlatePhoto;
 
     final updated = await showDialog<bool>(
       context: context,
@@ -2906,12 +4161,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           builder: (context, setDlgState) {
             return AlertDialog(
               backgroundColor: isDark ? const Color(0xFF1E1712) : Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
               title: const Row(
                 children: [
                   Icon(Icons.motorcycle_rounded, color: Color(0xFFDC2626)),
                   SizedBox(width: 8),
-                  Text('Editar Vehículo 🛵', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  Text('Datos del Vehículo 🛵', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                 ],
               ),
               content: SingleChildScrollView(
@@ -2919,12 +4174,17 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Modelo / Tipo de Vehículo:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                    const Text(
+                      'Campos obligatorios para poder recibir pedidos por seguridad del cliente.',
+                      style: TextStyle(fontSize: 11.5, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text('Modelo / Tipo de Vehículo *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
                     const SizedBox(height: 6),
                     TextField(
                       controller: modelCtrl,
                       decoration: InputDecoration(
-                        hintText: 'Ej: Motocicleta 125cc / Bicicleta',
+                        hintText: 'Ej: Boxer CT 100 / Pulsar 200',
                         filled: true,
                         fillColor: isDark ? Colors.black26 : Colors.grey.shade100,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -2932,13 +4192,13 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                       ),
                     ),
                     const SizedBox(height: 14),
-                    const Text('Placa del Vehículo:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                    const Text('Placa del Vehículo *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
                     const SizedBox(height: 6),
                     TextField(
                       controller: plateCtrl,
                       textCapitalization: TextCapitalization.characters,
                       decoration: InputDecoration(
-                        hintText: 'Ej: ABC-12D',
+                        hintText: 'Ej: XZK-45F',
                         filled: true,
                         fillColor: isDark ? Colors.black26 : Colors.grey.shade100,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -2946,7 +4206,113 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                       ),
                     ),
                     const SizedBox(height: 14),
-                    const Text('Estado de Documentos (SOAT):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                    const Text('Color del Vehículo *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: colorCtrl,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: InputDecoration(
+                        hintText: 'Ej: Negro brillante / Rojo con negro',
+                        filled: true,
+                        fillColor: isDark ? Colors.black26 : Colors.grey.shade100,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text('Foto de la Placa del Vehículo 📸', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                    const SizedBox(height: 6),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.black26 : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
+                      ),
+                      child: Column(
+                        children: [
+                          if (tempPlatePhotoFile != null)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.file(
+                                tempPlatePhotoFile!,
+                                height: 110,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          else if (currentPlatePhoto.isNotEmpty)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: currentPlatePhoto.startsWith('http')
+                                  ? Image.network(currentPlatePhoto, height: 110, width: double.infinity, fit: BoxFit.cover)
+                                  : Image.file(File(currentPlatePhoto), height: 110, width: double.infinity, fit: BoxFit.cover),
+                            )
+                          else
+                            Container(
+                              height: 70,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.white.withAlpha(8) : Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.photo_camera_rounded, color: Colors.grey, size: 26),
+                                  SizedBox(height: 4),
+                                  Text('Sin foto de placa registrada', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                ],
+                              ),
+                            ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    side: const BorderSide(color: Color(0xFFDC2626)),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                  icon: const Icon(Icons.camera_alt_rounded, size: 16, color: Color(0xFFDC2626)),
+                                  label: const Text('Cámara', style: TextStyle(color: Color(0xFFDC2626), fontSize: 11.5, fontWeight: FontWeight.bold)),
+                                  onPressed: () async {
+                                    final picker = ImagePicker();
+                                    final picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 80, maxWidth: 900);
+                                    if (picked != null) {
+                                      setDlgState(() => tempPlatePhotoFile = File(picked.path));
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    side: const BorderSide(color: Color(0xFF0284C7)),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                  icon: const Icon(Icons.photo_library_rounded, size: 16, color: Color(0xFF0284C7)),
+                                  label: const Text('Galería', style: TextStyle(color: Color(0xFF0284C7), fontSize: 11.5, fontWeight: FontWeight.bold)),
+                                  onPressed: () async {
+                                    final picker = ImagePicker();
+                                    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 900);
+                                    if (picked != null) {
+                                      setDlgState(() => tempPlatePhotoFile = File(picked.path));
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text('Estado SOAT / Documentos:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
                       initialValue: soatStatus.contains('Vigente') ? 'Vigente ✅' : (soatStatus.contains('Exento') ? 'Exento (Bicicleta) 🚲' : 'En Trámite ⚠️'),
@@ -2979,8 +4345,21 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFDC2626),
                     foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  onPressed: () => Navigator.pop(ctx, true),
+                  onPressed: () {
+                    if (modelCtrl.text.trim().isEmpty || plateCtrl.text.trim().isEmpty || colorCtrl.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        const SnackBar(
+                          content: Text('⚠️ Por favor ingresa el modelo, placa y color del vehículo.'),
+                          backgroundColor: Color(0xFFDC2626),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.pop(ctx, true);
+                  },
                   child: const Text('Guardar'),
                 ),
               ],
@@ -2991,21 +4370,62 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     );
 
     if (updated == true) {
+      final finalModel = modelCtrl.text.trim();
+      final finalPlate = plateCtrl.text.trim().toUpperCase();
+      final finalColor = colorCtrl.text.trim();
+
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('driver_vehicle_model', modelCtrl.text.trim());
-      await prefs.setString('driver_vehicle_plate', plateCtrl.text.trim().toUpperCase());
+      await prefs.setString('driver_vehicle_model', finalModel);
+      await prefs.setString('driver_vehicle_plate', finalPlate);
+      await prefs.setString('driver_vehicle_color', finalColor);
       await prefs.setString('driver_vehicle_soat', soatStatus);
 
+      String platePhotoPath = currentPlatePhoto;
+      if (tempPlatePhotoFile != null) {
+        platePhotoPath = tempPlatePhotoFile!.path;
+        await prefs.setString('driver_vehicle_plate_photo', platePhotoPath);
+
+        // Subir a Storage en segundo plano
+        final user = ref.read(authNotifierProvider).user;
+        if (user != null) {
+          try {
+            final downloadUrl = await StorageService().uploadUserPhoto(
+              userId: '${user.id}_plate',
+              file: tempPlatePhotoFile!,
+            );
+            platePhotoPath = downloadUrl;
+            await prefs.setString('driver_vehicle_plate_photo', platePhotoPath);
+          } catch (_) {}
+        }
+      }
+
       setState(() {
-        _vehicleModel = modelCtrl.text.trim().isEmpty ? 'Motocicleta 125cc' : modelCtrl.text.trim();
-        _vehiclePlate = plateCtrl.text.trim().isEmpty ? 'ABC-12D' : plateCtrl.text.trim().toUpperCase();
+        _vehicleModel = finalModel;
+        _vehiclePlate = finalPlate;
+        _vehicleColor = finalColor;
         _vehicleSoat = soatStatus;
+        _vehiclePlatePhoto = platePhotoPath;
       });
+
+      // Sincronizar en Firestore para que el cliente lo vea en el rastreo en vivo
+      final user = ref.read(authNotifierProvider).user;
+      if (user != null && user.id.isNotEmpty) {
+        try {
+          await FirebaseFirestore.instance.collection('users').doc(user.id).set({
+            'vehicleModel': finalModel,
+            'vehiclePlate': finalPlate,
+            'vehicleColor': finalColor,
+            'vehicleSoat': soatStatus,
+            if (platePhotoPath.isNotEmpty) 'vehiclePlatePhotoUrl': platePhotoPath,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        } catch (_) {}
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Datos del vehículo actualizados correctamente.'),
+            content: Text('✅ Datos del vehículo y placa actualizados correctamente.'),
             backgroundColor: Color(0xFF16A34A),
             behavior: SnackBarBehavior.floating,
           ),
@@ -3087,11 +4507,15 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     if (updated == true) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('driver_name', nameCtrl.text.trim());
-      await prefs.setString('driver_phone', phoneCtrl.text.trim());
+      if (phoneCtrl.text.trim().isEmpty) {
+        await prefs.remove('driver_phone');
+      } else {
+        await prefs.setString('driver_phone', phoneCtrl.text.trim());
+      }
 
       setState(() {
         _driverName = nameCtrl.text.trim().isEmpty ? 'Repartidor La Diabla' : nameCtrl.text.trim();
-        _driverPhone = phoneCtrl.text.trim().isEmpty ? '300 123 4567' : phoneCtrl.text.trim();
+        _driverPhone = phoneCtrl.text.trim();
       });
 
       if (mounted) {

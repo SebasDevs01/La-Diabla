@@ -1,5 +1,6 @@
 // lib/core/widgets/navigation_app_picker.dart
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_typography.dart';
 import '../services/maps_service.dart';
@@ -18,24 +19,38 @@ class NavigationAppPicker extends StatelessWidget {
   final String destinationName;
   final String? addressText;
 
+  /// Intenta abrir Waze directamente. Si no está instalado, muestra el picker.
   static Future<void> show(
     BuildContext context, {
     required double latitude,
     required double longitude,
     String destinationName = 'Dirección de Entrega',
     String? addressText,
-  }) {
-    return showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) => NavigationAppPicker(
-        latitude: latitude,
-        longitude: longitude,
-        destinationName: destinationName,
-        addressText: addressText,
-      ),
-    );
+  }) async {
+    // Intentar abrir Waze directo (prioridad máxima para repartidores)
+    final wazeUri = Uri.parse('waze://?ll=$latitude,$longitude&navigate=yes');
+    try {
+      final canWaze = await canLaunchUrl(wazeUri);
+      if (canWaze) {
+        await launchUrl(wazeUri, mode: LaunchMode.externalApplication);
+        return; // Waze abierto, no mostrar picker
+      }
+    } catch (_) {}
+
+    // Waze no instalado → mostrar picker (Waze primero, Google Maps segundo)
+    if (context.mounted) {
+      await showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (ctx) => NavigationAppPicker(
+          latitude: latitude,
+          longitude: longitude,
+          destinationName: destinationName,
+          addressText: addressText,
+        ),
+      );
+    }
   }
 
   @override
@@ -59,7 +74,7 @@ class NavigationAppPicker extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Barra superior de arrastre
+          // Barra de arrastre
           Center(
             child: Container(
               width: 40,
@@ -103,14 +118,12 @@ class NavigationAppPicker extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      destinationName,
+                      'Waze no está instalado — elige una app:',
                       style: TextStyle(
                         fontFamily: AppTypography.bodyFamily,
                         fontSize: 13,
                         color: isDark ? AppColors.textMutedDark : Colors.grey.shade600,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -151,7 +164,42 @@ class NavigationAppPicker extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-          // Botón 1: Google Maps
+          // ── Botón 1: Waze (PRIORIDAD) ──────────────────────────────────────
+          _buildAppButton(
+            context: context,
+            title: 'Waze',
+            subtitle: 'Recomendado · Alertas de tráfico, policía y cámaras',
+            isRecommended: true,
+            iconWidget: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xFF33CCFF).withAlpha(30),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Image.network(
+                  'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Waze_icon.svg/120px-Waze_icon.svg.png',
+                  width: 28,
+                  height: 28,
+                  errorBuilder: (_, _, _) => const Icon(
+                    Icons.directions_car_rounded,
+                    color: Color(0xFF00A3DA),
+                    size: 26,
+                  ),
+                ),
+              ),
+            ),
+            isDark: isDark,
+            onTap: () async {
+              Navigator.of(context).pop();
+              await MapsService.openInWaze(latitude, longitude);
+            },
+          ),
+
+          const SizedBox(height: 12),
+
+          // ── Botón 2: Google Maps ────────────────────────────────────────────
           _buildAppButton(
             context: context,
             title: 'Google Maps',
@@ -170,53 +218,40 @@ class NavigationAppPicker extends StatelessWidget {
             isDark: isDark,
             onTap: () async {
               Navigator.of(context).pop();
-              final success = await MapsService.openInGoogleMaps(
+              await MapsService.openInGoogleMaps(
                 latitude,
                 longitude,
                 label: destinationName,
               );
-              if (!success && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('No fue posible abrir Google Maps en este dispositivo'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
             },
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
-          // Botón 2: Waze
-          _buildAppButton(
-            context: context,
-            title: 'Waze',
-            subtitle: 'Alertas de tráfico, cámaras y policía',
-            iconWidget: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: const Color(0xFF33CCFF).withAlpha(30),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Center(
-                child: Icon(Icons.directions_car_rounded, color: Color(0xFF00A3DA), size: 26),
+          // Nota de instalación de Waze
+          Center(
+            child: TextButton.icon(
+              onPressed: () async {
+                final uri = Uri.parse('market://details?id=com.waze');
+                final webUri = Uri.parse('https://play.google.com/store/apps/details?id=com.waze');
+                try {
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } else {
+                    await launchUrl(webUri, mode: LaunchMode.externalApplication);
+                  }
+                } catch (_) {}
+              },
+              icon: const Icon(Icons.download_rounded, size: 16, color: Color(0xFF00A3DA)),
+              label: const Text(
+                'Instalar Waze gratis',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF00A3DA),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-            isDark: isDark,
-            onTap: () async {
-              Navigator.of(context).pop();
-              final success = await MapsService.openInWaze(latitude, longitude);
-              if (!success && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('No fue posible abrir Waze en este dispositivo'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-            },
           ),
         ],
       ),
@@ -230,15 +265,24 @@ class NavigationAppPicker extends StatelessWidget {
     required Widget iconWidget,
     required bool isDark,
     required VoidCallback onTap,
+    bool isRecommended = false,
   }) {
     return Material(
-      color: isDark ? const Color(0xFF261D17) : const Color(0xFFF4F6F9),
+      color: isRecommended
+          ? (isDark ? const Color(0xFF0D2B1F) : const Color(0xFFECFDF5))
+          : (isDark ? const Color(0xFF261D17) : const Color(0xFFF4F6F9)),
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        child: Padding(
+        child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: isRecommended
+                ? Border.all(color: const Color(0xFF16A34A).withAlpha(80), width: 1.5)
+                : null,
+          ),
           child: Row(
             children: [
               iconWidget,
@@ -247,14 +291,37 @@ class NavigationAppPicker extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontFamily: AppTypography.bodyFamily,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : const Color(0xFF1C1C1C),
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontFamily: AppTypography.bodyFamily,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : const Color(0xFF1C1C1C),
+                          ),
+                        ),
+                        if (isRecommended) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF16A34A),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'RECOMENDADO',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(

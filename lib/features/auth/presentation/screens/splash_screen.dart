@@ -1,4 +1,4 @@
-// lib/features/auth/presentation/screens/splash_screen.dart
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -44,30 +44,75 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       final prefs = await SharedPreferences.getInstance();
       if (!mounted) return;
 
+      final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
+      final savedId = prefs.getString('saved_user_id');
       final isDelivery = prefs.getBool('is_delivery_mode') ?? false;
+      final savedRole = prefs.getString('saved_user_role');
+      final savedEmail = prefs.getString('saved_user_email') ?? '';
 
-      // Firebase Auth es la fuente de verdad para la sesión.
-      // SharedPreferences sólo se usa para el rol/modo (driver, admin).
       final authState = ref.read(authNotifierProvider);
       final repo = ref.read(authRepositoryProvider);
       final currentUser = repo.currentUser;
+      final fbUser = FirebaseAuth.instance.currentUser;
 
-      // Considerar sesión activa solo si Firebase tiene usuario o AuthNotifier lo tiene listo
-      final effectiveUser = authState.user ?? currentUser;
-      final hasSession = effectiveUser != null;
+      final isGuest = prefs.getBool('is_guest_user') ?? false;
+      final isGuestId = savedId != null && (savedId.startsWith('guest_') || savedId == 'guest');
+      final isGuestEmail = savedEmail.contains('@invitado.ladiabla.app') || savedEmail.contains('guest');
+
+      // Si SharedPreferences o el estado contiene cualquier rastro de usuario invitado,
+      // DEBE ser purgado de inmediato. Los invitados nunca tienen sesión persistente al abrir la app.
+      if (isGuest || isGuestId || isGuestEmail) {
+        await prefs.clear();
+        if (fbUser != null) {
+          try {
+            await FirebaseAuth.instance.signOut();
+          } catch (_) {}
+        }
+        if (!mounted) return;
+        context.go('/auth');
+        return;
+      }
+
+      // Un usuario anónimo de Firebase NO cuenta como sesión válida.
+      final isRealFirebaseUser = fbUser != null && !fbUser.isAnonymous;
+
+      // Sesión válida ÚNICAMENTE si hay un usuario real autenticado guardado
+      final hasSession = isRealFirebaseUser &&
+          isLoggedIn &&
+          savedId != null &&
+          savedId.isNotEmpty;
+
+      // Si no hay sesión válida pero hay usuario huérfano anónimo, lo cerramos
+      if (!hasSession && fbUser != null) {
+        try {
+          await FirebaseAuth.instance.signOut();
+        } catch (_) {}
+      }
 
       if (!mounted) return;
 
       if (hasSession) {
-        if (effectiveUser.isAdmin) {
+        final isAdmin = savedEmail == 'admin@ladiabla.app' ||
+            savedEmail == 'appladiabla@gmail.com' ||
+            savedRole == 'admin' ||
+            (authState.user?.isAdmin ?? false) ||
+            (currentUser?.isAdmin ?? false);
+
+        final isDriver = isDelivery ||
+            savedRole == 'driver' ||
+            savedEmail == 'repartidor@ladiabla.app' ||
+            (authState.user?.isDriver ?? false) ||
+            (currentUser?.isDriver ?? false);
+
+        if (isAdmin) {
           context.go('/admin');
-        } else if (isDelivery || effectiveUser.isDriver) {
+        } else if (isDriver) {
           context.go('/driver');
         } else {
           context.go('/home');
         }
       } else {
-        // Sin sesión → pantalla de login
+        // Sin sesión activa → pantalla de login
         context.go('/auth');
       }
     });

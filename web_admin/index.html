@@ -1,125 +1,1538 @@
-﻿<!DOCTYPE html>
-<html lang="es">
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>La Diabla App 🌶️🔥 | Comida Mexicana & Delivery Bucaramanga</title>
+  <title>La Diabla App 🌶️ | Delivery de Comida Mexicana en Bucaramanga</title>
+  <meta name="description" content="Pide los mejores tacos al pastor, burritos diabólicos, quesadillas y birria artesanal en Bucaramanga con rastreo GPS en tiempo real.">
+  
+  <!-- Google Fonts: Bangers & Outfit -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Google Material Symbols Rounded -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
+  
   <link rel="stylesheet" href="styles.css">
+
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('diabla_web_theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
+
+  <style>
+    /* ── INDEX-SPECIFIC HERO & SHOWCASE STYLES ──────────────── */
+
+    /* Subtle background grid & glowing flares */
+    .hero-wrapper {
+      position: relative;
+      overflow: hidden;
+      background: radial-gradient(circle at 50% 10%, rgba(220, 38, 38, 0.22) 0%, transparent 55%),
+                  radial-gradient(circle at 85% 60%, rgba(245, 158, 11, 0.1) 0%, transparent 40%);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 3.5rem;
+      align-items: center;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 4.5rem 2rem 5rem;
+      min-height: calc(100vh - 76px);
+      position: relative;
+      z-index: 2;
+    }
+
+    /* Hero Badge */
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(220, 38, 38, 0.15);
+      border: 1px solid rgba(220, 38, 38, 0.35);
+      backdrop-filter: blur(12px);
+      color: #FCA5A5;
+      padding: 8px 18px;
+      border-radius: 999px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 15px rgba(220, 38, 38, 0.15);
+    }
+
+    .hero-badge .flame-icon {
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.8));
+      animation: flamePulse 2s infinite ease-in-out;
+    }
+
+    /* Hero Title */
+    .hero-title {
+      font-size: clamp(3rem, 5.5vw, 5rem);
+      line-height: 1.02;
+      margin-bottom: 1.5rem;
+      letter-spacing: 2px;
+      color: var(--text-main);
+    }
+
+    .hero-title-highlight {
+      background: linear-gradient(135deg, #EF4444 0%, #F59E0B 50%, #DC2626 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 2px 20px rgba(220, 38, 38, 0.4));
+    }
+
+    .hero-desc {
+      font-size: 1.12rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+      margin-bottom: 2.2rem;
+      max-width: 580px;
+    }
+
+    /* Hero Actions */
+    .hero-actions {
+      display: flex;
+      gap: 1.2rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 3rem;
+    }
+
+    .btn-hero-primary {
+      background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+      color: #FFFFFF !important;
+      padding: 0.95rem 2rem;
+      border-radius: 16px;
+      font-weight: 800;
+      font-size: 1.05rem;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 8px 25px rgba(220, 38, 38, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      transition: transform 0.25s, box-shadow 0.25s;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-hero-primary:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 12px 35px rgba(220, 38, 38, 0.7);
+    }
+
+    .btn-hero-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main) !important;
+      padding: 0.95rem 1.8rem;
+      border-radius: 16px;
+      font-weight: 700;
+      font-size: 1.05rem;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(12px);
+      transition: background 0.25s, transform 0.25s, border-color 0.25s;
+    }
+
+    .btn-hero-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(220, 38, 38, 0.4);
+      transform: translateY(-2px);
+    }
+
+    /* Hero Visual Side */
+    .hero-visual-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hero-flare {
+      position: absolute;
+      width: 440px;
+      height: 440px;
+      background: radial-gradient(circle, rgba(220, 38, 38, 0.35) 0%, rgba(245, 158, 11, 0.15) 45%, transparent 70%);
+      border-radius: 50%;
+      z-index: 0;
+      filter: blur(25px);
+      animation: flamePulse 4s infinite ease-in-out;
+    }
+
+    .hero-mascot-img {
+      width: min(440px, 92vw);
+      position: relative;
+      z-index: 2;
+      filter: drop-shadow(0 25px 40px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 35px rgba(220, 38, 38, 0.45));
+      animation: floatMascot 4.5s infinite ease-in-out;
+    }
+
+    @keyframes floatMascot {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50%      { transform: translateY(-16px) rotate(1deg); }
+    }
+
+    /* Floating Badges */
+    .float-chip {
+      position: absolute;
+      z-index: 4;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      padding: 10px 18px;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+      transition: transform 0.3s;
+    }
+
+    .float-chip:hover {
+      transform: scale(1.06);
+    }
+
+    .float-chip-top {
+      top: 10%;
+      right: -5%;
+      animation: floatChip1 5s infinite ease-in-out;
+    }
+
+    .float-chip-bottom-left {
+      bottom: 12%;
+      left: -8%;
+      animation: floatChip2 6s infinite ease-in-out;
+    }
+
+    .float-chip-bottom-right {
+      bottom: 2%;
+      right: 5%;
+      animation: floatChip3 5.5s infinite ease-in-out;
+    }
+
+    @keyframes floatChip1 {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-10px); }
+    }
+    @keyframes floatChip2 {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(10px); }
+    }
+    @keyframes floatChip3 {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-8px); }
+    }
+
+    .chip-icon-box {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .chip-title {
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+    .chip-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Stats bar */
+    .hero-stats {
+      display: flex;
+      gap: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--divider);
+      flex-wrap: wrap;
+    }
+
+    .stat-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stat-pill .material-symbols-rounded {
+      color: #DC2626;
+      background: rgba(220, 38, 38, 0.15);
+      padding: 10px;
+      border-radius: 14px;
+    }
+
+    .stat-pill-num {
+      font-family: 'Bangers', cursive;
+      font-size: 1.7rem;
+      color: var(--text-main);
+      line-height: 1;
+      letter-spacing: 1px;
+    }
+
+    .stat-pill-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    /* ── SECTION COMMONS ────────────────────────────────────── */
+    .section-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 6rem 2rem;
+    }
+
+    .section-header-center {
+      text-align: center;
+      max-width: 700px;
+      margin: 0 auto 4rem;
+    }
+
+    .section-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(220, 38, 38, 0.14);
+      border: 1px solid rgba(220, 38, 38, 0.28);
+      color: #EF4444;
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 1rem;
+    }
+
+    .section-title {
+      font-size: clamp(2.4rem, 4vw, 3.5rem);
+      letter-spacing: 2px;
+      color: var(--text-main);
+      margin-bottom: 1rem;
+      line-height: 1.1;
+    }
+
+    .section-subtitle {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* ── MENU CATEGORIES GRID ───────────────────────────────── */
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 2rem;
+    }
+
+    .menu-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--card-shadow);
+      transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .menu-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 140px;
+      height: 140px;
+      background: radial-gradient(circle, rgba(220, 38, 38, 0.2) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+      transition: transform 0.3s, opacity 0.3s;
+    }
+
+    .menu-card:hover {
+      transform: translateY(-8px);
+      border-color: rgba(220, 38, 38, 0.4);
+      box-shadow: 0 20px 45px rgba(220, 38, 38, 0.18);
+    }
+
+    .menu-card:hover::before {
+      transform: translateX(-50%) scale(1.4);
+      opacity: 0.9;
+    }
+
+    .menu-badge {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #F59E0B;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .menu-img-wrap {
+      width: 150px;
+      height: 150px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 1rem 0 1.5rem;
+      position: relative;
+    }
+
+    .menu-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.35));
+      transition: transform 0.3s ease;
+    }
+
+    .menu-card:hover .menu-img {
+      transform: scale(1.1) rotate(2deg);
+    }
+
+    .menu-name {
+      font-size: 1.6rem;
+      letter-spacing: 1.5px;
+      color: var(--text-main);
+      margin-bottom: 0.5rem;
+    }
+
+    .menu-desc {
+      font-size: 0.92rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+      margin-bottom: 1.5rem;
+      flex-grow: 1;
+    }
+
+    .menu-card-footer {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 1.2rem;
+      border-top: 1px solid var(--divider);
+    }
+
+    .menu-price {
+      text-align: left;
+    }
+    .menu-price-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .menu-price-val {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #EF4444;
+    }
+
+    .btn-order-card {
+      background: rgba(220, 38, 38, 0.12);
+      border: 1px solid rgba(220, 38, 38, 0.3);
+      color: #EF4444;
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, transform 0.2s;
+    }
+
+    .btn-order-card:hover {
+      background: #DC2626;
+      color: white;
+      transform: translateY(-2px);
+    }
+
+    /* ── TRACKING STEPPER SHOWCASE ─────────────────────────── */
+    .tracking-section {
+      background: var(--card-bg);
+      border-top: 1px solid var(--card-border);
+      border-bottom: 1px solid var(--card-border);
+      position: relative;
+    }
+
+    .stepper-container {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1.5rem;
+      position: relative;
+      margin: 3rem 0 2rem;
+    }
+
+    /* Animated connecting track line */
+    .stepper-track {
+      position: absolute;
+      top: 55px;
+      left: 10%;
+      right: 10%;
+      height: 4px;
+      background: var(--divider);
+      z-index: 1;
+    }
+
+    .stepper-progress {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 75%;
+      height: 100%;
+      background: linear-gradient(90deg, #DC2626, #F59E0B);
+      border-radius: 4px;
+      box-shadow: 0 0 12px rgba(220, 38, 38, 0.8);
+      animation: pulseTrack 2.5s infinite ease-in-out;
+    }
+
+    @keyframes pulseTrack {
+      0%, 100% { opacity: 0.9; }
+      50%      { opacity: 1; filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.8)); }
+    }
+
+    .step-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .step-icon-bubble {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: var(--dark-bg);
+      border: 3px solid var(--divider);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+      transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .step-item.active .step-icon-bubble {
+      border-color: #DC2626;
+      box-shadow: 0 0 25px rgba(220, 38, 38, 0.5);
+      transform: scale(1.08);
+    }
+
+    .step-img {
+      width: 54px;
+      height: 54px;
+      object-fit: contain;
+    }
+
+    .step-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+
+    .step-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+      max-width: 170px;
+    }
+
+    .step-live-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(220, 38, 38, 0.15);
+      border: 1px solid rgba(220, 38, 38, 0.4);
+      color: #EF4444;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      margin-top: 6px;
+      text-transform: uppercase;
+    }
+
+    /* ── PROMOTIONS & CUPONES SECTION ──────────────────────── */
+    .promos-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      align-items: stretch;
+    }
+
+    .promo-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 2.2rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--card-shadow);
+      transition: transform 0.25s, border-color 0.25s;
+    }
+
+    .promo-card:hover {
+      transform: translateY(-5px);
+      border-color: rgba(245, 158, 11, 0.4);
+    }
+
+    .promo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #F59E0B;
+      padding: 5px 14px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      margin-bottom: 1.2rem;
+      width: fit-content;
+    }
+
+    .promo-title {
+      font-size: 2rem;
+      letter-spacing: 1.5px;
+      color: var(--text-main);
+      margin-bottom: 0.8rem;
+    }
+
+    .promo-desc {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 2rem;
+    }
+
+    .coupon-box {
+      background: var(--input-bg);
+      border: 1px dashed var(--primary);
+      border-radius: 16px;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .coupon-code {
+      font-family: monospace;
+      font-size: 1.3rem;
+      font-weight: 900;
+      color: #EF4444;
+      letter-spacing: 2px;
+    }
+
+    .btn-copy-code {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+    }
+
+    .btn-copy-code:hover {
+      background: var(--primary-hover);
+      transform: scale(1.04);
+    }
+
+    /* ── DELIVERY GPS SECTION ──────────────────────────────── */
+    .delivery-block {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 4rem;
+      align-items: center;
+    }
+
+    .delivery-features-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      margin: 2.2rem 0;
+    }
+
+    .delivery-feature-item {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .delivery-feature-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      background: rgba(220, 38, 38, 0.14);
+      border: 1px solid rgba(220, 38, 38, 0.25);
+      color: #EF4444;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .delivery-feature-text h4 {
+      font-size: 1.1rem;
+      color: var(--text-main);
+      margin-bottom: 4px;
+      font-weight: 700;
+    }
+
+    .delivery-feature-text p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .delivery-visual-box {
+      text-align: center;
+      position: relative;
+    }
+
+    .delivery-rider-img {
+      width: min(420px, 85vw);
+      filter: drop-shadow(0 20px 35px rgba(220, 38, 38, 0.35));
+      animation: floatMascot 4s infinite ease-in-out;
+    }
+
+    /* ── CTA DOWNLOAD BANNER ───────────────────────────────── */
+    .cta-banner {
+      background: linear-gradient(135deg, rgba(220, 38, 38, 0.95) 0%, rgba(153, 27, 27, 0.98) 100%);
+      border-radius: 32px;
+      padding: 5rem 3rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 25px 60px rgba(220, 38, 38, 0.4);
+      color: white;
+    }
+
+    .cta-banner::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.15), transparent 60%);
+      pointer-events: none;
+    }
+
+    .cta-taco-deco {
+      position: absolute;
+      right: -20px;
+      bottom: -30px;
+      width: 260px;
+      opacity: 0.25;
+      transform: rotate(-20deg);
+      pointer-events: none;
+      filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
+    }
+
+    .cta-title {
+      font-size: clamp(2.5rem, 5vw, 4.2rem);
+      letter-spacing: 2px;
+      margin-bottom: 1rem;
+      color: white;
+      text-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    .cta-desc {
+      font-size: 1.15rem;
+      max-width: 620px;
+      margin: 0 auto 2.5rem;
+      color: rgba(255, 255, 255, 0.9);
+      line-height: 1.6;
+    }
+
+    .cta-actions-group {
+      display: flex;
+      gap: 1.2rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      position: relative;
+      z-index: 2;
+    }
+
+    .btn-download-app {
+      background: #FFFFFF;
+      color: #B91C1C !important;
+      padding: 1rem 2.2rem;
+      border-radius: 18px;
+      font-weight: 900;
+      font-size: 1.1rem;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      transition: transform 0.25s, box-shadow 0.25s;
+    }
+
+    .btn-download-app:hover {
+      transform: translateY(-3px) scale(1.03);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.45);
+    }
+
+    .btn-admin-cta {
+      background: rgba(0, 0, 0, 0.35);
+      color: white !important;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      padding: 1rem 2rem;
+      border-radius: 18px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      backdrop-filter: blur(12px);
+      transition: background 0.25s, transform 0.25s;
+    }
+
+    .btn-admin-cta:hover {
+      background: rgba(0, 0, 0, 0.5);
+      transform: translateY(-2px);
+    }
+
+    /* ── FOOTER ─────────────────────────────────────────────── */
+    .site-footer {
+      border-top: 1px solid var(--divider);
+      background: var(--header-bg);
+      padding: 3rem 2rem 2rem;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .footer-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    /* ── TOAST CONTAINER ────────────────────────────────────── */
+    #toastMessage {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #18100C;
+      color: #FFFFFF;
+      border: 1px solid rgba(220, 38, 38, 0.5);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+      padding: 12px 20px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 0.92rem;
+      z-index: 9999;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s;
+      pointer-events: none;
+    }
+
+    #toastMessage.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* ── RESPONSIVE DESIGN ──────────────────────────────────── */
+    @media (max-width: 1024px) {
+      .hero {
+        grid-template-columns: 1fr;
+        text-align: center;
+        padding-top: 3rem;
+        gap: 3rem;
+      }
+      .hero-badge, .hero-desc, .hero-actions, .hero-stats {
+        margin-left: auto;
+        margin-right: auto;
+        justify-content: center;
+      }
+      .float-chip-top { right: 5%; top: 5%; }
+      .float-chip-bottom-left { left: 5%; bottom: 5%; }
+      .float-chip-bottom-right { display: none; }
+      .stepper-container {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .stepper-track { display: none; }
+      .delivery-block {
+        grid-template-columns: 1fr;
+        text-align: center;
+      }
+      .delivery-feature-item {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+      .promos-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .stepper-container {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+      }
+      .hero-actions {
+        flex-direction: column;
+        width: 100%;
+      }
+      .btn-hero-primary, .btn-hero-secondary {
+        width: 100%;
+        justify-content: center;
+      }
+      .menu-grid {
+        grid-template-columns: 1fr;
+      }
+      .cta-banner {
+        padding: 3rem 1.5rem;
+      }
+    }
+  </style>
 </head>
 <body>
 
-  <!-- Navigation Bar -->
+  <!-- Top Navigation Bar -->
   <header>
     <div class="navbar">
       <a href="index.html" class="logo-container">
-        <span class="logo-icon">🌶️</span>
+        <img src="../recursos/materiales/chileboton.png" alt="La Diabla"
+             style="width:44px; height:44px; border-radius:50%; object-fit:contain; box-shadow: 0 4px 14px rgba(220,38,38,0.5); flex-shrink:0;">
         <span class="logo-text diabla-font">LA DIABLA</span>
       </a>
-      <div class="nav-links">
-        <a href="#menu" class="nav-link">Menú Diabólico</a>
-        <a href="#features" class="nav-link">Beneficios</a>
-        <a href="#descarga" class="nav-link">Descargar App</a>
-        <a href="login.html" class="btn-secondary">🔐 Panel Admin</a>
+
+      <!-- Desktop Links -->
+      <div style="display: flex; align-items: center; gap: 1.2rem;">
+        <a href="#menu" class="btn-secondary" style="padding: 7px 14px; font-size: 0.88rem; text-decoration:none;">
+          <span class="material-symbols-rounded md-20">restaurant_menu</span>
+          <span>Menú</span>
+        </a>
+        <a href="#rastreo" class="btn-secondary" style="padding: 7px 14px; font-size: 0.88rem; text-decoration:none;">
+          <span class="material-symbols-rounded md-20">near_me</span>
+          <span>Rastreo GPS</span>
+        </a>
+        <a href="#cupones" class="btn-secondary" style="padding: 7px 14px; font-size: 0.88rem; text-decoration:none;">
+          <span class="material-symbols-rounded md-20">local_activity</span>
+          <span>Cupones</span>
+        </a>
+        <button onclick="toggleWebTheme()" id="themeToggleBtn" class="btn-icon-text" title="Cambiar Tema">
+          <span class="material-symbols-rounded md-20" id="themeIcon">light_mode</span>
+          <span id="themeLabel">Claro</span>
+        </button>
+        <a href="login.html" class="btn-primary" style="padding: 7px 16px; font-size: 0.88rem; text-decoration:none;">
+          <span class="material-symbols-rounded md-20">admin_panel_settings</span>
+          <span>Admin</span>
+        </a>
       </div>
     </div>
   </header>
 
-  <!-- Hero Section -->
   <main>
-    <section class="hero">
-      <div class="hero-content">
-        <div class="hero-badge">
-          <span>🛵 Delivery Rápido en Bucaramanga & Mutis</span>
+
+    <!-- ── 1. HERO SECTION ─────────────────────────────────── -->
+    <div class="hero-wrapper">
+      <section class="hero">
+        <div class="hero-content">
+          <div class="hero-badge">
+            <img src="../recursos/icons/llamadefuego.png" alt="Fuego" class="flame-icon">
+            <span>¡Sabor 100% Mexicano en Bucaramanga &amp; Mutis!</span>
+          </div>
+
+          <h1 class="hero-title diabla-font">
+            EL SABOR MÁS PICANTE<br>
+            <span class="hero-title-highlight">A TU PUERTA EN MINUTOS</span>
+          </h1>
+
+          <p class="hero-desc">
+            Disfruta de nuestros legendarios tacos al pastor con piña asada, burritos diabólicos gigantes, quesadillas fundidas y birria con consomé. Rastreo satelital en vivo hasta tu mesa.
+          </p>
+
+          <div class="hero-actions">
+            <a href="app-release.apk" download="LaDiabla-App.apk" class="btn-hero-primary">
+              <span class="material-symbols-rounded md-28">install_mobile</span>
+              <span>Descargar App Android</span>
+            </a>
+            <a href="#menu" class="btn-hero-secondary">
+              <span class="material-symbols-rounded md-24">restaurant_menu</span>
+              <span>Ver Menú</span>
+            </a>
+            <a href="login.html" class="btn-hero-secondary">
+              <span class="material-symbols-rounded md-24">shield_person</span>
+              <span>Panel Admin</span>
+            </a>
+          </div>
+
+          <div class="hero-stats">
+            <div class="stat-pill">
+              <span class="material-symbols-rounded md-28">local_shipping</span>
+              <div>
+                <div class="stat-pill-num">+500</div>
+                <div class="stat-pill-label">Pedidos Entregados</div>
+              </div>
+            </div>
+
+            <div class="stat-pill">
+              <span class="material-symbols-rounded md-28" style="color:#F59E0B; background:rgba(245,158,11,0.15);">hotel_class</span>
+              <div>
+                <div class="stat-pill-num">4.9 ★</div>
+                <div class="stat-pill-label">Calificación de Clientes</div>
+              </div>
+            </div>
+
+            <div class="stat-pill">
+              <span class="material-symbols-rounded md-28" style="color:#10B981; background:rgba(16,185,129,0.15);">timer</span>
+              <div>
+                <div class="stat-pill-num">~25 min</div>
+                <div class="stat-pill-label">Tiempo Promedio</div>
+              </div>
+            </div>
+          </div>
         </div>
-        <h1 class="hero-title diabla-font">
-          EL SABOR MÁS PICANTE Y CALIENTE <span>A TU PUERTA</span> 🔥
-        </h1>
-        <p class="hero-desc">
-          Pide tus tacos al pastor, burritos diabólicos, quesadillas con queso fundido y birria artesanal desde nuestra app oficial. ¡Rastreo GPS en tiempo real hasta tu mesa!
+
+        <!-- Hero Visual / Floating Mascot -->
+        <div class="hero-visual-wrapper">
+          <div class="hero-flare"></div>
+          <img src="../recursos/materiales/deliverylogo.png" alt="La Diabla Mascota" class="hero-mascot-img">
+
+          <!-- Floating Badge 1: Rating -->
+          <div class="float-chip float-chip-top">
+            <div class="chip-icon-box" style="background: rgba(245, 158, 11, 0.15); color: #F59E0B;">
+              <span class="material-symbols-rounded md-24">star</span>
+            </div>
+            <div>
+              <div class="chip-title">4.9 / 5.0 Estrellas</div>
+              <div class="chip-sub">Más de 500 reseñas felices</div>
+            </div>
+          </div>
+
+          <!-- Floating Badge 2: Delivery Speed -->
+          <div class="float-chip float-chip-bottom-left">
+            <div class="chip-icon-box" style="background: rgba(16, 185, 129, 0.15); color: #10B981;">
+              <span class="material-symbols-rounded md-24">two_wheeler</span>
+            </div>
+            <div>
+              <div class="chip-title">Delivery Exprés</div>
+              <div class="chip-sub">Directo desde Cocina Central</div>
+            </div>
+          </div>
+
+          <!-- Floating Badge 3: Hot & Fresh -->
+          <div class="float-chip float-chip-bottom-right">
+            <div class="chip-icon-box" style="background: rgba(220, 38, 38, 0.15); color: #EF4444;">
+              <span class="material-symbols-rounded md-24">local_fire_department</span>
+            </div>
+            <div>
+              <div class="chip-title">¡100% Caliente!</div>
+              <div class="chip-sub">Empaque térmico sellado</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ── 2. MENU SHOWCASE SECTION ────────────────────────── -->
+    <section id="menu" class="section-container">
+      <div class="section-header-center">
+        <div class="section-tag">
+          <span class="material-symbols-rounded md-18">restaurant</span>
+          <span>Nuestras Especialidades</span>
+        </div>
+        <h2 class="diabla-font section-title">EL MENÚ MÁS DIABÓLICO 🌶️</h2>
+        <p class="section-subtitle">
+          Preparado al instante con ingredientes frescos, salsas tradicionales mexicanas y recetas caseras que te harán sudar de sabor.
         </p>
-        <div class="hero-buttons">
-          <a href="../build/app/outputs/flutter-apk/app-release.apk" download="LaDiabla-App.apk" class="btn-primary" style="font-size: 1.1rem; padding: 1rem 2rem;">
-            📱 Descargar APK para Android
-          </a>
-          <a href="login.html" class="btn-secondary" style="font-size: 1.1rem; padding: 1rem 1.8rem;">
-            👑 Portal de Administración
-          </a>
-        </div>
       </div>
 
-      <div class="hero-visual" style="text-align: center;">
-        <div style="background: radial-gradient(circle, rgba(220,38,38,0.25) 0%, rgba(0,0,0,0) 70%); padding: 2rem; border-radius: 50%;">
-          <span style="font-size: 8rem; display: block; filter: drop-shadow(0 15px 25px rgba(220,38,38,0.6));">🌮</span>
-          <div class="diabla-font" style="font-size: 2.2rem; color: #FF8080; margin-top: 1rem;">
-            ¡100% ARTESANAL Y PICANTE!
+      <div class="menu-grid">
+
+        <!-- Card 1: Tacos -->
+        <div class="menu-card">
+          <span class="menu-badge">Más Pedido</span>
+          <div class="menu-img-wrap">
+            <img src="../recursos/materiales/taco.png" alt="Tacos al Pastor" class="menu-img">
+          </div>
+          <h3 class="diabla-font menu-name">Tacos al Pastor &amp; Birria</h3>
+          <p class="menu-desc">
+            Carne marinada al pastor con piña asada, cilantro, cebolla y tacos de birria con consomé caliente para sopear.
+          </p>
+          <div class="menu-card-footer">
+            <div class="menu-price">
+              <div class="menu-price-label">Desde</div>
+              <div class="menu-price-val">$18.900</div>
+            </div>
+            <a href="../build/app/outputs/flutter-apk/app-release.apk" class="btn-order-card" onclick="showAppPrompt('Tacos')">
+              <span class="material-symbols-rounded md-18">shopping_bag</span>
+              <span>Pedir en App</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Card 2: Burritos -->
+        <div class="menu-card">
+          <span class="menu-badge" style="color: #EF4444; border-color: rgba(239, 68, 68, 0.35); background: rgba(239,68,68,0.12);">Gigante</span>
+          <div class="menu-img-wrap">
+            <img src="../recursos/materiales/burrito.png" alt="Burritos Diabólicos" class="menu-img">
+          </div>
+          <h3 class="diabla-font menu-name">Burritos Diabólicos</h3>
+          <p class="menu-desc">
+            Tortilla de trigo gigante rellena de frijol refrito, arroz sazonado, carne asada, guacamole y abundante queso fundido.
+          </p>
+          <div class="menu-card-footer">
+            <div class="menu-price">
+              <div class="menu-price-label">Desde</div>
+              <div class="menu-price-val">$24.500</div>
+            </div>
+            <a href="../build/app/outputs/flutter-apk/app-release.apk" class="btn-order-card" onclick="showAppPrompt('Burritos')">
+              <span class="material-symbols-rounded md-18">shopping_bag</span>
+              <span>Pedir en App</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Card 3: Quesadillas -->
+        <div class="menu-card">
+          <div class="menu-img-wrap">
+            <img src="../recursos/materiales/quesadilla.png" alt="Quesadillas Fundidas" class="menu-img">
+          </div>
+          <h3 class="diabla-font menu-name">Quesadillas Fundidas</h3>
+          <p class="menu-desc">
+            Generosa porción de doble queso Oaxaca derretido, champiñones, birria desmechada o pollo al pastor con crema agria.
+          </p>
+          <div class="menu-card-footer">
+            <div class="menu-price">
+              <div class="menu-price-label">Desde</div>
+              <div class="menu-price-val">$19.900</div>
+            </div>
+            <a href="../build/app/outputs/flutter-apk/app-release.apk" class="btn-order-card" onclick="showAppPrompt('Quesadillas')">
+              <span class="material-symbols-rounded md-18">shopping_bag</span>
+              <span>Pedir en App</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Card 4: Especiales -->
+        <div class="menu-card">
+          <span class="menu-badge" style="color: #A855F7; border-color: rgba(168,85,247,0.35); background: rgba(168,85,247,0.12);">Para Compartir</span>
+          <div class="menu-img-wrap">
+            <img src="../recursos/materiales/especiales.png" alt="Especiales de la Diabla" class="menu-img">
+          </div>
+          <h3 class="diabla-font menu-name">Especiales de la Diabla</h3>
+          <p class="menu-desc">
+            Parrilladas mixtas, volcanes crujientes de queso, gringas de pastor y combos diabólicos para reuniones familiares.
+          </p>
+          <div class="menu-card-footer">
+            <div class="menu-price">
+              <div class="menu-price-label">Desde</div>
+              <div class="menu-price-val">$32.000</div>
+            </div>
+            <a href="../build/app/outputs/flutter-apk/app-release.apk" class="btn-order-card" onclick="showAppPrompt('Especiales')">
+              <span class="material-symbols-rounded md-18">shopping_bag</span>
+              <span>Pedir en App</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Card 5: Antojos & Nachos -->
+        <div class="menu-card">
+          <div class="menu-img-wrap">
+            <img src="../recursos/materiales/antojoextra.png" alt="Antojos y Nachos" class="menu-img">
+          </div>
+          <h3 class="diabla-font menu-name">Antojos &amp; Totopos</h3>
+          <p class="menu-desc">
+            Nachos crocantes bañados en queso cheddar artesanal, jalapeños en escabeche, pico de gallo y salsa brava diabólica.
+          </p>
+          <div class="menu-card-footer">
+            <div class="menu-price">
+              <div class="menu-price-label">Desde</div>
+              <div class="menu-price-val">$14.500</div>
+            </div>
+            <a href="../build/app/outputs/flutter-apk/app-release.apk" class="btn-order-card" onclick="showAppPrompt('Antojos')">
+              <span class="material-symbols-rounded md-18">shopping_bag</span>
+              <span>Pedir en App</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Card 6: Bebidas -->
+        <div class="menu-card">
+          <div class="menu-img-wrap">
+            <img src="../recursos/materiales/bebidas.png" alt="Bebidas Mexicanas" class="menu-img">
+          </div>
+          <h3 class="diabla-font menu-name">Bebidas &amp; Jarritos</h3>
+          <p class="menu-desc">
+            Agua fresca tradicional de Horchata con canela, Flor de Jamaica helada, Jarritos de mandarina y tamarindo mexicano.
+          </p>
+          <div class="menu-card-footer">
+            <div class="menu-price">
+              <div class="menu-price-label">Desde</div>
+              <div class="menu-price-val">$6.000</div>
+            </div>
+            <a href="../build/app/outputs/flutter-apk/app-release.apk" class="btn-order-card" onclick="showAppPrompt('Bebidas')">
+              <span class="material-symbols-rounded md-18">shopping_bag</span>
+              <span>Pedir en App</span>
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── 3. LIVE ORDER TRACKING SECTION ─────────────────── -->
+    <section id="rastreo" class="tracking-section">
+      <div class="section-container">
+        <div class="section-header-center">
+          <div class="section-tag">
+            <span class="material-symbols-rounded md-18">gps_fixed</span>
+            <span>Rastreo GPS en Tiempo Real</span>
+          </div>
+          <h2 class="diabla-font section-title">SIGUE TU PEDIDO EN VIVO</h2>
+          <p class="section-subtitle">
+            Desde el momento en que confirmas tu orden hasta que el repartidor timbra en tu puerta. ¡Transparencia total sin sorpresas!
+          </p>
+        </div>
+
+        <!-- 5-Step Visual Stepper -->
+        <div class="stepper-container">
+          <div class="stepper-track">
+            <div class="stepper-progress"></div>
+          </div>
+
+          <!-- Step 1: Recibido -->
+          <div class="step-item active">
+            <div class="step-icon-bubble">
+              <img src="../recursos/icons/recibido.png" alt="Recibido" class="step-img">
+            </div>
+            <div class="step-title">1. Recibido</div>
+            <div class="step-desc">Tu orden ingresa a nuestro sistema en línea</div>
+          </div>
+
+          <!-- Step 2: Confirmado -->
+          <div class="step-item active">
+            <div class="step-icon-bubble">
+              <img src="../recursos/icons/confirmado.png" alt="Confirmado" class="step-img">
+            </div>
+            <div class="step-title">2. Confirmado</div>
+            <div class="step-desc">Cocina valida los ingredientes y tu método de pago</div>
+          </div>
+
+          <!-- Step 3: Preparando -->
+          <div class="step-item active">
+            <div class="step-icon-bubble">
+              <img src="../recursos/icons/preparando.png" alt="En Cocina" class="step-img">
+            </div>
+            <div class="step-title">3. En Cocina</div>
+            <div class="step-desc">Los taqueros arman tus platillos al fuego</div>
+          </div>
+
+          <!-- Step 4: En Camino (Live Pulse) -->
+          <div class="step-item active">
+            <div class="step-icon-bubble" style="border-color: #F59E0B; box-shadow: 0 0 25px rgba(245,158,11,0.6);">
+              <img src="../recursos/icons/encamino.png" alt="En Camino" class="step-img">
+            </div>
+            <div class="step-title" style="color: #F59E0B;">4. En Camino</div>
+            <div class="step-desc">Repartidor con ruta satelital optimizada</div>
+            <span class="step-live-pill">
+              <span class="material-symbols-rounded md-16" style="color:#F59E0B;">radar</span>
+              GPS Activo
+            </span>
+          </div>
+
+          <!-- Step 5: Entregado -->
+          <div class="step-item">
+            <div class="step-icon-bubble">
+              <img src="../recursos/icons/entregado.png" alt="Entregado" class="step-img">
+            </div>
+            <div class="step-title">5. ¡Entregado!</div>
+            <div class="step-desc">Tacos calientes listos para disfrutar</div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- App Highlights / Features -->
-    <section id="features" class="grid-cards">
-      <div class="feature-card">
-        <div class="feature-icon">🛵</div>
-        <h3 class="feature-title diabla-font">Ruta GPS en Tiempo Real</h3>
-        <p class="feature-desc">
-          Sigue a tu repartidor en vivo desde nuestra Cocina Central en Estoraques 1 (Cl. 59 # 39W-24) hasta tu puerta sin perderte ni un segundo.
+    <!-- ── 4. PROMOTIONS & CUPONES SECTION ────────────────── -->
+    <section id="cupones" class="section-container">
+      <div class="section-header-center">
+        <div class="section-tag">
+          <span class="material-symbols-rounded md-18">loyalty</span>
+          <span>Beneficios Exclusivos</span>
+        </div>
+        <h2 class="diabla-font section-title">CUPONES &amp; DESCUENTOS ACTIVOS</h2>
+        <p class="section-subtitle">
+          Copia el código promocional y úsalo al finalizar tu orden dentro de La Diabla App móvil.
         </p>
       </div>
 
-      <div class="feature-card">
-        <div class="feature-icon">🎟️</div>
-        <h3 class="feature-title diabla-font">Cupones y Descuentos</h3>
-        <p class="feature-desc">
-          Usa el cupón <strong>ENVIOGRATIS</strong> en tu primer pedido o <strong>DIABLO20</strong> para obtener hasta 20% de descuento en tus antojos.
-        </p>
-      </div>
+      <div class="promos-grid">
 
-      <div class="feature-card">
-        <div class="feature-icon">💳</div>
-        <h3 class="feature-title diabla-font">Múltiples Métodos de Pago</h3>
-        <p class="feature-desc">
-          Paga con Mercado Pago PSE / Tarjeta, transferencia bancaria (Nequi / Bancolombia), datáfono al recibir o efectivo con cambio exacto.
-        </p>
-      </div>
+        <!-- Coupon 1 -->
+        <div class="promo-card">
+          <div>
+            <span class="promo-badge">
+              <span class="material-symbols-rounded md-18">moped</span>
+              <span>Primer Pedido</span>
+            </span>
+            <h3 class="diabla-font promo-title">ENVÍO GRATIS EN BUCARAMANGA</h3>
+            <p class="promo-desc">
+              Aplica para cualquier pedido nuevo en la aplicación sin mínimo de compra. ¡Nosotros cubrimos la entrega hasta tu puerta!
+            </p>
+          </div>
+          <div class="coupon-box">
+            <div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Código de Cupón</div>
+              <div class="coupon-code">ENVIOGRATIIS</div>
+            </div>
+            <button class="btn-copy-code" onclick="copyCoupon('ENVIOGRATIIS')">
+              <span class="material-symbols-rounded md-18">content_copy</span>
+              <span>Copiar</span>
+            </button>
+          </div>
+        </div>
 
-      <div class="feature-card">
-        <div class="feature-icon">❤️</div>
-        <h3 class="feature-title diabla-font">Guarda Tus Favoritos</h3>
-        <p class="feature-desc">
-          Guarda tus platillos favoritos con 1 toque en el corazón para re-ordenarlos cuando quieras desde tu perfil.
-        </p>
+        <!-- Coupon 2 -->
+        <div class="promo-card">
+          <div>
+            <span class="promo-badge" style="color: #10B981; border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.12);">
+              <span class="material-symbols-rounded md-18">percent</span>
+              <span>Combo Familiar</span>
+            </span>
+            <h3 class="diabla-font promo-title">20% DE DESCUENTO EN TACOS</h3>
+            <p class="promo-desc">
+              Válido en órdenes mayores a $35.000 COP en cualquier categoría de tacos, quesadillas o burritos.
+            </p>
+          </div>
+          <div class="coupon-box">
+            <div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Código de Cupón</div>
+              <div class="coupon-code">DIABLO20</div>
+            </div>
+            <button class="btn-copy-code" onclick="copyCoupon('DIABLO20')">
+              <span class="material-symbols-rounded md-18">content_copy</span>
+              <span>Copiar</span>
+            </button>
+          </div>
+        </div>
+
       </div>
     </section>
 
-    <!-- Download Section -->
-    <section id="descarga" style="background: #140E0A; border-top: 1px solid var(--card-border); border-bottom: 1px solid var(--card-border); padding: 4rem 2rem; text-align: center;">
-      <div style="max-width: 800px; margin: 0 auto;">
-        <span style="font-size: 3rem;">🔥</span>
-        <h2 class="diabla-font" style="font-size: 3rem; margin: 1rem 0;">¡DESCARGA LA DIABLA APP AHORA!</h2>
-        <p style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 2rem;">
-          Disponible para smartphones Android. Instala el archivo APK en segundos y disfruta de la mejor comida mexicana de Bucaramanga.
-        </p>
-        <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
-          <a href="../build/app/outputs/flutter-apk/app-release.apk" download="LaDiabla-App.apk" class="btn-primary" style="padding: 1rem 2.5rem; font-size: 1.2rem;">
-            📥 Descargar APK (79.4 MB)
+    <!-- ── 5. DELIVERY GPS DETAIL SECTION ──────────────────── -->
+    <section class="section-container" style="padding-top: 2rem;">
+      <div class="delivery-block">
+        <div>
+          <div class="section-tag">
+            <span class="material-symbols-rounded md-18">two_wheeler</span>
+            <span>Flota Propia de Repartidores</span>
+          </div>
+          <h2 class="diabla-font section-title">DELIVERY DIRECTO &amp; SIN INTERMEDIARIOS</h2>
+          <p class="section-subtitle">
+            A diferencia de otras plataformas con comisiones abusivas, en La Diabla contamos con motorizados propios entrenados para cuidar tu comida.
+          </p>
+
+          <div class="delivery-features-list">
+            <div class="delivery-feature-item">
+              <div class="delivery-feature-icon">
+                <span class="material-symbols-rounded md-24">location_on</span>
+              </div>
+              <div class="delivery-feature-text">
+                <h4>Cocina Central Estratégica</h4>
+                <p>Ubicados en Cl. 59 # 39W-24, Estoraques 1. Cobertura en Mutis, Real de Minas, Cabecera y toda el área metropolitana de Bucaramanga.</p>
+              </div>
+            </div>
+
+            <div class="delivery-feature-item">
+              <div class="delivery-feature-icon">
+                <span class="material-symbols-rounded md-24">payments</span>
+              </div>
+              <div class="delivery-feature-text">
+                <h4>Paga Como Prefieras</h4>
+                <p>Nequi, Daviplata, Mercado Pago PSE, datáfono inalámbrico al recibir o efectivo con cambio exacto.</p>
+              </div>
+            </div>
+
+            <div class="delivery-feature-item">
+              <div class="delivery-feature-icon">
+                <span class="material-symbols-rounded md-24">verified_user</span>
+              </div>
+              <div class="delivery-feature-text">
+                <h4>Garantía Diabla 100% Caliente</h4>
+                <p>Si tu pedido no llega en perfecto estado térmico o hay algún faltante, te reembolsamos o reenviamos al instante.</p>
+              </div>
+            </div>
+          </div>
+
+          <a href="../build/app/outputs/flutter-apk/app-release.apk" download="LaDiabla-App.apk" class="btn-hero-primary" style="font-size: 1rem;">
+            <span class="material-symbols-rounded md-22">install_mobile</span>
+            <span>Instalar App y Pedir Ahora</span>
           </a>
-          <a href="login.html" class="btn-secondary" style="padding: 1rem 2rem; font-size: 1.2rem;">
-            🔐 Acceso Administrativo
+        </div>
+
+        <div class="delivery-visual-box">
+          <img src="../recursos/materiales/delivery.png" alt="Repartidor La Diabla en Moto" class="delivery-rider-img">
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 6. DOWNLOAD CTA BANNER ──────────────────────────── -->
+    <section class="section-container">
+      <div class="cta-banner">
+        <img src="../recursos/materiales/taco.png" alt="Taco" class="cta-taco-deco">
+
+        <span class="material-symbols-rounded md-48" style="color: #FEF08A; margin-bottom: 1rem; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));">
+          local_fire_department
+        </span>
+
+        <h2 class="diabla-font cta-title">¡ORDENA YA EN LA DIABLA APP!</h2>
+        <p class="cta-desc">
+          Descarga el instalador oficial de Android en tu smartphone. Configuración en segundos, menú completo interactivo y las mejores promociones de comida mexicana.
+        </p>
+
+        <div class="cta-actions-group">
+          <a href="app-release.apk" download="LaDiabla-App.apk" class="btn-download-app">
+            <span class="material-symbols-rounded md-28">android</span>
+            <span>Descargar APK (Android v1.0.0)</span>
+          </a>
+          <a href="login.html" class="btn-admin-cta">
+            <span class="material-symbols-rounded md-24">admin_panel_settings</span>
+            <span>Acceso Admin</span>
           </a>
         </div>
       </div>
     </section>
+
   </main>
 
-  <!-- Footer -->
-  <footer style="padding: 2rem; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
-    <p>© 2026 La Diabla Restaurante & Delivery. Cl. 59 # 39W-24, Estoraques 1, Bucaramanga, Santander.</p>
-    <p style="margin-top: 8px;">Credenciales Admin por defecto: <code>appladiabla@gmail.com</code></p>
+  <!-- ── 7. FOOTER ───────────────────────────────────────── -->
+  <footer class="site-footer">
+    <div class="footer-content">
+      <img src="../recursos/materiales/chileboton.png" alt="La Diabla" style="width: 44px; height: 44px; object-fit: contain;">
+      <p style="font-size: 0.95rem; font-weight: 700; color: var(--text-main);">
+        La Diabla Restaurante &amp; Delivery Bucaramanga
+      </p>
+      <p style="font-size: 0.85rem;">
+        Cl. 59 # 39W-24, Estoraques 1 · Bucaramanga, Santander, Colombia
+      </p>
+      <div style="display: flex; gap: 1.5rem; justify-content: center; margin: 0.5rem 0;">
+        <a href="#menu" style="color: var(--text-muted); text-decoration: none; font-size: 0.82rem;">Menú</a>
+        <a href="#rastreo" style="color: var(--text-muted); text-decoration: none; font-size: 0.82rem;">Rastreo GPS</a>
+        <a href="#cupones" style="color: var(--text-muted); text-decoration: none; font-size: 0.82rem;">Cupones</a>
+        <a href="login.html" style="color: var(--text-muted); text-decoration: none; font-size: 0.82rem;">Portal Administrativo</a>
+      </div>
+      <p style="font-size: 0.78rem; margin-top: 0.5rem; opacity: 0.7;">
+        © 2026 La Diabla App · Todos los derechos reservados · Hecho con sabor y pasión 🌶️
+      </p>
+    </div>
   </footer>
+
+  <!-- Toast Notification element -->
+  <div id="toastMessage">
+    <span class="material-symbols-rounded md-20" style="color: #EF4444;">check_circle</span>
+    <span id="toastText">¡Acción realizada con éxito!</span>
+  </div>
+
+  <script>
+    // ── THEME TOGGLE (Material Symbols) ─────────────────────
+    function toggleWebTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('diabla_web_theme', next);
+      updateThemeToggleBtnLabel(next);
+    }
+
+    function updateThemeToggleBtnLabel(theme) {
+      const icon  = document.getElementById('themeIcon');
+      const label = document.getElementById('themeLabel');
+      if (icon) {
+        icon.textContent = theme === 'dark' ? 'light_mode' : 'dark_mode';
+      }
+      if (label) {
+        label.textContent = theme === 'dark' ? 'Claro' : 'Oscuro';
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      updateThemeToggleBtnLabel(document.documentElement.getAttribute('data-theme') || 'dark');
+    });
+
+    // ── TOAST HELPER ────────────────────────────────────────
+    let toastTimeout;
+    function showToast(msg) {
+      const toast = document.getElementById('toastMessage');
+      const text = document.getElementById('toastText');
+      if (!toast || !text) return;
+
+      text.textContent = msg;
+      toast.classList.add('show');
+
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    // ── COPY COUPON HELPER ──────────────────────────────────
+    function copyCoupon(code) {
+      navigator.clipboard.writeText(code).then(() => {
+        showToast('¡Cupón ' + code + ' copiado al portapapeles!');
+      }).catch(() => {
+        showToast('Código: ' + code);
+      });
+    }
+
+    function showAppPrompt(dish) {
+      showToast('Descarga la app para personalizar tu pedido de ' + dish + '!');
+    }
+  </script>
 
 </body>
 </html>

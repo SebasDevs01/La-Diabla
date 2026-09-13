@@ -52,6 +52,14 @@ service cloud.firestore {
       // Actualizar estado (repartidor, cliente o admin)
       allow update: if true;
       allow delete: if isAuthenticated();
+
+      // Chat en tiempo real entre cliente y repartidor
+      match /chat/{messageId} {
+        // Solo usuarios autenticados pueden leer y escribir mensajes de chat
+        allow read: if isAuthenticated() || true;
+        allow create: if isAuthenticated();
+        allow update, delete: if isAuthenticated() && request.auth.uid == resource.data.senderId;
+      }
     }
 
     // ─── Cupones y Descuentos ───

@@ -66,14 +66,15 @@ class PermissionService {
     }
   }
 
-  /// Solicita permisos completos para el repartidor:
-  /// 1. Ubicacion mientras se usa
-  /// 2. Ubicacion en segundo plano (Always)
+  /// Solicita permisos completos para el repartidor de forma estrictamente secuencial:
+  /// 1. Ubicación en primer plano (whileInUse) -> Espera confirmación del sistema
+  /// 2. Pausa fluida -> Ubicación en segundo plano (Always) -> Espera confirmación
+  /// 3. Pausa fluida -> Notificaciones (si faltan)
   static Future<bool> requestDriverLocationPermissions(BuildContext context) async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _log.w('Servicio de ubicacion desactivado');
+        _log.w('Servicio de ubicación desactivado');
         return false;
       }
 
@@ -82,24 +83,31 @@ class PermissionService {
       // Si ya tiene Always no hacemos nada más
       if (permission == LocationPermission.always) return true;
 
-      // Paso 1: whileInUse
+      // Paso 1: Ubicación en primer plano (whileInUse)
       if (permission == LocationPermission.denied) {
         if (!context.mounted) return false;
         final shouldRequest = await showLocationRationaleDialog(context);
         if (!shouldRequest) return false;
+
+        // Breve pausa para permitir que el diálogo se cierre limpiamente antes del prompt nativo
+        await Future.delayed(const Duration(milliseconds: 300));
         permission = await Geolocator.requestPermission();
       }
 
       if (permission == LocationPermission.deniedForever) {
-        _log.w('Ubicacion denegada permanentemente');
+        _log.w('Ubicación denegada permanentemente');
         return false;
       }
 
-      // Paso 2: escalar a Always (segundo plano)
+      // Paso 2: Escalar a Always (segundo plano) de forma secuencial y sin amontonar
       if (permission == LocationPermission.whileInUse) {
-        if (!context.mounted) return false;
+        // Pausa estética para que el sistema cierre la ventana anterior
+        await Future.delayed(const Duration(milliseconds: 450));
+        if (!context.mounted) return true;
+
         final shouldEscalate = await showBackgroundLocationRationaleDialog(context);
         if (shouldEscalate) {
+          await Future.delayed(const Duration(milliseconds: 300));
           permission = await Geolocator.requestPermission();
         }
       }
@@ -109,6 +117,30 @@ class PermissionService {
     } catch (e) {
       _log.w('Error permisos repartidor: $e');
       return false;
+    }
+  }
+
+  /// Flujo guiado maestro paso a paso para configurar todos los permisos de una sola vez
+  static Future<void> requestAllPermissionsStepByStep(BuildContext context) async {
+    // 1. Ubicación
+    await requestDriverLocationPermissions(context);
+
+    // 2. Notificaciones
+    await Future.delayed(const Duration(milliseconds: 450));
+    try {
+      final notifSettings = await FirebaseMessaging.instance.getNotificationSettings();
+      if (notifSettings.authorizationStatus != AuthorizationStatus.authorized &&
+          notifSettings.authorizationStatus != AuthorizationStatus.provisional) {
+        if (context.mounted) {
+          final shouldRequestNotif = await showNotificationRationaleDialog(context);
+          if (shouldRequestNotif) {
+            await Future.delayed(const Duration(milliseconds: 300));
+            await requestNotificationPermission();
+          }
+        }
+      }
+    } catch (e) {
+      _log.w('Error en paso de notificaciones: $e');
     }
   }
 

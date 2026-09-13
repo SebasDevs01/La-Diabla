@@ -81,9 +81,13 @@ class OrderEntity extends Equatable {
     this.cashChangeAmount,
     this.transactionReference,
     this.notes,
+    this.customerName,
+    this.customerPhone,
     this.driverId,
+    this.driverName,
     this.driverLatitude,
     this.driverLongitude,
+    this.deliveryProofUrl,
     this.createdAt,
     this.updatedAt,
   });
@@ -108,9 +112,13 @@ class OrderEntity extends Equatable {
   final double? cashChangeAmount;
   final String? transactionReference;
   final String? notes;
+  final String? customerName;
+  final String? customerPhone;
   final String? driverId;
+  final String? driverName;
   final double? driverLatitude;
   final double? driverLongitude;
+  final String? deliveryProofUrl;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -139,9 +147,13 @@ class OrderEntity extends Equatable {
     double? cashChangeAmount,
     String? transactionReference,
     String? notes,
+    String? customerName,
+    String? customerPhone,
     String? driverId,
+    String? driverName,
     double? driverLatitude,
     double? driverLongitude,
+    String? deliveryProofUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -166,9 +178,13 @@ class OrderEntity extends Equatable {
       cashChangeAmount: cashChangeAmount ?? this.cashChangeAmount,
       transactionReference: transactionReference ?? this.transactionReference,
       notes: notes ?? this.notes,
+      customerName: customerName ?? this.customerName,
+      customerPhone: customerPhone ?? this.customerPhone,
       driverId: driverId ?? this.driverId,
+      driverName: driverName ?? this.driverName,
       driverLatitude: driverLatitude ?? this.driverLatitude,
       driverLongitude: driverLongitude ?? this.driverLongitude,
+      deliveryProofUrl: deliveryProofUrl ?? this.deliveryProofUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -179,6 +195,8 @@ class OrderEntity extends Equatable {
     id, userId, items, subtotal, deliveryFee, discount, total,
     status, paymentMethod, paymentStatus, orderType,
     cashPaymentAmount, cashChangeAmount, transactionReference,
-    driverId, driverLatitude, driverLongitude,
+    customerName, customerPhone,
+    driverId, driverName, driverLatitude, driverLongitude,
+    deliveryProofUrl,
   ];
 }

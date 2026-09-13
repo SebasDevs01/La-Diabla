@@ -31,7 +31,7 @@ class AuthRepositoryImpl implements AuthRepository {
           id: user.uid,
           name: (user.displayName != null && user.displayName!.isNotEmpty) ? user.displayName! : 'Usuario La Diabla',
           email: user.email ?? '',
-          role: user.email == 'admin@ladiabla.app'
+          role: (user.email == 'admin@ladiabla.app' || user.email == 'appladiabla@gmail.com')
               ? UserRole.admin
               : (user.email == 'repartidor@ladiabla.app' ? UserRole.driver : UserRole.customer),
           phone: user.phoneNumber,
@@ -47,7 +47,7 @@ class AuthRepositoryImpl implements AuthRepository {
       id: user.uid,
       name: (user.displayName != null && user.displayName!.isNotEmpty) ? user.displayName! : 'Usuario La Diabla',
       email: user.email ?? '',
-      role: user.email == 'admin@ladiabla.app'
+      role: (user.email == 'admin@ladiabla.app' || user.email == 'appladiabla@gmail.com')
           ? UserRole.admin
           : (user.email == 'repartidor@ladiabla.app' ? UserRole.driver : UserRole.customer),
       phone: user.phoneNumber,
@@ -60,17 +60,37 @@ class AuthRepositoryImpl implements AuthRepository {
     final credential = await _authService.signInWithGoogle();
     final user = credential.user!;
 
+    // Verificar si el usuario ya existe en Firestore para conservar su rol (driver, admin, etc.)
+    UserModel? existingUser;
+    try {
+      existingUser = await _userRemoteDataSource
+          .getUserProfile(user.uid)
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {
+      existingUser = null;
+    }
+
+    final isDriverEmail = (user.email ?? '').toLowerCase() == 'repartidor@ladiabla.app';
+    final isAdminEmail = (user.email ?? '').toLowerCase() == 'admin@ladiabla.app';
+
+    final effectiveRole = existingUser?.role ??
+        (isDriverEmail
+            ? UserRole.driver
+            : (isAdminEmail ? UserRole.admin : UserRole.customer));
+
     final userEntity = UserEntity(
       id: user.uid,
-      name: user.displayName ?? 'Usuario La Diabla',
+      name: (existingUser != null && existingUser.name.isNotEmpty && existingUser.name != 'Usuario La Diabla')
+          ? existingUser.name
+          : (user.displayName ?? 'Usuario La Diabla'),
       email: user.email ?? '',
-      role: UserRole.customer,
-      phone: user.phoneNumber,
-      photoUrl: user.photoURL,
-      createdAt: DateTime.now(),
+      role: effectiveRole,
+      phone: existingUser?.phone ?? user.phoneNumber,
+      photoUrl: user.photoURL ?? existingUser?.photoUrl,
+      createdAt: existingUser?.createdAt ?? DateTime.now(),
     );
 
-    // Guardar o actualizar automáticamente el perfil en Firestore
+    // Guardar o actualizar perfil en Firestore preservando rol
     try {
       await _userRemoteDataSource.createOrUpdateUserProfile(
         UserModel.fromEntity(userEntity),
@@ -136,11 +156,9 @@ class AuthRepositoryImpl implements AuthRepository {
         createdAt: DateTime.now(),
       );
 
-      try {
-        await _userRemoteDataSource.createOrUpdateUserProfile(
-          UserModel.fromEntity(userEntity),
-        );
-      } catch (_) {}
+      _userRemoteDataSource.createOrUpdateUserProfile(
+        UserModel.fromEntity(userEntity),
+      ).ignore();
 
       return userEntity;
     } catch (e) {
@@ -196,11 +214,9 @@ class AuthRepositoryImpl implements AuthRepository {
       createdAt: DateTime.now(),
     );
 
-    try {
-      await _userRemoteDataSource.createOrUpdateUserProfile(
-        UserModel.fromEntity(userEntity),
-      );
-    } catch (_) {}
+    _userRemoteDataSource.createOrUpdateUserProfile(
+      UserModel.fromEntity(userEntity),
+    ).ignore();
 
     return userEntity;
   }

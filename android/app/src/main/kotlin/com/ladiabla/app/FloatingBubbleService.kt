@@ -28,7 +28,10 @@ class FloatingBubbleService : Service() {
 
     private var windowManager: WindowManager? = null
     private var floatingView: View? = null
+    private var dismissView: View? = null
     private var isViewAdded = false
+    private var isDismissViewAdded = false
+    private var isOverDismissZone = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -41,6 +44,7 @@ class FloatingBubbleService : Service() {
         val action = intent?.action
         if (action == ACTION_STOP) {
             removeFloatingBubble()
+            removeDismissTarget()
             stopSelf()
             return START_NOT_STICKY
         }
@@ -92,11 +96,7 @@ class FloatingBubbleService : Service() {
         }
 
         val sizeInDp = 64
-        val sizeInPx = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            sizeInDp.toFloat(),
-            resources.displayMetrics
-        ).toInt()
+        val sizeInPx = dpToPx(sizeInDp)
 
         val params = WindowManager.LayoutParams(
             sizeInPx,
@@ -146,6 +146,7 @@ class FloatingBubbleService : Service() {
         var initialTouchX = 0f
         var initialTouchY = 0f
         var isClick = false
+        var isDragging = false
 
         container.setOnTouchListener { _, event ->
             when (event.action) {
@@ -155,6 +156,7 @@ class FloatingBubbleService : Service() {
                     initialTouchX = event.rawX
                     initialTouchY = event.rawY
                     isClick = true
+                    isDragging = false
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
@@ -162,16 +164,52 @@ class FloatingBubbleService : Service() {
                     val diffY = (event.rawY - initialTouchY).toInt()
                     if (Math.abs(diffX) > 10 || Math.abs(diffY) > 10) {
                         isClick = false
+                        if (!isDragging) {
+                            isDragging = true
+                            showDismissTarget()
+                        }
                     }
+
                     params.x = initialX + diffX
                     params.y = initialY + diffY
-                    windowManager?.updateViewLayout(container, params)
+                    try {
+                        windowManager?.updateViewLayout(container, params)
+                    } catch (_: Exception) {}
+
+                    // Detectar si está sobre la zona inferior de eliminar/cerrar
+                    if (isDragging) {
+                        val screenHeight = resources.displayMetrics.heightPixels
+                        val screenWidth = resources.displayMetrics.widthPixels
+                        val inBottomZone = event.rawY > (screenHeight - dpToPx(130))
+                        val inCenterZone = Math.abs(event.rawX - (screenWidth / 2f)) < dpToPx(110)
+                        val overDismiss = inBottomZone && inCenterZone
+                        updateDismissTargetHighlight(overDismiss)
+                    }
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (isClick) {
+                    val wasOverDismiss = isOverDismissZone
+                    removeDismissTarget()
+
+                    if (wasOverDismiss) {
+                        // El usuario arrastró la burbuja a la caneca/X inferior para cerrarla
+                        removeFloatingBubble()
+                        stopSelf()
+                    } else if (isClick) {
                         bringAppToForeground()
+                    } else {
+                        // Acomodar al borde de pantalla más cercano
+                        val screenWidth = resources.displayMetrics.widthPixels
+                        val snapX = if (params.x + sizeInPx / 2 < screenWidth / 2) 20 else (screenWidth - sizeInPx - 20)
+                        params.x = snapX
+                        try {
+                            windowManager?.updateViewLayout(container, params)
+                        } catch (_: Exception) {}
                     }
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    removeDismissTarget()
                     true
                 }
                 else -> false
@@ -187,6 +225,125 @@ class FloatingBubbleService : Service() {
         }
     }
 
+    private fun showDismissTarget() {
+        if (isDismissViewAdded) return
+        val wm = windowManager ?: return
+
+        val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            @Suppress("DEPRECATION")
+            WindowManager.LayoutParams.TYPE_PHONE
+        }
+
+        val targetWidth = dpToPx(150)
+        val targetHeight = dpToPx(56)
+
+        val params = WindowManager.LayoutParams(
+            targetWidth,
+            targetHeight,
+            layoutFlag,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            y = dpToPx(36)
+        }
+
+        val targetContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dpToPx(12), dpToPx(8), dpToPx(12), dpToPx(8))
+            val shape = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = dpToPx(28).toFloat()
+                setColor(Color.parseColor("#E51F2937")) // Gray 800 translúcido
+                setStroke(dpToPx(2), Color.parseColor("#EF4444")) // Borde rojo
+            }
+            background = shape
+            elevation = 24f
+        }
+
+        val icon = TextView(this).apply {
+            text = "✕"
+            setTextColor(Color.parseColor("#EF4444"))
+            textSize = 18f
+            setTypeface(null, Typeface.BOLD)
+            gravity = Gravity.CENTER
+        }
+
+        val label = TextView(this).apply {
+            text = "  Soltar para cerrar"
+            setTextColor(Color.WHITE)
+            textSize = 11f
+            setTypeface(null, Typeface.BOLD)
+            gravity = Gravity.CENTER
+        }
+
+        targetContainer.addView(icon)
+        targetContainer.addView(label)
+
+        try {
+            wm.addView(targetContainer, params)
+            dismissView = targetContainer
+            isDismissViewAdded = true
+            isOverDismissZone = false
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun updateDismissTargetHighlight(isOver: Boolean) {
+        if (isOver == isOverDismissZone) return
+        isOverDismissZone = isOver
+
+        val target = dismissView as? LinearLayout ?: return
+        val bg = target.background as? GradientDrawable ?: return
+
+        if (isOver) {
+            bg.setColor(Color.parseColor("#DC2626")) // Rojo intenso al pasar por encima
+            bg.setStroke(dpToPx(2), Color.WHITE)
+            vibrateFeedback()
+        } else {
+            bg.setColor(Color.parseColor("#E51F2937"))
+            bg.setStroke(dpToPx(2), Color.parseColor("#EF4444"))
+        }
+    }
+
+    private fun removeDismissTarget() {
+        if (isDismissViewAdded && dismissView != null) {
+            try {
+                windowManager?.removeView(dismissView)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            dismissView = null
+            isDismissViewAdded = false
+            isOverDismissZone = false
+        }
+    }
+
+    private fun vibrateFeedback() {
+        try {
+            val v = getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                v?.vibrate(android.os.VibrationEffect.createOneShot(35, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                v?.vibrate(35)
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun dpToPx(dp: Int): Int {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            dp.toFloat(),
+            resources.displayMetrics
+        ).toInt()
+    }
+
     private fun bringAppToForeground() {
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
@@ -197,6 +354,7 @@ class FloatingBubbleService : Service() {
             startActivity(launchIntent)
         }
         removeFloatingBubble()
+        removeDismissTarget()
         stopSelf()
     }
 
@@ -212,8 +370,16 @@ class FloatingBubbleService : Service() {
         }
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        removeFloatingBubble()
+        removeDismissTarget()
+        stopSelf()
+        super.onTaskRemoved(rootIntent)
+    }
+
     override fun onDestroy() {
         removeFloatingBubble()
+        removeDismissTarget()
         super.onDestroy()
     }
 

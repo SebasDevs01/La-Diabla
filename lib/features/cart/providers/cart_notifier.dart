@@ -1,17 +1,13 @@
 // lib/features/cart/providers/cart_notifier.dart
 import 'dart:async';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
 import '../../../data/repositories/cart_repository_impl.dart';
-import '../../../data/repositories/order_repository_impl.dart';
 import '../../../domain/entities/cart_item_entity.dart';
 import '../../../domain/entities/extra_entity.dart';
-import '../../../domain/entities/order_entity.dart';
-import '../../../domain/entities/order_status.dart';
 import '../../../domain/entities/product_entity.dart';
 import '../../../domain/repositories/cart_repository.dart';
+import '../../../core/services/maps_service.dart';
 
 final cartRepositoryProvider = Provider<CartRepository>((ref) {
   return CartRepositoryImpl();
@@ -20,7 +16,7 @@ final cartRepositoryProvider = Provider<CartRepository>((ref) {
 class CartState {
   const CartState({
     this.items = const [],
-    this.deliveryFee = 3500.0,
+    this.deliveryFee = 4500.0,
     this.discount = 0.0,
     this.appliedCoupon,
     this.appliedReferralCode,
@@ -121,16 +117,7 @@ class CartNotifier extends StateNotifier<CartState> {
 
   /// Calcula y actualiza la tarifa de envío en base a los kilómetros de distancia.
   void setDeliveryDistance(double distanceKm, {String? addressFormatted}) {
-    double calculatedFee = 3500.0;
-    if (distanceKm <= 2.5) {
-      calculatedFee = 3500.0;
-    } else if (distanceKm <= 5.0) {
-      calculatedFee = 5000.0;
-    } else if (distanceKm <= 8.0) {
-      calculatedFee = 7500.0;
-    } else {
-      calculatedFee = 9500.0;
-    }
+    final calculatedFee = MapsService.calculateDeliveryFee(distanceKm);
 
     state = state.copyWith(
       distanceKm: distanceKm,
@@ -203,31 +190,10 @@ class CartNotifier extends StateNotifier<CartState> {
     await repo.clearCart();
   }
 
-  /// Cancela el carrito guardando los productos como pedido cancelado en Firestore.
+  /// Cancela el carrito limpiándolo localmente (sin guardar en Firestore).
+  /// No se persiste en Firestore para evitar pedidos fantasma en cuentas nuevas.
   Future<void> cancelCartAsOrder() async {
     if (state.items.isEmpty) return;
-    try {
-      final userId = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
-      final orderRepo = OrderRepositoryImpl();
-      final cancelledOrder = OrderEntity(
-        id: const Uuid().v4(),
-        userId: userId,
-        items: List<CartItemEntity>.from(state.items),
-        subtotal: state.subtotal,
-        deliveryFee: state.effectiveDeliveryFee,
-        discount: state.discount,
-        total: state.total,
-        status: OrderStatus.cancelled,
-        paymentMethod: PaymentMethod.card,
-        paymentStatus: PaymentStatus.refunded,
-        orderType: OrderType.delivery,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-      await orderRepo.createOrder(cancelledOrder);
-    } catch (_) {
-      // Fallo silencioso
-    }
     final repo = _ref.read(cartRepositoryProvider);
     await repo.clearCart();
   }

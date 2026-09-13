@@ -40,6 +40,7 @@ class OrderRepositoryImpl implements OrderRepository {
 
   @override
   Future<List<OrderEntity>> getOrders(String userId) async {
+    if (userId.trim().isEmpty) return const [];
     try {
       final query = await _ordersCol
           .where('userId', isEqualTo: userId)
@@ -64,7 +65,7 @@ class OrderRepositoryImpl implements OrderRepository {
     } catch (e) {
       _logger.w('Error fetching orders from Firestore: $e');
     }
-    return _inMemoryOrders.where((o) => o.userId == userId || userId.isEmpty).toList();
+    return _inMemoryOrders.where((o) => o.userId.isNotEmpty && o.userId == userId).toList();
   }
 
   @override
@@ -201,6 +202,13 @@ class OrderRepositoryImpl implements OrderRepository {
         updatedAt: DateTime.now(),
       );
     }
+  }
+
+  /// Limpia la caché en memoria. Llamar al cambiar de usuario para evitar
+  /// que datos de una sesión anterior aparezcan en la siguiente.
+  void clearCache() {
+    _inMemoryOrders.clear();
+    _logger.d('OrderRepositoryImpl: caché en memoria limpiada');
   }
 }
 

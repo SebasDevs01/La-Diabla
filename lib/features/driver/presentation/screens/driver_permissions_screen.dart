@@ -134,45 +134,78 @@ class _DriverPermissionsScreenState
                       ),
                     ],
                   ),
-                  child: Row(
+                  child: Column(
                     children: [
-                      Icon(
-                        allReady
-                            ? Icons.verified_user_rounded
-                            : Icons.warning_amber_rounded,
-                        color: Colors.white,
-                        size: 34,
+                      Row(
+                        children: [
+                          Icon(
+                            allReady
+                                ? Icons.verified_user_rounded
+                                : Icons.warning_amber_rounded,
+                            color: Colors.white,
+                            size: 34,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  allReady
+                                      ? 'DISPOSITIVO 100% OPERATIVO'
+                                      : 'PERMISOS REQUERIDOS',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 14,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  allReady
+                                      ? 'Cumples con todas las condiciones para recibir pedidos de La Diabla 🔥'
+                                      : 'Para recibir pedidos necesitas activar los permisos marcados en rojo.',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              allReady
-                                  ? 'DISPOSITIVO 100% OPERATIVO'
-                                  : 'PERMISOS REQUERIDOS',
-                              style: const TextStyle(
-                                color: Colors.white,
+                      if (!allReady) ...[
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 42,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: const Color(0xFFDC2626),
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            icon: const Icon(Icons.auto_fix_high_rounded, size: 18),
+                            label: const Text(
+                              'CONFIGURACIÓN GUIADA PASO A PASO',
+                              style: TextStyle(
                                 fontWeight: FontWeight.w900,
-                                fontSize: 14,
-                                letterSpacing: 0.5,
+                                fontSize: 12.5,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              allReady
-                                  ? 'Cumples con todas las condiciones para recibir pedidos de La Diabla 🔥'
-                                  : 'Para recibir pedidos necesitas activar los permisos marcados en rojo.',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
-                                height: 1.3,
-                              ),
-                            ),
-                          ],
+                            onPressed: () async {
+                              await PermissionService.requestAllPermissionsStepByStep(context);
+                              _checkAllPermissions();
+                            },
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),

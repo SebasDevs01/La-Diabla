@@ -4,15 +4,26 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard en Vivo 🌶️ | La Diabla Admin</title>
+  <meta name="description" content="Panel de administración en tiempo real de La Diabla App. Gestiona pedidos, reembolsos y estadísticas.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- Google Material Symbols Rounded -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
+  <!-- Font Awesome 6 Free (CDN) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous">
+  <link rel="stylesheet" href="styles.css?v=3.5">
 
   <!-- Firebase App SDK (CDN) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('diabla_web_theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
 </head>
 <body>
 
@@ -20,17 +31,33 @@
   <header>
     <div class="navbar">
       <div class="logo-container">
-        <span class="logo-icon">🌶️</span>
-        <div>
+        <img src="../recursos/materiales/chileboton.png" alt="La Diabla"
+             style="width:42px; height:42px; border-radius:50%; object-fit:contain; box-shadow: 0 4px 14px rgba(220,38,38,0.5); flex-shrink:0;">
+        <div class="logo-text-block">
           <span class="logo-text diabla-font">LA DIABLA</span>
-          <span style="font-size: 0.75rem; background: #DC2626; color: white; padding: 2px 6px; border-radius: 6px; margin-left: 6px; font-weight: bold;">EN VIVO 🔴</span>
+          <span class="live-badge"><span class="material-symbols-rounded md-16" style="color:#22C55E;">sensors</span> EN VIVO</span>
+        </div>
+      </div>
+
+      <div class="nav-center-info">
+        <div class="nav-info-chip">
+          <span class="material-symbols-rounded md-18">location_on</span>
+          <span>Cl. 59 #39W-24 — Bucaramanga</span>
         </div>
       </div>
 
       <div class="nav-links">
-        <span style="font-size: 0.85rem; color: var(--text-muted);">Administrador: <strong style="color: white;">appladiabla@gmail.com</strong></span>
-        <button onclick="logoutAdmin()" class="btn-secondary" style="padding: 6px 14px; font-size: 0.85rem;">
-          Cerrar Sesión 🚪
+        <div class="admin-pill">
+          <span class="material-symbols-rounded md-18">admin_panel_settings</span>
+          <span id="adminEmailDisplay">appladiabla@gmail.com</span>
+        </div>
+        <button onclick="toggleWebTheme()" id="themeToggleBtn" class="btn-icon-text" title="Cambiar Tema">
+          <span class="material-symbols-rounded md-20" id="themeIcon">light_mode</span>
+          <span id="themeLabel">Claro</span>
+        </button>
+        <button onclick="logoutAdmin()" class="btn-icon-text btn-danger-soft" title="Cerrar Sesión">
+          <span class="material-symbols-rounded md-20">logout</span>
+          <span>Salir</span>
         </button>
       </div>
     </div>
@@ -42,31 +69,39 @@
     <!-- Metrics Banner -->
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-icon-wrapper" style="background: rgba(22, 163, 74, 0.15); color: #16A34A;">💰</div>
+        <div class="stat-icon-wrapper" style="--si-color: #16A34A; --si-bg: rgba(22,163,74,0.15);">
+          <span class="material-symbols-rounded md-28">payments</span>
+        </div>
         <div>
           <div class="stat-value diabla-font" id="statTotalSales">$0</div>
-          <div class="stat-label">Ventas Totales Hoy</div>
+          <div class="stat-label">Ventas Totales</div>
         </div>
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon-wrapper" style="background: rgba(245, 158, 11, 0.15); color: #F59E0B;">⏳</div>
+        <div class="stat-icon-wrapper" style="--si-color: #F59E0B; --si-bg: rgba(245,158,11,0.15);">
+          <span class="material-symbols-rounded md-28">soup_kitchen</span>
+        </div>
         <div>
           <div class="stat-value diabla-font" id="statActiveOrders">0</div>
-          <div class="stat-label">Pedidos en Proceso</div>
+          <div class="stat-label">En Proceso</div>
         </div>
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon-wrapper" style="background: rgba(59, 130, 246, 0.15); color: #3B82F6;">🛵</div>
+        <div class="stat-icon-wrapper" style="--si-color: #3B82F6; --si-bg: rgba(59,130,246,0.15);">
+          <span class="material-symbols-rounded md-28">two_wheeler</span>
+        </div>
         <div>
           <div class="stat-value diabla-font" id="statDelivered">0</div>
-          <div class="stat-label">Pedidos Entregados</div>
+          <div class="stat-label">Entregados</div>
         </div>
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon-wrapper" style="background: rgba(220, 38, 38, 0.15); color: #DC2626;">📊</div>
+        <div class="stat-icon-wrapper" style="--si-color: #DC2626; --si-bg: rgba(220,38,38,0.15);">
+          <span class="material-symbols-rounded md-28">analytics</span>
+        </div>
         <div>
           <div class="stat-value diabla-font" id="statTotalOrders">0</div>
           <div class="stat-label">Total Registrados</div>
@@ -77,27 +112,61 @@
     <!-- Orders Management Section -->
     <div class="dashboard-header">
       <div>
-        <h2 class="diabla-font" style="font-size: 1.8rem; letter-spacing: 1px;">GESTIÓN DE PEDIDOS EN TIEMPO REAL 🔥</h2>
-        <p style="color: var(--text-muted); font-size: 0.85rem;">Cocina Central: Cl. 59 # 39W-24, Estoraques 1, Bucaramanga</p>
+        <h1 class="diabla-font section-title">
+          <span class="material-symbols-rounded md-32" style="color: #DC2626; vertical-align: middle;">podcasts</span>
+          GESTIÓN DE PEDIDOS EN TIEMPO REAL
+        </h1>
+        <p class="section-subtitle">Monitor de operaciones activas — actualización automática</p>
       </div>
 
-      <!-- Search Input -->
-      <div style="display: flex; gap: 10px; align-items: center;">
-        <input type="text" id="searchOrderInput" class="form-input" placeholder="🔍 Buscar por ID, cliente, dirección..." oninput="renderOrders()" style="width: 280px; padding: 8px 14px; font-size: 0.9rem;">
+      <!-- Search Input & Clean Action -->
+      <div class="header-actions">
+        <div class="search-wrapper">
+          <span class="material-symbols-rounded md-20 search-icon">search</span>
+          <input type="text" id="searchOrderInput" class="form-input search-input"
+            placeholder="Buscar por ID, cliente, dirección..." oninput="renderOrders()">
+        </div>
+        <button onclick="clearAllTestOrders()" class="btn-clean" title="Borrar todos los pedidos">
+          <span class="material-symbols-rounded md-18">cleaning_services</span>
+          <span>Limpiar</span>
+        </button>
       </div>
     </div>
 
     <!-- Filter Tabs -->
     <div class="tab-filter" style="margin-bottom: 1.5rem;">
-      <button class="tab-btn active" data-filter="all" onclick="setFilter('all')">Todos</button>
-      <button class="tab-btn" data-filter="pending" onclick="setFilter('pending')">⏳ Pendientes</button>
-      <button class="tab-btn" data-filter="confirmed" onclick="setFilter('confirmed')">✅ Confirmados</button>
-      <button class="tab-btn" data-filter="preparing" onclick="setFilter('preparing')">🍳 En Cocina</button>
-      <button class="tab-btn" data-filter="ready" onclick="setFilter('ready')">📦 Listos para Despacho</button>
-      <button class="tab-btn" data-filter="onTheWay" onclick="setFilter('onTheWay')">🛵 En Ruta</button>
-      <button class="tab-btn" data-filter="delivered" onclick="setFilter('delivered')">🎉 Entregados</button>
-      <button class="tab-btn" data-filter="cancelled" onclick="setFilter('cancelled')">❌ Cancelados</button>
-      <button class="tab-btn" data-filter="refunds" onclick="setFilter('refunds')" style="border-color: #DC2626; color: #DC2626;">🔄 Reembolsos (<span id="refundCount">0</span>)</button>
+      <button class="tab-btn active" data-filter="all" onclick="setFilter('all')">
+        <span class="material-symbols-rounded md-18">grid_view</span> Todos
+      </button>
+      <button class="tab-btn" data-filter="pending" onclick="setFilter('pending')">
+        <span class="material-symbols-rounded md-18">hourglass_top</span> Pendientes
+      </button>
+      <button class="tab-btn" data-filter="confirmed" onclick="setFilter('confirmed')">
+        <span class="material-symbols-rounded md-18">check_circle</span> Confirmados
+      </button>
+      <button class="tab-btn" data-filter="preparing" onclick="setFilter('preparing')">
+        <span class="material-symbols-rounded md-18">skillet</span> En Cocina
+      </button>
+      <button class="tab-btn" data-filter="ready" onclick="setFilter('ready')">
+        <span class="material-symbols-rounded md-18">inventory_2</span> Listos
+      </button>
+      <button class="tab-btn" data-filter="onTheWay" onclick="setFilter('onTheWay')">
+        <span class="material-symbols-rounded md-18">two_wheeler</span> En Ruta
+      </button>
+      <button class="tab-btn" data-filter="delivered" onclick="setFilter('delivered')">
+        <span class="material-symbols-rounded md-18">task_alt</span> Entregados
+      </button>
+      <button class="tab-btn tab-btn-evidence" data-filter="evidence" onclick="setFilter('evidence')">
+        <span class="material-symbols-rounded md-18">photo_camera</span> Evidencias
+        (<span id="evidenceCount">0</span>)
+      </button>
+      <button class="tab-btn" data-filter="cancelled" onclick="setFilter('cancelled')">
+        <span class="material-symbols-rounded md-18">cancel</span> Cancelados
+      </button>
+      <button class="tab-btn tab-btn-refunds" data-filter="refunds" onclick="setFilter('refunds')">
+        <span class="material-symbols-rounded md-18">currency_exchange</span> Reembolsos
+        (<span id="refundCount">0</span>)
+      </button>
     </div>
 
     <!-- Orders Live Grid -->
@@ -112,10 +181,44 @@
 
   </main>
 
-  <script src="app.js"></script>
+  <!-- Proof Photo Modal Visor -->
+  <div id="proofPhotoModal" class="proof-modal-backdrop" style="display: none;" onclick="closeProofModal(event)">
+    <div class="proof-modal-card" onclick="event.stopPropagation()">
+      <div class="proof-modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="material-symbols-rounded" style="color:#10B981;">verified</span>
+          <span id="proofModalTitle" class="diabla-font" style="font-size:1.1rem; color:var(--text-main);">Evidencia de Entrega</span>
+        </div>
+        <button class="proof-modal-close" onclick="closeProofModal()">&times;</button>
+      </div>
+      <div class="proof-modal-body">
+        <img id="proofModalImg" src="" alt="Comprobante de entrega" class="proof-full-image" />
+        <div class="proof-meta-box">
+          <div id="proofModalOrder" style="font-weight:bold; color:#DC2626;"></div>
+          <div id="proofModalCustomer" style="color:var(--text-main); font-size:0.9rem; margin-top:4px;"></div>
+          <div id="proofModalAddress" style="color:var(--text-muted); font-size:0.85rem; margin-top:2px;"></div>
+          <div id="proofModalDriver" style="color:#10B981; font-size:0.85rem; margin-top:2px;"></div>
+        </div>
+      </div>
+      <div class="proof-modal-footer">
+        <button class="action-btn" style="background:var(--card-bg); border:1px solid var(--border-color); color:var(--text-main); padding:8px 16px; border-radius:10px; cursor:pointer;" onclick="closeProofModal()">Cerrar</button>
+        <a id="proofModalDownload" href="#" target="_blank" class="action-btn" style="background:#10B981; color:white; padding:8px 18px; border-radius:10px; text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-weight:600;">
+          <span class="material-symbols-rounded md-16">open_in_new</span> Abrir Original
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="app.js?v=3.5"></script>
   <script>
     function logoutAdmin() {
       sessionStorage.removeItem('diabla_admin_auth');
+      if (typeof firebase !== 'undefined' && firebase.auth) {
+        firebase.auth().signOut().catch(() => {});
+      }
       window.location.href = 'login.html';
     }
   </script>

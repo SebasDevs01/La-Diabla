@@ -1,12 +1,14 @@
 // lib/features/home/presentation/screens/home_screen.dart
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
+import '../../../auth/providers/auth_notifier.dart';
 import '../../../../domain/entities/product_entity.dart';
 import '../../../../mock/mock_categories.dart';
 import '../../../../mock/mock_products.dart';
@@ -513,8 +515,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final searchBorderColor =
         isDark ? AppColors.dividerDark : const Color(0xFFDC2626);
 
-    // Color de fondo sólido para Home (sin imagen decorativa)
     final homeBg = isDark ? AppColors.surfaceDark : const Color(0xFFF9F9F9);
+    final user = ref.watch(authNotifierProvider).user;
+    final userId = user?.id ?? '';
 
     return Scaffold(
       backgroundColor: homeBg,
@@ -554,13 +557,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ),
                                 ],
                               ),
-                              child: Center(
-                                child: IconButton(
-                                  icon: const Icon(Icons.notifications_none_rounded,
-                                      color: Color(0xFFDC2626), size: 22),
-                                  onPressed: () => context.push('/notifications'),
-                                  padding: EdgeInsets.zero,
-                                ),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                clipBehavior: Clip.none,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.notifications_none_rounded,
+                                        color: Color(0xFFDC2626), size: 22),
+                                    onPressed: () => context.push('/notifications'),
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                  if (userId.isNotEmpty)
+                                    StreamBuilder<QuerySnapshot>(
+                                      stream: FirebaseFirestore.instance
+                                          .collection('users')
+                                          .doc(userId)
+                                          .collection('notifications')
+                                          .where('isRead', isEqualTo: false)
+                                          .snapshots(),
+                                      builder: (context, snapshot) {
+                                        final count = snapshot.data?.docs.length ?? 0;
+                                        if (count == 0) return const SizedBox.shrink();
+                                        return Positioned(
+                                          top: -2,
+                                          right: -2,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFDC2626),
+                                              borderRadius: BorderRadius.circular(10),
+                                              border: Border.all(color: isDark ? AppColors.cardDark : Colors.white, width: 1.5),
+                                            ),
+                                            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                                            child: Text(
+                                              count > 9 ? '9+' : '$count',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w900,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                ],
                               ),
                             ),
                             const SizedBox(width: 10),

@@ -41,11 +41,11 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyPlaceholderAndroidApiKeyForLaDiablaApp',
-    appId: '1:100000000000:android:placeholderappId',
-    messagingSenderId: '100000000000',
-    projectId: 'la-diabla-app',
-    storageBucket: 'la-diabla-app.appspot.com',
+    apiKey: 'AIzaSyALoHHu4zV9IpwAljGHWjHskoqEvHSKMFQ',
+    appId: '1:724540997267:android:4ed5f94f2150808585d766',
+    messagingSenderId: '724540997267',
+    projectId: 'ladiabla-11718',
+    storageBucket: 'ladiabla-11718.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(

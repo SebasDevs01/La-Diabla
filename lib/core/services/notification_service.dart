@@ -14,11 +14,14 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 /// Servicio de notificaciones push — wrapper de Firebase Cloud Messaging
 /// + flutter_local_notifications para mostrar banners en foreground.
 class NotificationService {
-  NotificationService({FirebaseMessaging? messaging})
+  factory NotificationService() => _instance;
+  NotificationService._internal({FirebaseMessaging? messaging})
       : _messaging = messaging ?? FirebaseMessaging.instance;
+  static final NotificationService _instance = NotificationService._internal();
 
   final FirebaseMessaging _messaging;
   final Logger _logger = Logger();
+  String? _currentUserId;
 
   // ─── Plugin de notificaciones locales ────────────────────────────────────
   static final FlutterLocalNotificationsPlugin _localNotifications =
@@ -63,6 +66,13 @@ class NotificationService {
 
       // 5. Escuchar mensajes en foreground y mostrar banner local
       FirebaseMessaging.onMessage.listen(_showForegroundNotification);
+
+      // 6. Escuchar renovación de token FCM en tiempo real
+      _messaging.onTokenRefresh.listen((newToken) async {
+        if (_currentUserId != null && _currentUserId!.isNotEmpty) {
+          await _saveTokenToFirestore(_currentUserId!, newToken);
+        }
+      });
 
       _logger.i('NotificationService inicializado correctamente');
     } catch (e) {
@@ -172,23 +182,60 @@ class NotificationService {
       FirebaseMessaging.onMessageOpenedApp;
   Future<RemoteMessage?> getInitialMessage() => _messaging.getInitialMessage();
 
-  /// Sincroniza el token FCM del usuario en Firestore.
-  Future<void> syncUserFcmToken(String userId) async {
+  /// Sincroniza el token FCM del usuario en Firestore y opcionalmente sus topics.
+  Future<void> syncUserFcmToken(String userId, {String? role}) async {
     if (userId.isEmpty) return;
+    _currentUserId = userId;
     try {
       final token = await getToken();
       if (token != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userId)
-            .set({
-          'fcmToken': token,
-          'fcmUpdatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-        _logger.i('FCM Token sincronizado: $userId');
+        await _saveTokenToFirestore(userId, token);
+        _logger.i('FCM Token sincronizado para $userId (rol: ${role ?? "desconocido"})');
+      }
+
+      // Suscribir al topic general de notificaciones
+      await _messaging.subscribeToTopic(NotificationTopics.allUsers);
+
+      // Si es repartidor, suscribir al topic exclusivo de repartidores
+      if (role == 'driver') {
+        await _messaging.subscribeToTopic(NotificationTopics.drivers);
+      } else {
+        await _messaging.unsubscribeFromTopic(NotificationTopics.drivers);
       }
     } catch (e) {
       _logger.w('Error sincronizando FCM Token: $e');
+    }
+  }
+
+  Future<void> _saveTokenToFirestore(String userId, String token) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .set({
+        'fcmToken': token,
+        'fcmUpdatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      _logger.w('Error guardando FCM token en Firestore: $e');
+    }
+  }
+
+  /// Limpia el token FCM al cerrar sesión para evitar recibir notificaciones ajenas.
+  Future<void> clearFcmToken(String userId) async {
+    if (userId.isEmpty) return;
+    try {
+      _currentUserId = null;
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .update({
+        'fcmToken': FieldValue.delete(),
+      });
+      await _messaging.unsubscribeFromTopic(NotificationTopics.drivers);
+      _logger.i('FCM Token removido al cerrar sesión: $userId');
+    } catch (e) {
+      _logger.w('Error limpiando FCM Token: $e');
     }
   }
 

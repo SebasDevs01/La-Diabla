@@ -32,7 +32,7 @@ class OrderRatingTipSheet extends ConsumerStatefulWidget {
 class _OrderRatingTipSheetState extends ConsumerState<OrderRatingTipSheet> {
   int _foodRating = 5;
   int _driverRating = 5;
-  double _selectedTip = 5000;
+  double _selectedTip = 0; // Por defecto sin propina para no imponer cobros automáticos
   final _commentController = TextEditingController();
   bool _isSubmitting = false;
 
@@ -94,12 +94,41 @@ class _OrderRatingTipSheetState extends ConsumerState<OrderRatingTipSheet> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Guardar en la subcolección de reviews
+      // Guardar en la subcolección de reviews de la orden
       await FirebaseFirestore.instance
           .collection('orders')
           .doc(widget.order.id)
           .collection('reviews')
           .add(reviewData);
+
+      // Sincronizar calificación y reseña en el perfil del repartidor
+      final driverId = widget.order.driverId;
+      if (driverId != null && driverId.isNotEmpty) {
+        try {
+          final driverDocRef = FirebaseFirestore.instance.collection('users').doc(driverId);
+          final driverSnap = await driverDocRef.get();
+          
+          final currentTotal = (driverSnap.data()?['driverTotalScore'] as num? ?? 0).toInt();
+          final currentCount = (driverSnap.data()?['driverRatingCount'] as num? ?? 0).toInt();
+          final newCount = currentCount + 1;
+          final newTotal = currentTotal + _driverRating;
+          final newAvg = double.parse((newTotal / newCount).toStringAsFixed(1));
+
+          await driverDocRef.set({
+            'driverRatingCount': newCount,
+            'driverTotalScore': newTotal,
+            'driverAverageRating': newAvg,
+          }, SetOptions(merge: true));
+
+          await driverDocRef.collection('driver_reviews').add({
+            'orderId': widget.order.id,
+            'rating': _driverRating,
+            'comment': _commentController.text.trim(),
+            'customerName': user?.name ?? 'Cliente Diabla',
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        } catch (_) {}
+      }
 
       if (mounted) {
         navigator.pop();
@@ -336,6 +365,46 @@ class _OrderRatingTipSheetState extends ConsumerState<OrderRatingTipSheet> {
                       );
                     }).toList(),
                   ),
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _selectedTip == 0
+                          ? (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100)
+                          : const Color(0xFF16A34A).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          _selectedTip == 0 ? Icons.info_outline_rounded : Icons.check_circle_outline_rounded,
+                          size: 16,
+                          color: _selectedTip == 0
+                              ? (isDark ? Colors.white54 : Colors.grey.shade600)
+                              : const Color(0xFF16A34A),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _selectedTip == 0
+                                ? 'La propina es 100% opcional. Puedes continuar sin propina; tu calificación es lo más valioso.'
+                                : widget.order.paymentMethod == PaymentMethod.card
+                                    ? 'Se procesará la propina voluntaria de ${PriceFormatter.formatSmart(_selectedTip)} con tu método de pago registrado.'
+                                    : 'Propina voluntaria para tu repartidor. Puedes entregarla en efectivo o por transferencia.',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: _selectedTip == 0
+                                  ? (isDark ? Colors.white60 : Colors.grey.shade700)
+                                  : (isDark ? const Color(0xFF86EFAC) : const Color(0xFF15803D)),
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -380,11 +449,13 @@ class _OrderRatingTipSheetState extends ConsumerState<OrderRatingTipSheet> {
                 onPressed: _isSubmitting ? null : _submitReview,
                 child: _isSubmitting
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        'ENVIAR CALIFICACIÓN 🔥',
-                        style: TextStyle(
+                    : Text(
+                        _selectedTip == 0
+                            ? 'ENVIAR CALIFICACIÓN 🔥'
+                            : 'ENVIAR CALIFICACIÓN + PROPINA (${PriceFormatter.formatSmart(_selectedTip)}) 🔥',
+                        style: const TextStyle(
                           fontFamily: AppTypography.displayFamily,
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.8,
                         ),

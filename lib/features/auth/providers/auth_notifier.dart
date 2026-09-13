@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../domain/entities/user_entity.dart';
 import 'auth_provider.dart';
 
@@ -52,7 +53,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> _saveUserSession(UserEntity user) async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      if (user.isGuest) {
+        // Invitados NUNCA deben quedar guardados como usuarios con sesión activa
+        await prefs.setBool('is_logged_in', false);
+        await prefs.setBool('is_guest_user', true);
+        return;
+      }
       await prefs.setBool('is_logged_in', true);
+      await prefs.setBool('is_guest_user', false);
       await prefs.setString('saved_user_id', user.id);
       await prefs.setString('saved_user_name', user.name);
       await prefs.setString('saved_user_email', user.email);
@@ -66,12 +74,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (user.guestAddress != null) {
         await prefs.setString('guest_address', user.guestAddress!);
       }
+      // Sincronizar Token FCM en Firestore en segundo plano (con timeout para jamás bloquear)
+      NotificationService()
+          .syncUserFcmToken(user.id, role: user.role.name)
+          .timeout(const Duration(seconds: 4), onTimeout: () {})
+          .ignore();
     } catch (_) {}
   }
 
   Future<void> _clearUserSession() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final savedId = prefs.getString('saved_user_id');
+      if (savedId != null && savedId.isNotEmpty) {
+        NotificationService().clearFcmToken(savedId).ignore();
+      }
       await prefs.setBool('is_logged_in', false);
       await prefs.setBool('is_guest_user', false);
       await prefs.setBool('is_delivery_mode', false);
@@ -90,67 +107,77 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
+    final isGuest = prefs.getBool('is_guest_user') ?? false;
+    final savedId = prefs.getString('saved_user_id');
+    final savedEmail = prefs.getString('saved_user_email') ?? '';
+    final isGuestId = savedId != null && (savedId.startsWith('guest_') || savedId == 'guest');
+    final isGuestEmail = savedEmail.contains('@invitado.ladiabla.app') || savedEmail.contains('guest');
 
-    // ── 1. VERIFICAR FIREBASE AUTH PRIMERO (es la fuente de verdad)
-    final fbUser = FirebaseAuth.instance.currentUser;
-
-    if (fbUser == null) {
-      // No hay sesión de Firebase → limpiar SharedPreferences por si quedaron datos
-      // de una instalación anterior (reinstall) o sesión cerrada incorrectamente
+    // NUNCA restaurar sesiones de invitados al iniciar la app.
+    // Si hay residuos de invitado en SharedPreferences, se limpian por completo.
+    if (isGuest || isGuestId || isGuestEmail) {
       await _clearUserSession();
-      state = state.copyWith(user: null, isLoading: false);
-      // Suscribir al stream para detectar futuros logins
-      final repo = _ref.read(authRepositoryProvider);
-      _authSubscription = repo.authStateChanges.listen((user) {
-        if (user != null) {
-          state = state.copyWith(user: user, isLoading: false);
-          _saveUserSession(user);
-        } else {
-          state = state.copyWith(user: null, isLoading: false, clearUser: true);
-          _clearUserSession();
+      try {
+        final fbUser = FirebaseAuth.instance.currentUser;
+        if (fbUser != null && fbUser.isAnonymous) {
+          await FirebaseAuth.instance.signOut();
         }
-      });
+      } catch (_) {}
+      state = state.copyWith(user: null, isLoading: false);
       return;
     }
 
-    // ── 2. Firebase SÍ tiene usuario activo → reconstruir sesión
-    final isGuest = prefs.getBool('is_guest_user') ?? false;
+    final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
     final savedRole = prefs.getString('saved_user_role');
+    final savedName = prefs.getString('saved_user_name');
+    final savedPhone = prefs.getString('saved_user_phone');
+    final savedPhoto = prefs.getString('saved_user_photo');
 
-    // Si tiene sesión de Firebase pero guardado como guest, ignorar el flag guest
-    // (puede pasar si la sesión se corrompió)
-    if (isGuest && !fbUser.isAnonymous) {
-      await prefs.setBool('is_guest_user', false);
+    // ── 1. RESTAURAR SESIÓN DESDE SHAREDPREFERENCES INMEDIATAMENTE (Solo usuarios reales)
+    if (isLoggedIn && savedId != null && savedId.isNotEmpty) {
+      final effectiveRole = savedRole == 'driver' || savedEmail == 'repartidor@ladiabla.app'
+          ? UserRole.driver
+          : (savedEmail == 'admin@ladiabla.app' || savedEmail == 'appladiabla@gmail.com' || savedRole == 'admin'
+              ? UserRole.admin
+              : UserRole.customer);
+
+      final userEntity = UserEntity(
+        id: savedId,
+        name: (savedName != null && savedName.isNotEmpty) ? savedName : 'Usuario La Diabla',
+        email: savedEmail,
+        role: effectiveRole,
+        phone: savedPhone,
+        photoUrl: savedPhoto,
+        createdAt: DateTime.now(),
+      );
+      state = state.copyWith(user: userEntity, isLoading: false);
+      NotificationService().syncUserFcmToken(savedId, role: effectiveRole.name).ignore();
+    } else {
+      state = state.copyWith(user: null, isLoading: false);
     }
 
-    final effectiveRole = savedRole == 'driver' || fbUser.email == 'repartidor@ladiabla.app'
-        ? UserRole.driver
-        : (fbUser.email == 'admin@ladiabla.app' ? UserRole.admin : UserRole.customer);
-
-    final userEntity = UserEntity(
-      id: fbUser.uid,
-      name: (fbUser.displayName != null && fbUser.displayName!.isNotEmpty)
-          ? fbUser.displayName!
-          : (prefs.getString('saved_user_name') ?? 'Usuario La Diabla'),
-      email: fbUser.email ?? prefs.getString('saved_user_email') ?? '',
-      role: effectiveRole,
-      phone: fbUser.phoneNumber ?? prefs.getString('saved_user_phone'),
-      photoUrl: fbUser.photoURL ?? prefs.getString('saved_user_photo'),
-      createdAt: DateTime.now(),
-    );
-    state = state.copyWith(user: userEntity, isLoading: false);
-    await _saveUserSession(userEntity);
-
-    // ── 3. Suscribir al stream para cambios de sesión en tiempo real
+    // ── 2. ESCUCHAR FIREBASE AUTH PARA ACTUALIZACIONES EN TIEMPO REAL
     final repo = _ref.read(authRepositoryProvider);
     _authSubscription = repo.authStateChanges.listen((user) {
-      if (user != null) {
-        state = state.copyWith(user: user, isLoading: false);
-        _saveUserSession(user);
+      if (user != null && !user.isGuest) {
+        // Solo restaurar estado para usuarios reales (no invitados/anónimos)
+        final fbUser = FirebaseAuth.instance.currentUser;
+        if (fbUser != null && !fbUser.isAnonymous) {
+          state = state.copyWith(user: user, isLoading: false);
+          _saveUserSession(user).ignore();
+        }
       } else {
-        // Firebase cerró sesión → limpiar estado local
-        state = state.copyWith(user: null, isLoading: false, clearUser: true);
-        _clearUserSession();
+        final fbUser = FirebaseAuth.instance.currentUser;
+        if (fbUser == null) {
+          SharedPreferences.getInstance().then((p) {
+            final logged = p.getBool('is_logged_in') ?? false;
+            final isGuest = p.getBool('is_guest_user') ?? false;
+            if (!logged && !isGuest) {
+              state = state.copyWith(user: null, isLoading: false, clearUser: true);
+              _clearUserSession().ignore();
+            }
+          });
+        }
       }
     });
   }
@@ -171,7 +198,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_guest_user', true);
-      await prefs.setBool('is_logged_in', true);
+      await prefs.setBool('is_logged_in', false);
       await prefs.setString('guest_name', name);
       await prefs.setString('guest_phone', phone);
       await prefs.setString('guest_address', address);
@@ -201,7 +228,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
 
       state = state.copyWith(user: guestUser, isLoading: false);
-      await _saveUserSession(guestUser);
+      _saveUserSession(guestUser).ignore();
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -212,56 +239,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Inicia sesion con Apple Sign In.
-  Future<bool> signInWithApple() async {
-    state = state.copyWith(isLoading: true, clearError: true);
-    try {
-      final appleProvider = OAuthProvider('apple.com');
-      appleProvider.addScope('email');
-      appleProvider.addScope('name');
-
-      final userCredential = await FirebaseAuth.instance.signInWithProvider(appleProvider);
-      final fbUser = userCredential.user;
-
-      if (fbUser != null) {
-        final user = UserEntity(
-          id: fbUser.uid,
-          name: fbUser.displayName ?? 'Usuario Apple',
-          email: fbUser.email ?? 'apple_user@icloud.com',
-          role: UserRole.customer,
-          photoUrl: fbUser.photoURL,
-          phone: fbUser.phoneNumber,
-          referralCode: 'DIABLA-${fbUser.uid.substring(0, 5).toUpperCase()}',
-        );
-        state = state.copyWith(user: user, isLoading: false);
-        await _saveUserSession(user);
-        return true;
-      }
-      state = state.copyWith(isLoading: false, errorMessage: 'No se completo el acceso con Apple');
-      return false;
-    } catch (e) {
-      final err = e.toString().replaceAll('Exception: ', '').replaceAll('FirebaseAuthException: ', '');
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: err.contains('plugin') || err.contains('cancelled')
-            ? 'Inicio con Apple cancelado o no configurado en este dispositivo.'
-            : 'Error con Apple: $err',
-      );
-      return false;
-    }
-  }
 
   /// Inicia sesion con Google.
-  Future<bool> signInWithGoogle() async {
+  Future<bool> signInWithGoogle({bool isDeliveryMode = false}) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final repo = _ref.read(authRepositoryProvider);
-      final user = await repo.signInWithGoogle();
+      var user = await repo.signInWithGoogle();
+      if (isDeliveryMode && user.role != UserRole.driver) {
+        user = user.copyWith(role: UserRole.driver);
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.id)
+            .set({'role': 'driver'}, SetOptions(merge: true))
+            .ignore();
+      }
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_guest_user', false);
       await prefs.setBool('is_logged_in', true);
+      await prefs.setBool('is_delivery_mode', isDeliveryMode);
       state = state.copyWith(user: user, isLoading: false);
-      await _saveUserSession(user);
+      _saveUserSession(user).ignore();
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -311,7 +309,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await prefs.setBool('is_guest_user', false);
       await prefs.setBool('is_logged_in', true);
       state = state.copyWith(user: user, isLoading: false);
-      await _saveUserSession(user);
+      _saveUserSession(user).ignore();
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -323,16 +321,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   /// Inicia sesion con correo y contrasena.
-  Future<bool> signInWithEmail(String email, String password) async {
+  Future<bool> signInWithEmail(String email, String password, {bool isDeliveryMode = false}) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final repo = _ref.read(authRepositoryProvider);
-      final user = await repo.signInWithEmail(email, password);
+      var user = await repo.signInWithEmail(email, password);
+      if (isDeliveryMode && user.role != UserRole.driver) {
+        user = user.copyWith(role: UserRole.driver);
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.id)
+            .set({'role': 'driver'}, SetOptions(merge: true))
+            .ignore();
+      }
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_guest_user', false);
       await prefs.setBool('is_logged_in', true);
+      await prefs.setBool('is_delivery_mode', isDeliveryMode);
       state = state.copyWith(user: user, isLoading: false);
-      await _saveUserSession(user);
+      _saveUserSession(user).ignore();
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -344,16 +351,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   /// Registra una nueva cuenta con correo y contrasena.
-  Future<bool> signUpWithEmail(String email, String password) async {
+  Future<bool> signUpWithEmail(String email, String password, {bool isDeliveryMode = false}) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final repo = _ref.read(authRepositoryProvider);
-      final user = await repo.signUpWithEmail(email, password);
+      var user = await repo.signUpWithEmail(email, password);
+      if (isDeliveryMode && user.role != UserRole.driver) {
+        user = user.copyWith(role: UserRole.driver);
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.id)
+            .set({'role': 'driver'}, SetOptions(merge: true))
+            .ignore();
+      }
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_guest_user', false);
       await prefs.setBool('is_logged_in', true);
+      await prefs.setBool('is_delivery_mode', isDeliveryMode);
       state = state.copyWith(user: user, isLoading: false);
-      await _saveUserSession(user);
+      _saveUserSession(user).ignore();
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -371,6 +387,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await _clearUserSession();
       final repo = _ref.read(authRepositoryProvider);
       await repo.signOut();
+      // Cerrar también sesión anónima de Firebase para que no quede residuo
+      final fbUser = FirebaseAuth.instance.currentUser;
+      if (fbUser != null && fbUser.isAnonymous) {
+        await FirebaseAuth.instance.signOut();
+      }
       state = const AuthState();
     } catch (e) {
       state = state.copyWith(isLoading: false);

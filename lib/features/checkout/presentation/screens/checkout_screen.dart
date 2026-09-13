@@ -49,12 +49,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   void _calculateDistanceAndFee() {
     final addressesState = ref.read(addressesProvider);
     final user = ref.read(authNotifierProvider).user;
-    final selectedAddress = addressesState.defaultAddress;
+    final selectedAddress = addressesState.defaultAddress ??
+        (addressesState.addresses.isNotEmpty ? addressesState.addresses.first : null);
 
-    double lat = 7.092758;
-    double lng = -73.142590;
+    // Si aún no hay dirección seleccionada, estimamos hacia el centro metropolitano (3.5 km)
+    double lat = 7.1193;
+    double lng = -73.1227;
 
-    if (selectedAddress != null) {
+    if (selectedAddress != null && selectedAddress.latitude != 0.0) {
       lat = selectedAddress.latitude;
       lng = selectedAddress.longitude;
     }
@@ -341,6 +343,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   ? '3171166497'
                   : null)),
       notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+      customerName: user?.name ?? 'Cliente La Diabla',
+      customerPhone: user?.phone ?? '',
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -405,6 +409,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final createOrderState = ref.watch(createOrderNotifierProvider);
     final couponState = ref.watch(couponProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    ref.listen(addressesProvider, (previous, next) {
+      if (previous?.defaultAddress != next.defaultAddress ||
+          previous?.addresses.length != next.addresses.length) {
+        _calculateDistanceAndFee();
+      }
+    });
 
     // 🐛 DEBUG: Ayuda a diagnosticar pantalla en blanco
     debugPrint('🛒 CheckoutScreen.build: items=${cartState.items.length}, isEmpty=${cartState.items.isEmpty}, user=${authState.user?.id ?? "null"}');

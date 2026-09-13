@@ -66,21 +66,21 @@ function formatTime(timestamp) {
 
 // Progression Mapping
 const statusFlow = {
-  'pending': { next: 'confirmed', label: '✅ Confirmar Pedido', btnClass: 'btn-confirm' },
-  'confirmed': { next: 'preparing', label: '🍳 Mandar a Cocina', btnClass: 'btn-cook' },
-  'preparing': { next: 'ready', label: '📦 Marcar Listo / Despachar', btnClass: 'btn-ready' }
+  'pending':   { next: 'confirmed', label: '<span class="material-symbols-rounded md-18">check_circle</span> Confirmar Pedido', btnClass: 'btn-confirm' },
+  'confirmed': { next: 'preparing', label: '<span class="material-symbols-rounded md-18">skillet</span> Mandar a Cocina',   btnClass: 'btn-cook' },
+  'preparing': { next: 'ready',     label: '<span class="material-symbols-rounded md-18">inventory_2</span> Marcar Listo',         btnClass: 'btn-ready' }
 };
 
 const statusBadges = {
-  'pending': { label: '⏳ PENDIENTE', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)' },
-  'confirmed': { label: '✅ CONFIRMADO', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.15)' },
-  'preparing': { label: '🍳 PREPARANDO', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)' },
-  'ready': { label: '📦 LISTO PARA DESPACHO', color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.15)' },
-  'assigned': { label: '🛵 REPARTIDOR ASIGNADO', color: '#0284C7', bg: 'rgba(2, 132, 199, 0.15)' },
-  'onTheWay': { label: '🛵 EN RUTA', color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)' },
-  'on_the_way': { label: '🛵 EN RUTA', color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)' },
-  'delivered': { label: '🎉 ENTREGADO', color: '#16A34A', bg: 'rgba(22, 163, 74, 0.15)' },
-  'cancelled': { label: '❌ CANCELADO', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)' }
+  'pending':    { label: '<span class="material-symbols-rounded md-16">hourglass_top</span> PENDIENTE',          color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)' },
+  'confirmed':  { label: '<span class="material-symbols-rounded md-16">check_circle</span> CONFIRMADO',           color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.15)' },
+  'preparing':  { label: '<span class="material-symbols-rounded md-16">skillet</span> PREPARANDO',            color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)' },
+  'ready':      { label: '<span class="material-symbols-rounded md-16">inventory_2</span> LISTO PARA DESPACHO',      color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.15)' },
+  'assigned':   { label: '<span class="material-symbols-rounded md-16">two_wheeler</span> REPARTIDOR ASIGNADO',    color: '#0284C7', bg: 'rgba(2, 132, 199, 0.15)' },
+  'onTheWay':   { label: '<span class="material-symbols-rounded md-16">two_wheeler</span> EN RUTA',                color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)' },
+  'on_the_way': { label: '<span class="material-symbols-rounded md-16">two_wheeler</span> EN RUTA',                color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)' },
+  'delivered':  { label: '<span class="material-symbols-rounded md-16">task_alt</span> ENTREGADO',            color: '#16A34A', bg: 'rgba(22, 163, 74, 0.15)' },
+  'cancelled':  { label: '<span class="material-symbols-rounded md-16">cancel</span> CANCELADO',                     color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)' }
 };
 
 // Ensure Firebase Auth session is active
@@ -102,69 +102,70 @@ function initRealtimeOrders() {
     return;
   }
 
-  ensureAdminAuth().then(() => {
-    // Escuchar colección de órdenes en tiempo real
-    db.collection('orders')
-      .onSnapshot((snapshot) => {
-        const orders = [];
-        snapshot.forEach(doc => {
-          orders.push({ id: doc.id, ...doc.data() });
-        });
-
-        // Ordenar descendentemente por fecha
-        orders.sort((a, b) => {
-          const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
-          const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
-          return tB - tA;
-        });
-
-        if (previousOrderCount > 0 && orders.length > previousOrderCount) {
-          playOrderChime();
-          showNotificationToast("🔔 ¡Nuevo pedido recibido en La Diabla!");
-        }
-        previousOrderCount = orders.length;
-
-        allOrders = orders;
-        updateStats();
-        renderOrders();
-      }, (error) => {
-        console.warn("Firestore listener error:", error);
-        if (allOrders.length === 0) renderFallbackDemo();
-      });
-
-    // Refunds listener
-    db.collection('refunds')
-      .onSnapshot((snapshot) => {
-        const refunds = [];
-        snapshot.forEach(doc => {
-          refunds.push({ id: doc.id, ...doc.data() });
-        });
-        refunds.sort((a, b) => {
-          const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
-          const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
-          return tB - tA;
-        });
-        allRefunds = refunds;
-        const countEl = document.getElementById('refundCount');
-        if (countEl) {
-          const pendingCount = refunds.filter(r => r.status === 'pending').length;
-          countEl.innerText = pendingCount;
-        }
-        if (currentFilter === 'refunds') {
-          renderRefunds();
-        }
-      }, (e) => console.warn("Refunds listener error:", e));
-
-    // Coupons listener
-    db.collection('coupons').onSnapshot((snapshot) => {
-      const coupons = [];
+  // Escuchar colección de órdenes en tiempo real inmediatamente
+  db.collection('orders')
+    .onSnapshot((snapshot) => {
+      const orders = [];
       snapshot.forEach(doc => {
-        coupons.push({ id: doc.id, ...doc.data() });
+        orders.push({ id: doc.id, ...doc.data() });
       });
-      allCoupons = coupons;
-      renderCoupons();
-    }, () => {});
-  });
+
+      // Ordenar descendentemente por fecha
+      orders.sort((a, b) => {
+        const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+        const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+        return tB - tA;
+      });
+
+      if (previousOrderCount > 0 && orders.length > previousOrderCount) {
+        playOrderChime();
+        showNotificationToast("🔔 ¡Nuevo pedido recibido en La Diabla!");
+      }
+      previousOrderCount = orders.length;
+
+      allOrders = orders;
+      updateStats();
+      renderOrders();
+    }, (error) => {
+      console.warn("Firestore listener error:", error);
+      if (allOrders.length === 0) renderFallbackDemo();
+    });
+
+  // Refunds listener
+  db.collection('refunds')
+    .onSnapshot((snapshot) => {
+      const refunds = [];
+      snapshot.forEach(doc => {
+        refunds.push({ id: doc.id, ...doc.data() });
+      });
+      refunds.sort((a, b) => {
+        const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+        const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+        return tB - tA;
+      });
+      allRefunds = refunds;
+      const countEl = document.getElementById('refundCount');
+      if (countEl) {
+        const pendingCount = refunds.filter(r => r.status === 'pending').length;
+        countEl.innerText = pendingCount;
+      }
+      if (currentFilter === 'refunds') {
+        renderRefunds();
+      }
+    }, (e) => console.warn("Refunds listener error:", e));
+
+  // Coupons listener
+  db.collection('coupons').onSnapshot((snapshot) => {
+    const coupons = [];
+    snapshot.forEach(doc => {
+      coupons.push({ id: doc.id, ...doc.data() });
+    });
+    allCoupons = coupons;
+    renderCoupons();
+  }, () => {});
+
+  // Asegurar sesión administrativa en segundo plano
+  ensureAdminAuth();
 }
 
 function updateStats() {
@@ -178,15 +179,20 @@ function updateStats() {
   const deliveredCount = allOrders
     .filter(o => o.status === 'delivered').length;
 
+  const evidenceCount = allOrders
+    .filter(o => !!o.deliveryProofUrl).length;
+
   const totalSalesEl = document.getElementById('statTotalSales');
   const activeOrdersEl = document.getElementById('statActiveOrders');
   const deliveredEl = document.getElementById('statDelivered');
   const totalOrdersEl = document.getElementById('statTotalOrders');
+  const evidenceEl = document.getElementById('evidenceCount');
 
   if (totalSalesEl) totalSalesEl.innerText = formatCOP(totalSales);
   if (activeOrdersEl) activeOrdersEl.innerText = activeCount;
   if (deliveredEl) deliveredEl.innerText = deliveredCount;
   if (totalOrdersEl) totalOrdersEl.innerText = allOrders.length;
+  if (evidenceEl) evidenceEl.innerText = evidenceCount;
 }
 
 function renderOrders() {
@@ -196,6 +202,9 @@ function renderOrders() {
   let filtered = allOrders;
   if (currentFilter !== 'all') {
     filtered = filtered.filter(o => {
+      if (currentFilter === 'evidence') {
+        return !!o.deliveryProofUrl;
+      }
       if (currentFilter === 'onTheWay' || currentFilter === 'on_the_way') {
         return o.status === 'onTheWay' || o.status === 'on_the_way' || o.status === 'assigned';
       }
@@ -213,13 +222,67 @@ function renderOrders() {
   }
 
   if (filtered.length === 0) {
+    const isEvidenceFilter = currentFilter === 'evidence';
     grid.innerHTML = `
-      <div style="grid-column: 1 / -1; text-align: center; padding: 4rem 1rem; color: var(--text-muted);">
-        <span style="font-size: 3.5rem;">🌮</span>
-        <h3 class="diabla-font" style="font-size: 1.6rem; color: white; margin-top: 1rem;">No hay órdenes en esta categoría</h3>
-        <p>Los nuevos pedidos entrarán automáticamente aquí en tiempo real 🔥</p>
+      <div class="empty-state">
+        <span class="material-symbols-rounded md-48" style="color:var(--text-muted); opacity:0.6; margin-bottom:12px;">${isEvidenceFilter ? 'photo_camera' : 'ramen_dining'}</span>
+        <h3 class="diabla-font">${isEvidenceFilter ? 'Sin evidencias registradas' : 'Sin órdenes en esta categoría'}</h3>
+        <p>${isEvidenceFilter ? 'Cuando un repartidor tome la foto de entrega desde la app, aparecerá aquí con visor en alta resolución.' : 'Los nuevos pedidos aparecerán aquí en tiempo real'}</p>
       </div>
     `;
+    return;
+  }
+
+  if (currentFilter === 'evidence') {
+    grid.innerHTML = filtered.map(order => {
+      const shortId = order.id.length > 8 ? order.id.substring(0, 8).toUpperCase() : order.id.toUpperCase();
+      const addressStr = order.formattedAddress || (order.address && order.address.formattedAddress) || (typeof order.address === 'string' ? order.address : 'Dirección de entrega');
+      const customer = order.customerName || order.userName || order.userId || 'Cliente La Diabla';
+      const driver = order.driverName || 'Repartidor La Diabla';
+      const proofUrl = order.deliveryProofUrl;
+      const cleanProofUrl = encodeURIComponent(proofUrl);
+      const safeCustomer = customer.replace(/'/g, "\\'");
+      const safeAddress = addressStr.replace(/'/g, "\\'");
+      const safeDriver = driver.replace(/'/g, "\\'");
+
+      return `
+        <div class="evidence-card">
+          <div class="evidence-thumb-wrapper" onclick="openProofModal('${cleanProofUrl}', '${order.id}', '${safeCustomer}', '${safeAddress}', '${safeDriver}')">
+            <img src="${proofUrl}" alt="Evidencia Pedido #${shortId}" class="evidence-thumb-img" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'200\\' height=\\'200\\'><rect width=\\'100%\\' height=\\'100%\\' fill=\\'%23333\\'/><text x=\\'50%\\' y=\\'50%\\' fill=\\'%23888\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\'>Error Cargando Foto</text></svg>'">
+            <div class="evidence-badge-verified">
+              <span class="material-symbols-rounded" style="font-size:14px;">check_circle</span>
+              <span>ENTREGA VERIFICADA</span>
+            </div>
+          </div>
+          <div class="evidence-card-content">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <span class="order-id diabla-font" style="color:#DC2626; font-size:1.05rem;">PEDIDO #${shortId}</span>
+              <span style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center; gap:4px;">
+                <span class="material-symbols-rounded md-14">schedule</span> ${formatTime(order.deliveredAt || order.createdAt)}
+              </span>
+            </div>
+            <div style="margin-top:2px;">
+              <div style="font-weight:700; color:var(--text-main); font-size:0.92rem; display:flex; align-items:center; gap:5px;">
+                <span class="material-symbols-rounded md-16" style="color:#DC2626;">person</span> ${customer}
+              </div>
+              <div style="font-size:0.83rem; color:var(--text-muted); margin-top:3px; display:flex; align-items:flex-start; gap:5px;">
+                <span class="material-symbols-rounded md-16" style="color:#DC2626; flex-shrink:0;">location_on</span>
+                <span>${addressStr}</span>
+              </div>
+              <div style="font-size:0.82rem; color:#10B981; margin-top:4px; display:flex; align-items:center; gap:5px; font-weight:600;">
+                <span class="material-symbols-rounded md-16">two_wheeler</span> Repartidor: ${driver}
+              </div>
+            </div>
+            <div style="margin-top:auto; padding-top:10px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--card-border);">
+              <span class="diabla-font" style="font-size:1.1rem; color:var(--text-main);">${formatCOP(order.total || 0)}</span>
+              <button type="button" class="btn-proof-preview" onclick="openProofModal('${cleanProofUrl}', '${order.id}', '${safeCustomer}', '${safeAddress}', '${safeDriver}')">
+                <span class="material-symbols-rounded md-16">zoom_in</span> Ver Completa
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
     return;
   }
 
@@ -250,7 +313,7 @@ function renderOrders() {
           <div class="order-top">
             <div>
               <span class="order-id diabla-font">PEDIDO #${shortId}</span>
-              <div class="order-time">🕒 ${formatTime(order.createdAt)}</div>
+              <div class="order-time"><span class="material-symbols-rounded md-16" style="vertical-align:middle;">schedule</span> ${formatTime(order.createdAt)}</div>
             </div>
             <span class="status-badge" style="background: ${badge.bg}; color: ${badge.color};">
               ${badge.label}
@@ -258,11 +321,11 @@ function renderOrders() {
           </div>
 
           <div class="order-customer">
-            <div class="customer-name">👤 ${customer}</div>
-            <div class="customer-address">📍 ${addressStr}</div>
-            ${order.customerPhone ? `<div style="font-size: 0.85rem; color: #60A5FA; margin-top: 2px;">📞 ${order.customerPhone}</div>` : ''}
-            ${order.driverName ? `<div style="font-size: 0.85rem; color: #10B981; margin-top: 2px;">🛵 Repartidor: ${order.driverName}</div>` : ''}
-            ${order.cancelReason ? `<div style="font-size: 0.85rem; color: #F87171; margin-top: 6px; font-weight: bold; background: rgba(220, 38, 38, 0.1); padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(220, 38, 38, 0.2);">❌ Motivo: ${order.cancelReason}</div>` : ''}
+            <div class="customer-name"><span class="material-symbols-rounded md-18" style="vertical-align:middle; margin-right:4px;">person</span> ${customer}</div>
+            <div class="customer-address"><span class="material-symbols-rounded md-18" style="vertical-align:middle; margin-right:4px;">location_on</span> ${addressStr}</div>
+            ${order.customerPhone ? `<div style="font-size: 0.83rem; color: #60A5FA; margin-top: 4px; display:flex; align-items:center; gap:5px;"><span class="material-symbols-rounded md-16">call</span> ${order.customerPhone}</div>` : ''}
+            ${order.driverName ? `<div style="font-size: 0.83rem; color: #10B981; margin-top: 4px; display:flex; align-items:center; gap:5px;"><span class="material-symbols-rounded md-16">two_wheeler</span> Repartidor: ${order.driverName}</div>` : ''}
+            ${order.cancelReason ? `<div style="font-size: 0.83rem; color: #F87171; margin-top: 6px; font-weight: bold; background: rgba(220, 38, 38, 0.1); padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(220, 38, 38, 0.2); display:flex; align-items:center; gap:5px;"><span class="material-symbols-rounded md-16">cancel</span> Motivo: ${order.cancelReason}</div>` : ''}
           </div>
 
           <div class="order-items-list">
@@ -273,9 +336,20 @@ function renderOrders() {
         <div>
           <div class="order-total-row">
             <div>
-              <div style="font-size: 0.75rem; color: var(--text-muted);">MÉTODO: ${(order.paymentMethod || 'Efectivo').toUpperCase()}</div>
-              ${order.couponCode ? `<div style="font-size: 0.75rem; color: #16A34A;">🎟️ Cupón: ${order.couponCode}</div>` : ''}
-              ${order.deliveryProofUrl ? `<div style="margin-top: 6px;"><a href="${order.deliveryProofUrl}" target="_blank" style="font-size: 0.75rem; color: #10B981; font-weight: bold; text-decoration: underline;">📸 Ver foto de entrega</a></div>` : ''}
+              <div style="font-size: 0.75rem; color: var(--text-muted); display:flex; align-items:center; gap:5px;"><span class="material-symbols-rounded md-16">payments</span> ${(order.paymentMethod || 'Efectivo').toUpperCase()}</div>
+              ${order.couponCode ? `<div style="font-size: 0.75rem; color: #16A34A; display:flex; align-items:center; gap:5px; margin-top:3px;"><span class="material-symbols-rounded md-16">local_activity</span> Cupón: ${order.couponCode}</div>` : ''}
+              ${order.deliveryProofUrl ? `
+                <div style="margin-top: 8px;">
+                  <button type="button" class="btn-proof-preview" onclick="openProofModal('${encodeURIComponent(order.deliveryProofUrl)}', '${order.id}', '${(order.driverName || 'Repartidor').replace(/'/g, "\\'")}')" title="Ver foto de entrega en alta resolución" style="display:inline-flex; align-items:center; gap:8px; padding:6px 12px; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.35); border-radius:10px; cursor:pointer; color:#10B981; font-weight:600; font-size:0.78rem;">
+                    <img src="${order.deliveryProofUrl}" alt="Evidencia" style="width:24px; height:24px; object-fit:cover; border-radius:6px; border:1px solid rgba(16,185,129,0.5);">
+                    <span>📸 Ver Evidencia de Entrega</span>
+                  </button>
+                </div>
+              ` : (status === 'delivered' ? `
+                <div style="margin-top: 6px; font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">
+                  <span class="material-symbols-rounded md-14">no_photography</span> Sin foto registrada
+                </div>
+              ` : '')}
             </div>
             <div class="order-total diabla-font">${formatCOP(order.total || 0)}</div>
           </div>
@@ -288,7 +362,7 @@ function renderOrders() {
             ` : ''}
             ${status !== 'cancelled' && status !== 'delivered' ? `
               <button class="action-btn btn-cancel" onclick="cancelOrder('${order.id}')" title="Cancelar Pedido">
-                ❌
+                <span class="material-symbols-rounded md-18">close</span>
               </button>
             ` : ''}
           </div>
@@ -353,21 +427,16 @@ async function cancelOrder(orderId) {
 }
 
 // Toast notification helper
-function showNotificationToast(msg) {
+function showNotificationToast(msg, icon = 'notifications') {
+  const container = document.getElementById('toastContainer') || document.body;
   const toast = document.createElement('div');
-  toast.style.position = 'fixed';
-  toast.style.bottom = '24px';
-  toast.style.right = '24px';
-  toast.style.background = '#DC2626';
-  toast.style.color = '#FFF';
-  toast.style.padding = '14px 24px';
-  toast.style.borderRadius = '14px';
-  toast.style.fontWeight = 'bold';
-  toast.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
-  toast.style.zIndex = '9999';
-  toast.innerText = msg;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 3500);
+  toast.className = 'toast';
+  toast.innerHTML = `<span class="material-symbols-rounded md-20">${icon}</span><span>${msg}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.animation = 'toastOut 0.3s ease forwards';
+    setTimeout(() => toast.remove(), 320);
+  }, 3500);
 }
 
 // Filter buttons
@@ -398,70 +467,77 @@ function renderRefunds() {
 
   if (allRefunds.length === 0) {
     container.innerHTML = `
-      <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; background: var(--bg-card); border-radius: 16px;">
-        <div style="font-size: 3rem; margin-bottom: 0.5rem;">🎉</div>
-        <h3 style="color: var(--text-main); margin-bottom: 0.5rem;">No hay solicitudes de reembolso pendientes</h3>
-        <p style="color: var(--text-muted); font-size: 0.9rem;">Todas las transacciones y pedidos se encuentran al día.</p>
+      <div class="empty-state">
+        <span class="material-symbols-rounded md-48" style="color:var(--text-muted); opacity:0.6; margin-bottom:12px;">currency_exchange</span>
+        <h3 class="diabla-font">Sin reembolsos pendientes</h3>
+        <p>Todas las transacciones y pedidos se encuentran al día.</p>
       </div>
     `;
     return;
   }
 
   container.innerHTML = allRefunds.map(ref => {
-    const isPending = ref.status === 'pending';
-    const statusColor = isPending ? '#F59E0B' : (ref.status === 'processed' ? '#16A34A' : '#EF4444');
-    const statusLabel = isPending ? '⏳ PENDIENTE DE APROBACIÓN' : (ref.status === 'processed' ? '✅ PROCESADO' : '❌ RECHAZADO');
+    const isPending  = ref.status === 'pending';
+    const isApproved = ref.status === 'processed';
+    const statusColor = isPending ? '#F59E0B' : (isApproved ? '#16A34A' : '#EF4444');
+    const statusIcon  = isPending ? 'hourglass_top' : (isApproved ? 'check_circle' : 'cancel');
+    const statusLabel = isPending ? 'PENDIENTE' : (isApproved ? 'PROCESADO' : 'RECHAZADO');
 
     return `
       <div class="order-card" style="border-top: 4px solid ${statusColor};">
-        <div class="order-card-header">
+
+        <!-- Header -->
+        <div class="order-top">
           <div>
-            <span class="order-id">REEMBOLSO #${(ref.id || '').substring(0, 6).toUpperCase()}</span>
-            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">
-              Pedido original: <strong>#${(ref.orderId || '').substring(0, 6).toUpperCase()}</strong>
+            <span class="order-id diabla-font"><span class="material-symbols-rounded md-18" style="vertical-align:middle; margin-right:4px;">currency_exchange</span> REEMBOLSO #${(ref.id || '').substring(0, 6).toUpperCase()}</span>
+            <div class="order-time">
+              <span class="material-symbols-rounded md-16" style="vertical-align:middle;">receipt_long</span> Pedido #${(ref.orderId || '').substring(0, 6).toUpperCase()}
             </div>
           </div>
-          <span style="font-size: 0.75rem; font-weight: bold; padding: 4px 8px; border-radius: 6px; background: ${statusColor}22; color: ${statusColor};">
-            ${statusLabel}
+          <span class="status-badge" style="background: ${statusColor}22; color: ${statusColor};">
+            <span class="material-symbols-rounded md-16">${statusIcon}</span> ${statusLabel}
           </span>
         </div>
 
-        <div style="margin: 12px 0; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 10px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: var(--text-muted); font-size: 0.85rem;">Monto a Reembolsar:</span>
-            <span class="diabla-font" style="font-size: 1.3rem; color: #16A34A;">${formatCOP(ref.amount)}</span>
+        <!-- Amount -->  
+        <div style="margin: 10px 0; padding: 10px 14px; background: rgba(22,163,74,0.08); border: 1px solid rgba(22,163,74,0.2); border-radius: 12px; display:flex; justify-content:space-between; align-items:center;">
+          <span style="color: var(--text-muted); font-size: 0.83rem; display:flex; align-items:center; gap:6px;"><span class="material-symbols-rounded md-16" style="color:#16A34A;">paid</span> Monto a Reembolsar</span>
+          <span class="diabla-font" style="font-size: 1.35rem; color: #16A34A;">${formatCOP(ref.amount)}</span>
+        </div>
+
+        <!-- Details -->
+        <div class="order-customer" style="border:none; padding-bottom:0; margin-bottom:0;">
+          <div style="font-size: 0.85rem; margin-bottom: 6px; display:flex; align-items:center; gap:6px;">
+            <span class="material-symbols-rounded md-18" style="color:var(--text-muted);">person</span>
+            <strong>${ref.userName || 'Cliente'}</strong>
+            <span style="color:var(--text-muted);">&bull; ${ref.userPhone || 'Sin teléfono'}</span>
+          </div>
+          <div style="font-size: 0.85rem; margin-bottom: 6px; display:flex; align-items:center; gap:6px;">
+            <span class="material-symbols-rounded md-18" style="color:#F59E0B;">credit_card</span>
+            <span><strong>Destino:</strong> <span style="color:#F59E0B; font-weight:700;">${ref.paymentMethod || 'Cuenta original'}</span></span>
+          </div>
+          ${ref.accountDetails ? `<div style="font-size: 0.83rem; margin-bottom: 6px; display:flex; align-items:center; gap:6px; color:var(--text-muted);"><span class="material-symbols-rounded md-16">tag</span> ${ref.accountDetails}</div>` : ''}
+          <div style="font-size: 0.83rem; color: var(--text-muted); display:flex; align-items:flex-start; gap:6px;">
+            <span class="material-symbols-rounded md-16" style="margin-top:2px;">chat</span>
+            <em>"${ref.reason || 'Cancelación de pedido'}"</em>
           </div>
         </div>
 
-        <div class="order-details">
-          <div style="font-size: 0.85rem; margin-bottom: 6px;">
-            👤 <strong>Cliente:</strong> ${ref.userName || 'Cliente'} (${ref.userPhone || 'Sin teléfono'})
-          </div>
-          <div style="font-size: 0.85rem; margin-bottom: 6px;">
-            💳 <strong>Método Destino:</strong> <span style="color: #F59E0B; font-weight: bold;">${ref.paymentMethod || 'Cuenta original'}</span>
-          </div>
-          <div style="font-size: 0.85rem; margin-bottom: 6px;">
-            🔢 <strong>Detalles:</strong> ${ref.accountDetails || 'N/A'}
-          </div>
-          <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;">
-            📝 <strong>Motivo:</strong> "${ref.reason || 'Cancelación de pedido'}"
-          </div>
-        </div>
-
+        <!-- Actions -->
         ${isPending ? `
-          <div style="display: flex; gap: 8px; margin-top: 14px;">
+          <div class="order-actions" style="margin-top:14px;">
             <button onclick="processRefund('${ref.id}', '${ref.orderId}', '${ref.userId}', ${ref.amount}, '${ref.userName || 'Cliente'}')" 
-                    class="btn-primary" style="flex: 1; padding: 10px; font-size: 0.85rem; background: #16A34A; border: none; border-radius: 10px; color: white; font-weight: bold; cursor: pointer;">
-              ✅ Procesar Reembolso
+                    class="action-btn btn-deliver">
+              <span class="material-symbols-rounded md-18">check_circle</span> Aprobar Reembolso
             </button>
             <button onclick="rejectRefund('${ref.id}', '${ref.orderId}')" 
-                    class="btn-secondary" style="padding: 10px 14px; font-size: 0.85rem; background: rgba(239, 68, 68, 0.2); color: #EF4444; border: 1px solid #EF4444; border-radius: 10px; cursor: pointer;">
-              ❌ Rechazar
+                    class="action-btn btn-cancel">
+              <span class="material-symbols-rounded md-18">close</span>
             </button>
           </div>
         ` : `
-          <div style="margin-top: 12px; font-size: 0.8rem; color: var(--text-muted); text-align: center;">
-            Solicitud gestionada por la administración
+          <div style="margin-top: 12px; font-size: 0.8rem; color: var(--text-muted); text-align:center; display:flex; align-items:center; justify-content:center; gap:6px;">
+            <span class="material-symbols-rounded md-18">verified_user</span> Solicitud gestionada por la administración
           </div>
         `}
       </div>
@@ -502,7 +578,7 @@ async function processRefund(refundId, orderId, userId, amount, userName) {
         });
       }
     }
-    showNotificationToast(`✅ Reembolso #${refundId.substring(0, 6)} procesado`);
+    showNotificationToast(`Reembolso #${refundId.substring(0, 6)} procesado exitosamente`, 'check_circle');
   } catch (e) {
     alert("Error al procesar reembolso: " + e.message);
   }
@@ -527,51 +603,119 @@ async function rejectRefund(refundId, orderId) {
         });
       }
     }
-    showNotificationToast(`Solicitud de reembolso rechazada`);
+    showNotificationToast('Solicitud de reembolso rechazada', 'cancel');
   } catch (e) {
     alert("Error al rechazar reembolso: " + e.message);
   }
 }
 
-// Fallback demo data if offline
-function renderFallbackDemo() {
-  allOrders = [
-    {
-      id: "ord_diabla_101",
-      createdAt: new Date(),
-      status: "pending",
-      customerName: "Lucitor Gamer",
-      customerPhone: "315 889 4521",
-      address: { formattedAddress: "Cl. 59 # 39W-24, Estoraques 1, Bucaramanga" },
-      paymentMethod: "Efectivo",
-      couponCode: "ENVIOGRATIS",
-      total: 32000,
-      items: [
-        { quantity: 2, product: { name: "Tacos al Pastor Diabólicos", price: 11000 } },
-        { quantity: 1, product: { name: "Quesadilla Especial de Birria", price: 10000 } }
-      ]
-    },
-    {
-      id: "ord_diabla_102",
-      createdAt: new Date(Date.now() - 15 * 60000),
-      status: "preparing",
-      customerName: "Carolina Mendoza",
-      customerPhone: "318 420 7711",
-      address: { formattedAddress: "Carrera 21 # 55-12, Mutis, Bucaramanga" },
-      paymentMethod: "Mercado Pago",
-      total: 45000,
-      items: [
-        { quantity: 1, product: { name: "Super Burrito Habanero", price: 25000 } },
-        { quantity: 2, product: { name: "Margarita de Fresa & Jalapeño", price: 10000 } }
-      ]
+// Borrar todos los pedidos de prueba en Firestore
+async function clearAllTestOrders() {
+  if (!confirm("⚠️ ¿Estás seguro de que deseas eliminar TODOS los pedidos de prueba en Firestore? Esta acción dejará el tablero en 0 para recibir nuevos pedidos reales.")) {
+    return;
+  }
+  try {
+    if (db) {
+      const snapshot = await db.collection('orders').get();
+      const batch = db.batch();
+      snapshot.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+
+      const refundsSnapshot = await db.collection('refunds').get();
+      const refBatch = db.batch();
+      refundsSnapshot.forEach(doc => {
+        refBatch.delete(doc.ref);
+      });
+      await refBatch.commit();
     }
-  ];
+    allOrders = [];
+    allRefunds = [];
+    updateStats();
+    renderOrders();
+    showNotificationToast('Tablero limpiado con éxito', 'cleaning_services');
+  } catch (e) {
+    alert("Error al limpiar pedidos: " + e.message);
+  }
+}
+
+// Fallback cuando no hay pedidos o sin conexión
+function renderFallbackDemo() {
+  allOrders = [];
   updateStats();
   renderOrders();
 }
 
+// Logout Action
+function logoutAdmin() {
+  sessionStorage.removeItem('diabla_admin_auth');
+  if (typeof firebase !== 'undefined' && firebase.auth) {
+    firebase.auth().signOut().catch(() => {});
+  }
+  window.location.href = 'login.html';
+}
+
+// Theme Toggle Helper (Modo Claro ☀️ / Modo Oscuro 🌙)
+function toggleWebTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('diabla_web_theme', next);
+  updateThemeToggleBtnLabel(next);
+}
+
+function updateThemeToggleBtnLabel(theme) {
+  const icon  = document.getElementById('themeIcon');
+  const label = document.getElementById('themeLabel');
+  if (icon)  icon.textContent = theme === 'dark' ? 'light_mode' : 'dark_mode';
+  if (label) label.textContent = theme === 'dark' ? 'Claro' : 'Oscuro';
+}
+
+// Abrir Evidencia de Entrega en Alta Resolución dentro del modal interactivo
+function openProofModal(encodedUrl, orderId, customerName, address, driverName) {
+  const url = decodeURIComponent(encodedUrl || '');
+  if (!url || !url.startsWith('http')) return;
+
+  const modal = document.getElementById('proofPhotoModal');
+  const img = document.getElementById('proofModalImg');
+  const title = document.getElementById('proofModalTitle');
+  const orderEl = document.getElementById('proofModalOrder');
+  const custEl = document.getElementById('proofModalCustomer');
+  const addrEl = document.getElementById('proofModalAddress');
+  const driverEl = document.getElementById('proofModalDriver');
+  const downloadLink = document.getElementById('proofModalDownload');
+
+  if (img) img.src = url;
+  if (downloadLink) downloadLink.href = url;
+
+  const shortId = orderId ? (orderId.length > 8 ? orderId.substring(0, 8).toUpperCase() : orderId.toUpperCase()) : '';
+  if (title) title.innerText = shortId ? `Evidencia de Entrega #${shortId}` : 'Evidencia de Entrega';
+  if (orderEl) orderEl.innerText = shortId ? `PEDIDO #${shortId}` : '';
+  if (custEl) custEl.innerHTML = customerName ? `<strong>Cliente:</strong> ${customerName}` : '';
+  if (addrEl) addrEl.innerHTML = address ? `<strong>Dirección:</strong> ${address}` : '';
+  if (driverEl) driverEl.innerHTML = driverName ? `<strong>Repartidor:</strong> ${driverName}` : '';
+
+  if (modal) {
+    modal.style.display = 'flex';
+  }
+}
+
+function closeProofModal(event) {
+  if (event && event.target && !event.target.classList.contains('proof-modal-backdrop') && !event.target.classList.contains('proof-modal-close')) {
+    return;
+  }
+  const modal = document.getElementById('proofPhotoModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
 // Init
 window.addEventListener('DOMContentLoaded', () => {
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+  updateThemeToggleBtnLabel(currentTheme);
+
   if (sessionStorage.getItem('diabla_admin_auth') !== 'true') {
     window.location.href = 'login.html';
     return;

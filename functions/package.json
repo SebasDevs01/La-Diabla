@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "la-diabla-functions",
   "description": "Cloud Functions para La Diabla App",
   "scripts": {
@@ -6,7 +6,7 @@
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log"
   },
-  "engines": { "node": "20" },
+  "engines": { "node": "22" },
   "main": "index.js",
   "dependencies": {
     "firebase-admin": "^12.0.0",

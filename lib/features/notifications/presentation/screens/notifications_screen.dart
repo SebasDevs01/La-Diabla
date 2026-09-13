@@ -28,6 +28,99 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     return 'Reciente';
   }
 
+  Future<void> _confirmClearAll(String userId) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E1712) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.delete_sweep_rounded, color: Color(0xFFDC2626)),
+            SizedBox(width: 8),
+            Text('¿Limpiar notificaciones?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+          ],
+        ),
+        content: const Text(
+          'Se eliminarán todas las notificaciones de tu historial.',
+          style: TextStyle(fontSize: 13.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Limpiar Todo'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        final col = FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .collection('notifications');
+        final snapshots = await col.get();
+        final batch = FirebaseFirestore.instance.batch();
+        for (final doc in snapshots.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+
+        if (mounted) {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('✅ Notificaciones eliminadas.'),
+              backgroundColor: Color(0xFF16A34A),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('Error al limpiar notificaciones: $e'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _deleteNotification(String userId, String notifId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('notifications')
+          .doc(notifId)
+          .delete();
+    } catch (_) {}
+  }
+
+  Future<void> _markAsRead(String userId, String notifId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('notifications')
+          .doc(notifId)
+          .update({'isRead': true});
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -45,6 +138,14 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             letterSpacing: 1.0,
           ),
         ),
+        actions: [
+          if (userId.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep_rounded),
+              tooltip: 'Limpiar todas',
+              onPressed: () => _confirmClearAll(userId),
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -62,153 +163,235 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             ),
           ),
 
-          // Lista de notificaciones
+          // Lista de notificaciones reales de Firestore
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: userId.isNotEmpty
-                  ? FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(userId)
-                      .collection('notifications')
-                      .orderBy('createdAt', descending: true)
-                      .snapshots()
-                  : null,
-              builder: (context, snapshot) {
-                final firestoreDocs = snapshot.data?.docs ?? [];
+            child: userId.isEmpty
+                ? _buildEmptyState(
+                    title: 'Inicia sesión para ver notificaciones',
+                    subtitle: 'Tus alertas de pedidos y promociones aparecerán aquí.',
+                    isDark: isDark,
+                  )
+                : StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(userId)
+                        .collection('notifications')
+                        .orderBy('createdAt', descending: true)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: CircularProgressIndicator(color: Color(0xFFDC2626)),
+                        );
+                      }
 
-                final notificationsList = <Map<String, dynamic>>[];
+                      final firestoreDocs = snapshot.data?.docs ?? [];
 
-                // Notificaciones en vivo de Firestore
-                for (final doc in firestoreDocs) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  notificationsList.add({
-                    'title': data['title'] ?? 'Actualización de Pedido',
-                    'body': data['body'] ?? '',
-                    'time': _formatTimestamp(data['createdAt']),
-                    'orderId': data['orderId'],
-                    'type': 'orders',
-                    'icon': Icons.receipt_long_rounded,
-                    'color': const Color(0xFFDC2626),
-                  });
-                }
+                      if (firestoreDocs.isEmpty) {
+                        return _buildEmptyState(
+                          title: 'Sin notificaciones pendientes',
+                          subtitle: 'Aquí recibirás en tiempo real las actualizaciones cuando tu comida esté en camino 🔥',
+                          isDark: isDark,
+                        );
+                      }
 
-                // Notificaciones del sistema / promocionales fijas
-                final systemNotifications = [
-                  {
-                    'title': '🚴 ¡Tu pedido está en camino!',
-                    'body': 'El repartidor va rumbo a tu ubicación con la comida caliente.',
-                    'time': 'Hoy',
-                    'type': 'orders',
-                    'icon': Icons.two_wheeler_rounded,
-                    'color': const Color(0xFFDC2626),
-                  },
-                  {
-                    'title': '🔥 PROMO DIABLA ACTIVA',
-                    'body': 'Obtén 25% OFF en tu combo favorito ingresando el código DIABLA25.',
-                    'time': 'Hoy',
-                    'type': 'promos',
-                    'icon': Icons.local_fire_department_rounded,
-                    'color': const Color(0xFFE65100),
-                  },
-                  {
-                    'title': '🌮 ¡Bienvenido a La Diabla!',
-                    'body': 'Disfruta de la mejor comida mexicana con entrega rápida en Bucaramanga.',
-                    'time': 'Ayer',
-                    'type': 'promos',
-                    'icon': Icons.celebration_rounded,
-                    'color': const Color(0xFF16A34A),
-                  },
-                ];
+                      final filteredDocs = firestoreDocs.where((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        final type = data['type'] as String? ?? (data['orderId'] != null ? 'orders' : 'promos');
+                        if (_selectedFilter == 'orders') return type == 'orders';
+                        if (_selectedFilter == 'promos') return type == 'promos';
+                        return true;
+                      }).toList();
 
-                final combined = [...notificationsList, ...systemNotifications];
-                final filtered = switch (_selectedFilter) {
-                  'orders' => combined.where((n) => n['type'] == 'orders').toList(),
-                  'promos' => combined.where((n) => n['type'] == 'promos').toList(),
-                  _ => combined,
-                };
+                      if (filteredDocs.isEmpty) {
+                        return _buildEmptyState(
+                          title: 'No hay notificaciones en este filtro',
+                          subtitle: 'Prueba seleccionando "Todas" para ver el historial.',
+                          isDark: isDark,
+                        );
+                      }
 
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: filtered.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final notif = filtered[index];
-                    final color = notif['color'] as Color? ?? const Color(0xFFDC2626);
-                    final icon = notif['icon'] as IconData? ?? Icons.notifications_rounded;
-                    final orderId = notif['orderId'] as String?;
+                      return ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        itemCount: filteredDocs.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final doc = filteredDocs[index];
+                          final data = doc.data() as Map<String, dynamic>;
+                          final docId = doc.id;
+                          final isRead = data['isRead'] as bool? ?? false;
+                          final orderId = data['orderId'] as String?;
+                          final emoji = data['emoji'] as String? ?? '🛵';
+                          final title = data['title'] as String? ?? 'Notificación de La Diabla';
+                          final body = data['body'] as String? ?? '';
+                          final timeText = _formatTimestamp(data['createdAt']);
 
-                    return GestureDetector(
-                      onTap: () {
-                        if (orderId != null && orderId.isNotEmpty) {
-                          context.push('/tracking/$orderId');
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF2C1B14) : Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isDark ? AppColors.dividerDark : Colors.grey.shade200,
-                            width: 1.2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withAlpha(isDark ? 25 : 8),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
+                          return Dismissible(
+                            key: Key(docId),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
                               decoration: BoxDecoration(
-                                color: color.withAlpha(isDark ? 50 : 25),
-                                borderRadius: BorderRadius.circular(14),
+                                color: const Color(0xFFDC2626),
+                                borderRadius: BorderRadius.circular(16),
                               ),
-                              child: Icon(icon, color: color, size: 22),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  Icon(Icons.delete_rounded, color: Colors.white),
+                                  SizedBox(width: 6),
                                   Text(
-                                    notif['title'] as String,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    notif['body'] as String,
-                                    style: TextStyle(
-                                      color: isDark ? AppColors.textMutedDark : Colors.grey.shade700,
-                                      fontSize: 12.5,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    notif['time'] as String,
-                                    style: TextStyle(
-                                      color: isDark ? Colors.white38 : Colors.grey.shade500,
-                                      fontSize: 11,
-                                    ),
+                                    'Eliminar',
+                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                                   ),
                                 ],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+                            onDismissed: (_) => _deleteNotification(userId, docId),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () {
+                                _markAsRead(userId, docId);
+                                if (orderId != null && orderId.isNotEmpty) {
+                                  context.push('/tracking/$orderId');
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF2C1B14) : Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: isRead
+                                        ? (isDark ? AppColors.dividerDark : Colors.grey.shade200)
+                                        : const Color(0xFFDC2626).withAlpha(150),
+                                    width: isRead ? 1.0 : 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withAlpha(isDark ? 25 : 8),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFDC2626).withAlpha(isDark ? 50 : 25),
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: Text(emoji, style: const TextStyle(fontSize: 22)),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  title,
+                                                  style: TextStyle(
+                                                    fontWeight: isRead ? FontWeight.bold : FontWeight.w900,
+                                                    fontSize: 14,
+                                                    color: isDark ? Colors.white : const Color(0xFF1C1C1C),
+                                                  ),
+                                                ),
+                                              ),
+                                              if (!isRead)
+                                                Container(
+                                                  width: 8,
+                                                  height: 8,
+                                                  decoration: const BoxDecoration(
+                                                    color: Color(0xFFDC2626),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            body,
+                                            style: TextStyle(
+                                              color: isDark ? AppColors.textMutedDark : Colors.grey.shade700,
+                                              fontSize: 12.5,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            timeText,
+                                            style: TextStyle(
+                                              color: isDark ? Colors.white38 : Colors.grey.shade500,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState({
+    required String title,
+    required String subtitle,
+    required bool isDark,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDC2626).withAlpha(20),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.notifications_none_rounded,
+                size: 48,
+                color: Color(0xFFDC2626),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? AppColors.textMutedDark : Colors.grey.shade600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -244,4 +427,3 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     );
   }
 }
-

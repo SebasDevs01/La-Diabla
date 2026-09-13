@@ -174,10 +174,52 @@ class MapsService {
     }
   }
 
-  // ─── Google Directions API (Ruta Óptima por Calles Reales) ───────────────
-  Future<List<LatLng>> getDirectionsRoute(LatLng origin, LatLng destination) async {
+  // ─── Rutas Inteligentes por Calles Reales (OSRM + Google Maps Fallback) ───
+  Future<RouteResult> getRouteDetails(LatLng origin, LatLng destination) async {
+    // 1º Intentar OSRM (Open Source Routing Machine) — Especializado en ruteo por calles sin cuota
     try {
-      final uri = Uri.https(
+      final osrmUri = Uri.parse(
+        'https://router.project-osrm.org/route/v1/driving/'
+        '${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}'
+        '?overview=full&geometries=geojson',
+      );
+
+      final response = await http.get(osrmUri).timeout(const Duration(seconds: 7));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        if (data['code'] == 'Ok' && (data['routes'] as List).isNotEmpty) {
+          final route = data['routes'][0];
+          final geometry = route['geometry'] as Map<String, dynamic>;
+          final coords = geometry['coordinates'] as List<dynamic>;
+
+          final points = coords.map((c) {
+            final lng = (c[0] as num).toDouble();
+            final lat = (c[1] as num).toDouble();
+            return LatLng(lat, lng);
+          }).toList();
+
+          final distanceMeters = (route['distance'] as num?)?.toDouble() ?? 0.0;
+          final durationSeconds = (route['duration'] as num?)?.toDouble() ?? 0.0;
+
+          final distanceKm = double.parse((distanceMeters / 1000.0).toStringAsFixed(1));
+          final durationMinutes = (durationSeconds / 60.0).round();
+
+          if (points.length >= 2) {
+            return RouteResult(
+              points: points,
+              distanceKm: distanceKm > 0 ? distanceKm : calculateDistanceKm(origin, destination),
+              durationMinutes: durationMinutes > 0 ? durationMinutes : 15,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      _logger.w('OSRM Directions error: $e');
+    }
+
+    // 2º Fallback a Google Directions API si está habilitada
+    try {
+      final gUri = Uri.https(
         'maps.googleapis.com',
         '/maps/api/directions/json',
         {
@@ -189,19 +231,37 @@ class MapsService {
         },
       );
 
-      final response = await http.get(uri).timeout(const Duration(seconds: 8));
+      final response = await http.get(gUri).timeout(const Duration(seconds: 6));
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
         if (data['status'] == 'OK' && (data['routes'] as List).isNotEmpty) {
           final points = data['routes'][0]['overview_polyline']['points'] as String;
-          return _decodePolyline(points);
+          final decoded = _decodePolyline(points);
+          final dist = calculateDistanceKm(origin, destination);
+          return RouteResult(
+            points: decoded,
+            distanceKm: dist,
+            durationMinutes: (dist / 30.0 * 60).round() + 5,
+          );
         }
       }
     } catch (e) {
-      _logger.w('Directions API error: $e');
+      _logger.w('Google Directions API error: $e');
     }
-    // Fallback a línea directa si no hay red
-    return [origin, destination];
+
+    // 3º Fallback geodésico
+    final directDist = calculateDistanceKm(origin, destination);
+    return RouteResult(
+      points: [origin, destination],
+      distanceKm: directDist,
+      durationMinutes: (directDist / 30.0 * 60).round() + 10,
+    );
+  }
+
+  /// Obtiene los puntos de la ruta inteligente trazada sobre las calles
+  Future<List<LatLng>> getDirectionsRoute(LatLng origin, LatLng destination) async {
+    final result = await getRouteDetails(origin, destination);
+    return result.points;
   }
 
   /// Decodificador de string de polilínea codificada de Google Maps
@@ -235,13 +295,23 @@ class MapsService {
     return poly;
   }
 
-  // ─── Estimación de Tarifa de Entrega ─────────────────────────────────────
-  double estimateDeliveryFee(double distanceKm) {
-    if (distanceKm <= 2.5) return 3500;
-    if (distanceKm <= 5.0) return 5000;
-    if (distanceKm <= 8.0) return 7500;
-    return 9500;
+  // ─── Tarifa Dinámica de Entrega por Distancia (Bucaramanga y Área Metro) ───
+  static double calculateDeliveryFee(double distanceKm) {
+    if (distanceKm <= 2.5) {
+      return 4500.0; // Mutis, Estoraques, Real de Minas, etc.
+    } else if (distanceKm <= 5.0) {
+      return 6500.0; // Centro, Cabecera, San Francisco, Ciudadela
+    } else if (distanceKm <= 8.0) {
+      return 9000.0; // Provenza, Morrorrico, Floridablanca norte
+    } else if (distanceKm <= 12.0) {
+      return 12500.0; // Cañaveral, Girón, Ruitoque bajo
+    } else {
+      final extraKm = (distanceKm - 12.0).ceil();
+      return 12500.0 + (extraKm * 1500.0); // Piedecuesta / periferia
+    }
   }
+
+  double estimateDeliveryFee(double distanceKm) => calculateDeliveryFee(distanceKm);
 
   Marker createDeliveryMarker(LatLng position) => Marker(
         markerId: const MarkerId('delivery_location'),
@@ -251,38 +321,55 @@ class MapsService {
 
   // ─── Navegación Externa Oficial (Google Maps & Waze) ─────────────────────
 
-  /// Abre la navegación hacia las coordenadas usando Google Maps oficial.
+  /// Abre Google Maps nativo (app). Evita abrir en el navegador web usando esquemas nativos.
   static Future<bool> openInGoogleMaps(double lat, double lng, {String? label}) async {
-    final googleMapsUrl = Uri.parse(
+    // 1º Android: Esquema nativo de navegación paso a paso en app
+    final androidNavUri = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
+    try {
+      if (await canLaunchUrl(androidNavUri)) {
+        return await launchUrl(androidNavUri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
+
+    // 2º Android: Esquema geo universal para Maps app
+    final geoUri = Uri.parse('geo:$lat,$lng?q=$lat,$lng${label != null ? '($label)' : ''}');
+    try {
+      if (await canLaunchUrl(geoUri)) {
+        return await launchUrl(geoUri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
+
+    // 3º iOS: Esquema nativo de Google Maps para iOS
+    final iosMapsUri = Uri.parse('comgooglemaps://?daddr=$lat,$lng&directionsmode=driving');
+    try {
+      if (await canLaunchUrl(iosMapsUri)) {
+        return await launchUrl(iosMapsUri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
+
+    // 4º Fallback final: URL web externa
+    final webUri = Uri.parse(
       'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
     );
     try {
-      if (await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication)) {
-        return true;
-      }
-    } catch (_) {}
-    return false;
+      return await launchUrl(webUri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      return false;
+    }
   }
 
-  /// Abre la navegación hacia las coordenadas usando Waze oficial.
+  /// Abre Waze nativo (prioridad absoluta). Fallback a app de Google Maps si Waze no está instalado.
   static Future<bool> openInWaze(double lat, double lng) async {
-    final wazeAppUri = Uri.parse('waze://?ll=$lat,$lng&navigate=yes');
-    final wazeWebFallback = Uri.parse('https://waze.com/ul?ll=$lat,$lng&navigate=yes');
-
+    // 1º App nativa de Waze
+    final wazeUri = Uri.parse('waze://?ll=$lat,$lng&navigate=yes');
     try {
-      // Intentar abrir la app nativa de Waze
-      if (await canLaunchUrl(wazeAppUri)) {
-        return await launchUrl(wazeAppUri, mode: LaunchMode.externalApplication);
+      if (await canLaunchUrl(wazeUri)) {
+        return await launchUrl(wazeUri, mode: LaunchMode.externalApplication);
       }
-      // Fallback a Waze Web o Play Store / App Store
-      return await launchUrl(wazeWebFallback, mode: LaunchMode.externalApplication);
-    } catch (_) {
-      try {
-        return await launchUrl(wazeWebFallback, mode: LaunchMode.externalApplication);
-      } catch (_) {
-        return false;
-      }
-    }
+    } catch (_) {}
+
+    // 2º Fallback directo a Google Maps App nativa
+    return await openInGoogleMaps(lat, lng, label: 'La Diabla Entrega');
   }
 }
 
@@ -299,3 +386,16 @@ class PlacePrediction {
   final String? mainText;
   final String? secondaryText;
 }
+
+class RouteResult {
+  const RouteResult({
+    required this.points,
+    required this.distanceKm,
+    required this.durationMinutes,
+  });
+
+  final List<LatLng> points;
+  final double distanceKm;
+  final int durationMinutes;
+}
+

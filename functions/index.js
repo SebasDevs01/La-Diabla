@@ -1,4 +1,4 @@
-﻿// functions/index.js
+// functions/index.js
 // Cloud Functions para La Diabla — Firebase Functions v2
 const { onDocumentUpdated, onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { initializeApp } = require("firebase-admin/app");
@@ -16,7 +16,9 @@ const STATUS_MESSAGES = {
   confirmed:   { title: "✅ Pedido confirmado",         body: "Tu pedido fue confirmado. ¡Empezamos a prepararlo! 👨‍🍳" },
   preparing:   { title: "🍳 En preparación",            body: "Tu comida de La Diabla está en el fuego. ¡Pronto lista! 🔥" },
   ready:       { title: "📦 Listo para despacho",      body: "Tu pedido está listo y esperando al repartidor 🛵" },
-  onTheWay:    { title: "🛵 ¡Va en camino!",           body: "El repartidor ya salió con tu comida. ¡Ya casi! 🌶️" },
+  assigned:    { title: "🛵 Repartidor asignado",      body: "Un repartidor fue asignado a tu pedido. ¡Pronto irá en camino! 🌶️" },
+  on_the_way:  { title: "🛵 ¡Va en camino!",           body: "El repartidor ya salió con tu comida. ¡Ya casi llega! 🌶️" },
+  onTheWay:    { title: "🛵 ¡Va en camino!",           body: "El repartidor ya salió con tu comida. ¡Ya casi llega! 🌶️" },
   delivered:   { title: "✅ ¡Pedido entregado!",        body: "¡Buen provecho! Califica tu experiencia en La Diabla 🌮⭐" },
   cancelled:   { title: "❌ Pedido cancelado",          body: "Tu pedido fue cancelado. Contáctanos si tienes dudas 📞" },
 };
@@ -91,9 +93,9 @@ exports.onOrderStatusChanged = onDocumentUpdated("orders/{orderId}", async (even
 exports.onNewOrderCreated = onDocumentCreated("orders/{orderId}", async (event) => {
   const order = event.data.data();
 
-  // Solo notificar si el pedido está pendiente y el pago fue exitoso
+  // Solo notificar si el pedido está pendiente y no ha fallado el pago
   if (order.status !== "pending") return null;
-  if (order.paymentStatus !== "paid" && order.paymentMethod !== "cash" && order.paymentMethod !== "dataphone") return null;
+  if (order.paymentStatus === "failed") return null;
 
   // Obtener todos los usuarios con rol repartidor
   const driversSnap = await db.collection("users")

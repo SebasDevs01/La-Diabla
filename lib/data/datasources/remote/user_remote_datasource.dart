@@ -18,7 +18,7 @@ class UserRemoteDataSource {
   /// Obtiene el perfil de un usuario por su ID de Firebase Auth.
   Future<UserModel?> getUserProfile(String userId) async {
     try {
-      final doc = await _usersRef.doc(userId).get();
+      final doc = await _usersRef.doc(userId).get().timeout(const Duration(seconds: 3));
       if (!doc.exists || doc.data() == null) {
         return null;
       }
@@ -26,6 +26,8 @@ class UserRemoteDataSource {
     } on FirebaseException catch (e) {
       _logger.e('Error al obtener perfil de usuario: $userId', error: e);
       throw DataException('Error al consultar perfil de usuario', code: e.code);
+    } catch (e) {
+      return null;
     }
   }
 
@@ -33,20 +35,24 @@ class UserRemoteDataSource {
   Future<void> createOrUpdateUserProfile(UserModel user) async {
     try {
       final docRef = _usersRef.doc(user.id);
-      final doc = await docRef.get();
+      final doc = await docRef.get().timeout(const Duration(seconds: 3));
 
       if (!doc.exists) {
         // Nuevo usuario -> guardar documento completo
         await docRef.set(user.toMap());
         _logger.d('Perfil de usuario creado en Firestore: ${user.id}');
       } else {
-        // Usuario existente -> actualizar campos modificados y timestamp
+        // Usuario existente -> actualizar campos modificados y timestamp.
+        // El nombre solo se sobreescribe si es un nombre real (no un placeholder genérico).
+        const namePlaceholders = ['Usuario La Diabla', 'Repartidor La Diabla', ''];
         final updateData = <String, dynamic>{
-          'name': user.name,
           'email': user.email,
           'updatedAt': DateTime.now().millisecondsSinceEpoch,
         };
-        if (user.phone != null) updateData['phone'] = user.phone;
+        if (user.name.isNotEmpty && !namePlaceholders.contains(user.name)) {
+          updateData['name'] = user.name;
+        }
+        if (user.phone != null && user.phone!.isNotEmpty) updateData['phone'] = user.phone;
         if (user.photoUrl != null) updateData['photoUrl'] = user.photoUrl;
         if (user.fcmToken != null) updateData['fcmToken'] = user.fcmToken;
 

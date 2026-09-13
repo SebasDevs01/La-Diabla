@@ -34,11 +34,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _guestNameController = TextEditingController();
   final _guestPhoneController = TextEditingController();
   final _guestAddressController = TextEditingController();
-
-  // Teléfono SMS Controllers
-  final _phoneController = TextEditingController();
-  final _smsCodeController = TextEditingController();
-  bool _smsCodeSent = false;
+  bool _hasNavigated = false;
 
   @override
   void dispose() {
@@ -52,24 +48,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _guestNameController.dispose();
     _guestPhoneController.dispose();
     _guestAddressController.dispose();
-    _phoneController.dispose();
-    _smsCodeController.dispose();
     super.dispose();
   }
 
-  Future<void> _navigateAfterLogin(GoRouter router) async {
+  Future<void> _navigateAfterLogin([GoRouter? router, bool? isAdmin]) async {
+    if (!mounted || _hasNavigated) return;
+    _hasNavigated = true;
+    final r = router ?? GoRouter.of(context);
     final prefs = await SharedPreferences.getInstance();
+    // Use the explicitly set state — avoids timing issues with stream updates
     final user = ref.read(authNotifierProvider).user;
-    if (user != null && user.isAdmin) {
+    final admin = isAdmin ?? (user?.isAdmin ?? false);
+    if (admin) {
       await prefs.setBool('is_logged_in', true);
-      router.go('/admin');
+      r.go('/admin');
       return;
     }
     await prefs.setBool('is_delivery_mode', _isDeliveryMode);
-    if (_isDeliveryMode) {
-      router.go('/driver');
+    if (_isDeliveryMode || (user?.isDriver ?? false)) {
+      r.go('/driver');
     } else {
-      router.go('/home');
+      r.go('/home');
     }
   }
 
@@ -77,18 +76,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _handleGoogleAuth() async {
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
-    final success = await ref.read(authNotifierProvider.notifier).signInWithGoogle();
+    final notifier = ref.read(authNotifierProvider.notifier);
+    final success = await notifier.signInWithGoogle(
+      isDeliveryMode: _isDeliveryMode,
+    );
+    if (!mounted) return;
     if (success) {
       _navigateAfterLogin(router);
     } else {
       final err = ref.read(authNotifierProvider).errorMessage;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(err ?? 'Error al iniciar sesión con Google'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (err != null &&
+          !err.toLowerCase().contains('cancelado') &&
+          !err.toLowerCase().contains('cancelled') &&
+          !err.toLowerCase().contains('canceled')) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(err),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -110,7 +118,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
-    final success = await ref.read(authNotifierProvider.notifier).signInWithEmail(email, password);
+    final success = await ref.read(authNotifierProvider.notifier).signInWithEmail(
+      email,
+      password,
+      isDeliveryMode: _isDeliveryMode,
+    );
+    if (!mounted) return;
     if (success) {
       _navigateAfterLogin(router);
     } else {
@@ -248,7 +261,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_registered_name', name);
 
-    final success = await ref.read(authNotifierProvider.notifier).signUpWithEmail(email, password);
+    final success = await ref.read(authNotifierProvider.notifier).signUpWithEmail(
+      email,
+      password,
+      isDeliveryMode: _isDeliveryMode,
+    );
+    if (!mounted) return;
     if (success) {
       _navigateAfterLogin(router);
     } else {
@@ -290,6 +308,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           address: address,
         );
 
+    if (!mounted) return;
     if (success) {
       _navigateAfterLogin(router);
     } else {
@@ -304,82 +323,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  // ─── PHONE SMS AUTH ────────────────────────────────────────────────────────
-  Future<void> _handleSendSms(StateSetter setSheetState, BuildContext sheetContext) async {
-    final phone = _phoneController.text.trim();
-    final messenger = ScaffoldMessenger.of(context);
-
-    if (phone.isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Ingresa tu número de teléfono'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    final success = await ref.read(authNotifierProvider.notifier).verifyPhoneNumber(phone);
-    if (success) {
-      setSheetState(() {
-        _smsCodeSent = true;
-      });
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Código SMS enviado con éxito 📩'),
-          backgroundColor: AppColors.secondary,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } else {
-      final rawErr = ref.read(authNotifierProvider).errorMessage ?? '';
-      final friendlyMsg = rawErr.contains('operation-not-allowed') || rawErr.contains('SMS unable')
-          ? 'El inicio de sesión por celular aún no está habilitado. Usa Google o Correo por favor. 📧'
-          : rawErr.isNotEmpty ? rawErr : 'Error al enviar código SMS';
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(friendlyMsg),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 5),
-        ),
-      );
-    }
-  }
-
-  Future<void> _handleVerifySms(BuildContext sheetContext) async {
-    final code = _smsCodeController.text.trim();
-    final messenger = ScaffoldMessenger.of(context);
-    final router = GoRouter.of(context);
-
-    if (code.isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Ingresa el código de verificación'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    Navigator.pop(sheetContext);
-
-    final success = await ref.read(authNotifierProvider.notifier).signInWithSmsCode(code);
-    if (success) {
-      _navigateAfterLogin(router);
-    } else {
-      final err = ref.read(authNotifierProvider).errorMessage;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(err ?? 'Código de verificación incorrecto'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
 
   // ─── MODAL SHEETS GENERATORS ───────────────────────────────────────────────
 
@@ -588,20 +531,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   _handleGoogleAuth();
                 },
               ),
-              const SizedBox(height: 10),
-
-              // Opción Celular
-              _buildLoginOption(
-                icon: Icon(Icons.phone_iphone_rounded, color: redColor, size: 26),
-                label: 'Ingresar con Celular',
-                subtitle: 'Código SMS a tu número',
-                isDark: isDark,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showPhoneSheet();
-                },
-              ),
-              const SizedBox(height: 10),
 
               // Opción Correo
               _buildLoginOption(
@@ -627,6 +556,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     required String subtitle,
     required bool isDark,
     required VoidCallback onTap,
+    Color? iconBg,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -642,7 +572,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
         child: Row(
           children: [
-            SizedBox(width: 36, height: 36, child: Center(child: icon)),
+            Container(
+              width: 36,
+              height: 36,
+              decoration: iconBg != null
+                  ? BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(8))
+                  : null,
+              child: Center(child: icon),
+            ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -790,133 +727,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  void _showPhoneSheet() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final redColor = isDark ? const Color(0xFFEF4444) : const Color(0xFFDC2626);
-    _smsCodeSent = false;
-    _phoneController.clear();
-    _smsCodeController.clear();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return Container(
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.surfaceDark : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-              padding: EdgeInsets.only(
-                left: 24,
-                right: 24,
-                top: 20,
-                bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 28,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 44,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 20),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.dividerDark : Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ),
-                  Text(
-                    _smsCodeSent ? 'VERIFICAR CÓDIGO' : 'INICIAR CON CELULAR',
-                    style: TextStyle(
-                      fontFamily: AppTypography.displayFamily,
-                      fontSize: 26,
-                      color: redColor,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  if (!_smsCodeSent) ...[
-                    DiablaTextField(
-                      key: const ValueKey('phone_number_field'),
-                      controller: _phoneController,
-                      label: 'Número de teléfono',
-                      keyboardType: TextInputType.phone,
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) => _handleSendSms(setSheetState, sheetCtx),
-                      prefixIcon: Icon(Icons.phone_iphone_rounded, color: redColor),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFDC2626),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(26),
-                          ),
-                        ),
-                        onPressed: () => _handleSendSms(setSheetState, sheetCtx),
-                        child: const Text(
-                          'ENVIAR CÓDIGO',
-                          style: TextStyle(
-                            fontFamily: AppTypography.displayFamily,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ] else ...[
-                    DiablaTextField(
-                      key: const ValueKey('sms_code_field'),
-                      controller: _smsCodeController,
-                      label: 'Código de verificación',
-                      keyboardType: TextInputType.number,
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) => _handleVerifySms(sheetCtx),
-                      prefixIcon: Icon(Icons.sms_rounded, color: redColor),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFDC2626),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(26),
-                          ),
-                        ),
-                        onPressed: () => _handleVerifySms(sheetCtx),
-                        child: const Text(
-                          'VERIFICAR E INGRESAR',
-                          style: TextStyle(
-                            fontFamily: AppTypography.displayFamily,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {

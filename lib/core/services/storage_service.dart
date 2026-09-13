@@ -66,7 +66,10 @@ class StorageService {
   }) async {
     try {
       final ref = _storage.ref().child(path);
-      final uploadTask = await ref.putFile(file);
+      final uploadTask = await ref.putFile(
+        file,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
       final downloadUrl = await uploadTask.ref.getDownloadURL();
       _logger.d('Archivo subido: $downloadUrl');
       return downloadUrl;
