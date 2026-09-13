@@ -254,6 +254,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
             .set({'role': 'driver'}, SetOptions(merge: true))
             .ignore();
       }
+      // Asegurar sincronización en Firestore de photoUrl y datos del usuario
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.id)
+          .set({
+            'name': user.name,
+            'email': user.email,
+            if (user.photoUrl != null && user.photoUrl!.isNotEmpty) 'photoUrl': user.photoUrl,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true))
+          .ignore();
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_guest_user', false);
       await prefs.setBool('is_logged_in', true);
@@ -464,12 +475,30 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(user: updatedUser, isLoading: false);
       await _saveUserSession(updatedUser);
 
-      // Si es un usuario de Firebase, actualizar en FirebaseAuth
+      // Persistir en Firestore para que sea visible en tiempo real para todos
+      try {
+        final firestoreUpdates = <String, dynamic>{
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        if (name != null && name.isNotEmpty) firestoreUpdates['name'] = name;
+        if (email != null && email.isNotEmpty) firestoreUpdates['email'] = email;
+        if (phone != null && phone.isNotEmpty) firestoreUpdates['phone'] = phone;
+        if (photoUrl != null && photoUrl.isNotEmpty) firestoreUpdates['photoUrl'] = photoUrl;
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(state.user!.id)
+            .set(firestoreUpdates, SetOptions(merge: true));
+      } catch (_) {}
+
+      // Si es un usuario de Firebase, actualizar en FirebaseAuth (si la URL es compatible)
       try {
         final fbUser = FirebaseAuth.instance.currentUser;
         if (fbUser != null) {
           if (name != null && name.isNotEmpty) await fbUser.updateDisplayName(name);
-          if (photoUrl != null && photoUrl.isNotEmpty) await fbUser.updatePhotoURL(photoUrl);
+          if (photoUrl != null && photoUrl.isNotEmpty && photoUrl.startsWith('http') && photoUrl.length <= 2048) {
+            await fbUser.updatePhotoURL(photoUrl);
+          }
         }
       } catch (_) {}
       return true;

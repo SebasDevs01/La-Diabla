@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -489,7 +490,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildAvatarImage(String path) {
-    if (path.startsWith('http')) {
+    if (path.startsWith('data:image/')) {
+      try {
+        final bytes = base64Decode(path.split(',').last);
+        return Image.memory(
+          bytes,
+          width: double.infinity,
+          height: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/fotoperfilinvitados.png', width: double.infinity, height: double.infinity, fit: BoxFit.cover),
+        );
+      } catch (_) {
+        return Image.asset('assets/images/fotoperfilinvitados.png', width: double.infinity, height: double.infinity, fit: BoxFit.cover);
+      }
+    } else if (path.startsWith('http')) {
       return Image.network(
         path,
         width: double.infinity,
@@ -692,8 +706,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         );
                         if (picked != null) {
                           if (ctx.mounted) Navigator.pop(ctx);
+                          final bytes = await File(picked.path).readAsBytes();
+                          final photoDataUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
                           await ref.read(authNotifierProvider.notifier).updateUserProfile(
-                                photoUrl: picked.path,
+                                photoUrl: photoDataUrl,
                               );
                           if (mounted) {
                             messenger.showSnackBar(
@@ -733,8 +749,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         );
                         if (picked != null) {
                           if (ctx.mounted) Navigator.pop(ctx);
+                          final bytes = await File(picked.path).readAsBytes();
+                          final photoDataUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
                           await ref.read(authNotifierProvider.notifier).updateUserProfile(
-                                photoUrl: picked.path,
+                                photoUrl: photoDataUrl,
                               );
                           if (mounted) {
                             messenger.showSnackBar(

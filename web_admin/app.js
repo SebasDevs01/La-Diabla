@@ -22,7 +22,9 @@ try {
 let allOrders = [];
 let allRefunds = [];
 let allCoupons = [];
+let allDriverUsers = [];
 let currentFilter = 'all';
+let evidenceSubFilter = 'proofs'; // 'proofs' | 'plates'
 let previousOrderCount = 0;
 let isAudioUnlocked = false;
 
@@ -88,8 +90,7 @@ async function ensureAdminAuth() {
   if (typeof firebase !== 'undefined' && firebase.auth) {
     try {
       if (!firebase.auth().currentUser) {
-        await firebase.auth().signInWithEmailAndPassword('appladiabla@gmail.com', 'diablaadmin1')
-          .catch(() => firebase.auth().signInAnonymously());
+        await firebase.auth().signInAnonymously().catch(() => {});
       }
     } catch (_) {}
   }
@@ -164,6 +165,28 @@ function initRealtimeOrders() {
     renderCoupons();
   }, () => {});
 
+  // Driver users listener (for plate photos)
+  db.collection('users')
+    .where('role', '==', 'driver')
+    .onSnapshot((snapshot) => {
+      const drivers = [];
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        if (d.vehiclePlatePhotoUrl) {
+          drivers.push({ id: doc.id, ...d });
+        }
+      });
+      allDriverUsers = drivers;
+      if (currentFilter === 'evidence' && evidenceSubFilter === 'plates') {
+        renderOrders();
+      }
+      const evidenceEl = document.getElementById('evidenceCount');
+      if (evidenceEl) {
+        const proofCount = allOrders.filter(o => !!o.deliveryProofUrl).length;
+        evidenceEl.innerText = proofCount + allDriverUsers.length;
+      }
+    }, () => {});
+
   // Asegurar sesión administrativa en segundo plano
   ensureAdminAuth();
 }
@@ -179,8 +202,7 @@ function updateStats() {
   const deliveredCount = allOrders
     .filter(o => o.status === 'delivered').length;
 
-  const evidenceCount = allOrders
-    .filter(o => !!o.deliveryProofUrl).length;
+  const evidenceCount = allOrders.filter(o => !!o.deliveryProofUrl).length + allDriverUsers.length;
 
   const totalSalesEl = document.getElementById('statTotalSales');
   const activeOrdersEl = document.getElementById('statActiveOrders');
@@ -221,68 +243,19 @@ function renderOrders() {
     });
   }
 
-  if (filtered.length === 0) {
-    const isEvidenceFilter = currentFilter === 'evidence';
-    grid.innerHTML = `
-      <div class="empty-state">
-        <span class="material-symbols-rounded md-48" style="color:var(--text-muted); opacity:0.6; margin-bottom:12px;">${isEvidenceFilter ? 'photo_camera' : 'ramen_dining'}</span>
-        <h3 class="diabla-font">${isEvidenceFilter ? 'Sin evidencias registradas' : 'Sin órdenes en esta categoría'}</h3>
-        <p>${isEvidenceFilter ? 'Cuando un repartidor tome la foto de entrega desde la app, aparecerá aquí con visor en alta resolución.' : 'Los nuevos pedidos aparecerán aquí en tiempo real'}</p>
-      </div>
-    `;
+  if (currentFilter === 'evidence') {
+    renderEvidenceView(grid, filtered);
     return;
   }
 
-  if (currentFilter === 'evidence') {
-    grid.innerHTML = filtered.map(order => {
-      const shortId = order.id.length > 8 ? order.id.substring(0, 8).toUpperCase() : order.id.toUpperCase();
-      const addressStr = order.formattedAddress || (order.address && order.address.formattedAddress) || (typeof order.address === 'string' ? order.address : 'Dirección de entrega');
-      const customer = order.customerName || order.userName || order.userId || 'Cliente La Diabla';
-      const driver = order.driverName || 'Repartidor La Diabla';
-      const proofUrl = order.deliveryProofUrl;
-      const cleanProofUrl = encodeURIComponent(proofUrl);
-      const safeCustomer = customer.replace(/'/g, "\\'");
-      const safeAddress = addressStr.replace(/'/g, "\\'");
-      const safeDriver = driver.replace(/'/g, "\\'");
-
-      return `
-        <div class="evidence-card">
-          <div class="evidence-thumb-wrapper" onclick="openProofModal('${cleanProofUrl}', '${order.id}', '${safeCustomer}', '${safeAddress}', '${safeDriver}')">
-            <img src="${proofUrl}" alt="Evidencia Pedido #${shortId}" class="evidence-thumb-img" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'200\\' height=\\'200\\'><rect width=\\'100%\\' height=\\'100%\\' fill=\\'%23333\\'/><text x=\\'50%\\' y=\\'50%\\' fill=\\'%23888\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\'>Error Cargando Foto</text></svg>'">
-            <div class="evidence-badge-verified">
-              <span class="material-symbols-rounded" style="font-size:14px;">check_circle</span>
-              <span>ENTREGA VERIFICADA</span>
-            </div>
-          </div>
-          <div class="evidence-card-content">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-              <span class="order-id diabla-font" style="color:#DC2626; font-size:1.05rem;">PEDIDO #${shortId}</span>
-              <span style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center; gap:4px;">
-                <span class="material-symbols-rounded md-14">schedule</span> ${formatTime(order.deliveredAt || order.createdAt)}
-              </span>
-            </div>
-            <div style="margin-top:2px;">
-              <div style="font-weight:700; color:var(--text-main); font-size:0.92rem; display:flex; align-items:center; gap:5px;">
-                <span class="material-symbols-rounded md-16" style="color:#DC2626;">person</span> ${customer}
-              </div>
-              <div style="font-size:0.83rem; color:var(--text-muted); margin-top:3px; display:flex; align-items:flex-start; gap:5px;">
-                <span class="material-symbols-rounded md-16" style="color:#DC2626; flex-shrink:0;">location_on</span>
-                <span>${addressStr}</span>
-              </div>
-              <div style="font-size:0.82rem; color:#10B981; margin-top:4px; display:flex; align-items:center; gap:5px; font-weight:600;">
-                <span class="material-symbols-rounded md-16">two_wheeler</span> Repartidor: ${driver}
-              </div>
-            </div>
-            <div style="margin-top:auto; padding-top:10px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--card-border);">
-              <span class="diabla-font" style="font-size:1.1rem; color:var(--text-main);">${formatCOP(order.total || 0)}</span>
-              <button type="button" class="btn-proof-preview" onclick="openProofModal('${cleanProofUrl}', '${order.id}', '${safeCustomer}', '${safeAddress}', '${safeDriver}')">
-                <span class="material-symbols-rounded md-16">zoom_in</span> Ver Completa
-              </button>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
+  if (filtered.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <span class="material-symbols-rounded md-48" style="color:var(--text-muted); opacity:0.6; margin-bottom:12px;">ramen_dining</span>
+        <h3 class="diabla-font">Sin órdenes en esta categoría</h3>
+        <p>Los nuevos pedidos aparecerán aquí en tiempo real</p>
+      </div>
+    `;
     return;
   }
 
@@ -448,16 +421,168 @@ function setFilter(filter) {
 
   const ordersGrid = document.getElementById('ordersGrid');
   const refundsGrid = document.getElementById('refundsGrid');
+  const evidenceSubTabs = document.getElementById('evidenceSubTabs');
 
   if (filter === 'refunds') {
     if (ordersGrid) ordersGrid.style.display = 'none';
     if (refundsGrid) refundsGrid.style.display = 'grid';
+    if (evidenceSubTabs) evidenceSubTabs.style.display = 'none';
     renderRefunds();
+  } else if (filter === 'evidence') {
+    if (ordersGrid) ordersGrid.style.display = 'grid';
+    if (refundsGrid) refundsGrid.style.display = 'none';
+    if (evidenceSubTabs) evidenceSubTabs.style.display = 'flex';
+    renderOrders();
   } else {
     if (ordersGrid) ordersGrid.style.display = 'grid';
     if (refundsGrid) refundsGrid.style.display = 'none';
+    if (evidenceSubTabs) evidenceSubTabs.style.display = 'none';
     renderOrders();
   }
+}
+
+// Evidence sub-tab selector
+function setEvidenceSubFilter(subFilter) {
+  evidenceSubFilter = subFilter;
+  document.querySelectorAll('.evidence-sub-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.sub === subFilter);
+  });
+  renderOrders();
+}
+
+// Render the evidence section (sub-tabs: proofs vs plates)
+function renderEvidenceView(grid, filteredOrders) {
+  if (evidenceSubFilter === 'plates') {
+    renderPlateEvidence(grid);
+    return;
+  }
+
+  // --- Comprobantes de Pedidos ---
+  const proofOrders = filteredOrders.filter(o => !!o.deliveryProofUrl);
+  if (proofOrders.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <span class="material-symbols-rounded md-48" style="color:var(--text-muted); opacity:0.6; margin-bottom:12px;">photo_camera</span>
+        <h3 class="diabla-font">Sin comprobantes registrados</h3>
+        <p>Cuando un repartidor tome la foto de entrega, aparecerá aquí con visor en alta resolución.</p>
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = proofOrders.map(order => {
+    const shortId = order.id.length > 8 ? order.id.substring(0, 8).toUpperCase() : order.id.toUpperCase();
+    const addressStr = order.formattedAddress || (order.address && order.address.formattedAddress) || (typeof order.address === 'string' ? order.address : 'Dirección de entrega');
+    const customer = order.customerName || order.userName || order.userId || 'Cliente La Diabla';
+    const driver = order.driverName || 'Repartidor La Diabla';
+    const proofUrl = order.deliveryProofUrl;
+    const cleanProofUrl = encodeURIComponent(proofUrl);
+    const safeCustomer = customer.replace(/'/g, "\\'");
+    const safeAddress = addressStr.replace(/'/g, "\\'");
+    const safeDriver = driver.replace(/'/g, "\\'");
+
+    return `
+      <div class="evidence-card">
+        <div class="evidence-thumb-wrapper" onclick="openProofModal('${cleanProofUrl}', '${order.id}', '${safeCustomer}', '${safeAddress}', '${safeDriver}')">
+          <img src="${proofUrl}" alt="Evidencia Pedido #${shortId}" class="evidence-thumb-img" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'200\' height=\'200\'><rect width=\'100%\' height=\'100%\' fill=\'%23333\'/><text x=\'50%\' y=\'50%\' fill=\'%23888\' dominant-baseline=\'middle\' text-anchor=\'middle\'>Error Cargando Foto</text></svg>'">
+          <div class="evidence-badge-verified">
+            <span class="material-symbols-rounded" style="font-size:14px;">check_circle</span>
+            <span>ENTREGA VERIFICADA</span>
+          </div>
+        </div>
+        <div class="evidence-card-content">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <span class="order-id diabla-font" style="color:#DC2626; font-size:1.05rem;">PEDIDO #${shortId}</span>
+            <span style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center; gap:4px;">
+              <span class="material-symbols-rounded md-14">schedule</span> ${formatTime(order.deliveredAt || order.createdAt)}
+            </span>
+          </div>
+          <div style="margin-top:2px;">
+            <div style="font-weight:700; color:var(--text-main); font-size:0.92rem; display:flex; align-items:center; gap:5px;">
+              <span class="material-symbols-rounded md-16" style="color:#DC2626;">person</span> ${customer}
+            </div>
+            <div style="font-size:0.83rem; color:var(--text-muted); margin-top:3px; display:flex; align-items:flex-start; gap:5px;">
+              <span class="material-symbols-rounded md-16" style="color:#DC2626; flex-shrink:0;">location_on</span>
+              <span>${addressStr}</span>
+            </div>
+            <div style="font-size:0.82rem; color:#10B981; margin-top:4px; display:flex; align-items:center; gap:5px; font-weight:600;">
+              <span class="material-symbols-rounded md-16">two_wheeler</span> Repartidor: ${driver}
+            </div>
+          </div>
+          <div style="margin-top:auto; padding-top:10px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--card-border);">
+            <span class="diabla-font" style="font-size:1.1rem; color:var(--text-main);">${formatCOP(order.total || 0)}</span>
+            <button type="button" class="btn-proof-preview" onclick="openProofModal('${cleanProofUrl}', '${order.id}', '${safeCustomer}', '${safeAddress}', '${safeDriver}')">
+              <span class="material-symbols-rounded md-16">zoom_in</span> Ver Completa
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Render plate evidence cards
+function renderPlateEvidence(grid) {
+  if (allDriverUsers.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <span class="material-symbols-rounded md-48" style="color:var(--text-muted); opacity:0.6; margin-bottom:12px;">directions_car</span>
+        <h3 class="diabla-font">Sin placas registradas</h3>
+        <p>Cuando un repartidor registre la foto de su placa desde la app, aparecerá aquí.</p>
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = allDriverUsers.map(driver => {
+    const name = driver.name || driver.displayName || 'Repartidor';
+    const plate = driver.vehiclePlate || 'Sin Placa';
+    const model = driver.vehicleModel || 'Sin Modelo';
+    const color = driver.vehicleColor || '';
+    const platePhotoUrl = driver.vehiclePlatePhotoUrl || '';
+    const soatStatus = driver.soatStatus || 'No verificado';
+    const safeName = name.replace(/'/g, "\\'");
+    const safePlate = plate.replace(/'/g, "\\'");
+    const cleanPlateUrl = encodeURIComponent(platePhotoUrl);
+
+    return `
+      <div class="plate-card">
+        <div class="plate-thumb-wrapper" onclick="openProofModal('${cleanPlateUrl}', '', '${safeName}', 'Placa: ${safePlate}', '${safeName}')">
+          ${platePhotoUrl
+            ? `<img src="${platePhotoUrl}" alt="Placa ${plate}" class="evidence-thumb-img" onerror="this.parentElement.innerHTML='<div class=plate-no-photo><span class=\'material-symbols-rounded md-36\'>directions_car</span></div>'">`
+            : `<div class="plate-no-photo"><span class="material-symbols-rounded md-36">directions_car</span></div>`
+          }
+          <div class="evidence-badge-verified" style="background:rgba(59,130,246,0.85);">
+            <span class="material-symbols-rounded" style="font-size:14px;">badge</span>
+            <span>PLACA REGISTRADA</span>
+          </div>
+        </div>
+        <div class="evidence-card-content">
+          <div style="font-weight:800; font-size:1.25rem; letter-spacing:2px; color:#3B82F6; font-family:'Bangers',cursive; display:flex; align-items:center; gap:8px;">
+            <span class="material-symbols-rounded md-20">pin</span>${plate}
+          </div>
+          <div style="font-weight:600; color:var(--text-main); font-size:0.92rem; display:flex; align-items:center; gap:5px; margin-top:2px;">
+            <span class="material-symbols-rounded md-16" style="color:#10B981;">person</span> ${name}
+          </div>
+          <div style="font-size:0.83rem; color:var(--text-muted); margin-top:3px; display:flex; align-items:center; gap:5px;">
+            <span class="material-symbols-rounded md-16">two_wheeler</span> ${model}${color ? ' • ' + color : ''}
+          </div>
+          <div style="margin-top:8px; display:flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; padding:5px 10px; border-radius:8px; width:fit-content; ${
+            soatStatus === 'vigente'
+              ? 'background:rgba(22,163,74,0.15); color:#16A34A; border:1px solid rgba(22,163,74,0.3);'
+              : 'background:rgba(245,158,11,0.15); color:#F59E0B; border:1px solid rgba(245,158,11,0.3);'
+          }">
+            <span class="material-symbols-rounded md-14">verified_user</span> SOAT: ${soatStatus}
+          </div>
+          <div style="margin-top:auto; padding-top:10px; border-top:1px solid var(--card-border);">
+            <button type="button" class="btn-proof-preview" style="border-color:#3B82F6; color:#3B82F6;" onclick="openProofModal('${cleanPlateUrl}', '', '${safeName}', 'Placa: ${safePlate}', '${safeName}')">
+              <span class="material-symbols-rounded md-16">zoom_in</span> Ver Placa
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 // Render Refunds Section
@@ -675,7 +800,7 @@ function updateThemeToggleBtnLabel(theme) {
 // Abrir Evidencia de Entrega en Alta Resolución dentro del modal interactivo
 function openProofModal(encodedUrl, orderId, customerName, address, driverName) {
   const url = decodeURIComponent(encodedUrl || '');
-  if (!url || !url.startsWith('http')) return;
+  if (!url || (!url.startsWith('http') && !url.startsWith('data:image/'))) return;
 
   const modal = document.getElementById('proofPhotoModal');
   const img = document.getElementById('proofModalImg');

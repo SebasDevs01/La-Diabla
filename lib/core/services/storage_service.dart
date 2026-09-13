@@ -1,10 +1,10 @@
-// lib/core/services/storage_service.dart
+import 'dart:convert';
 import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:logger/logger.dart';
 import '../errors/app_exception.dart';
 
-/// Servicio de Firebase Storage para subir/bajar archivos.
+/// Servicio de Firebase Storage para subir/bajar archivos con fallback a Base64.
 class StorageService {
   StorageService({FirebaseStorage? storage})
       : _storage = storage ?? FirebaseStorage.instance;
@@ -52,6 +52,7 @@ class StorageService {
   /// Elimina un archivo del storage dado su URL de descarga.
   Future<void> deleteFileByUrl(String downloadUrl) async {
     try {
+      if (downloadUrl.startsWith('data:')) return;
       final ref = _storage.refFromURL(downloadUrl);
       await ref.delete();
     } catch (e) {
@@ -71,14 +72,18 @@ class StorageService {
         SettableMetadata(contentType: 'image/jpeg'),
       );
       final downloadUrl = await uploadTask.ref.getDownloadURL();
-      _logger.d('Archivo subido: $downloadUrl');
+      _logger.d('Archivo subido a Firebase Storage: $downloadUrl');
       return downloadUrl;
-    } on FirebaseException catch (e) {
-      _logger.e('Error subiendo archivo', error: e);
-      throw DataException(
-        'Error al subir archivo: ${e.message}',
-        code: e.code,
-      );
+    } catch (e) {
+      _logger.w('Firebase Storage no disponible ($e). Usando fallback local Base64.');
+      try {
+        final bytes = await file.readAsBytes();
+        final base64Str = base64Encode(bytes);
+        return 'data:image/jpeg;base64,$base64Str';
+      } catch (readErr) {
+        _logger.e('Error leyendo archivo para Base64', error: readErr);
+        throw DataException('Error al procesar archivo: $readErr');
+      }
     }
   }
 }

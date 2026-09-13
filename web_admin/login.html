@@ -67,8 +67,8 @@
           </label>
           <div class="input-icon-wrap">
             <span class="material-symbols-rounded md-20 input-icon">mail</span>
-            <input type="email" id="email" class="form-input form-input-icon" value="appladiabla@gmail.com" required
-              placeholder="correo@ejemplo.com">
+            <input type="email" id="email" class="form-input form-input-icon" required
+              placeholder="correo@ejemplo.com" autocomplete="username">
           </div>
         </div>
 
@@ -79,14 +79,14 @@
           </label>
           <div class="input-icon-wrap">
             <span class="material-symbols-rounded md-20 input-icon">lock</span>
-            <input type="password" id="password" class="form-input form-input-icon" value="diablaadmin1" required
-              placeholder="••••••••">
+            <input type="password" id="password" class="form-input form-input-icon" required
+              placeholder="••••••••" autocomplete="current-password">
           </div>
         </div>
 
         <div id="loginError" class="error-alert" style="display: none;">
           <span class="material-symbols-rounded md-20">error</span>
-          Credenciales inválidas. Verifica tu correo y contraseña.
+          Credenciales incorrectas o acceso no autorizado.
         </div>
 
         <button type="submit" class="btn-primary login-submit-btn">
@@ -98,12 +98,8 @@
       <div class="login-footer-info">
         <span class="material-symbols-rounded md-24" style="color: var(--primary);">shield</span>
         <div>
-          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px;">Credenciales de acceso rápido:</p>
-          <p style="font-size: 0.85rem;">
-            <strong style="color: #FF8080;">appladiabla@gmail.com</strong>
-            &nbsp;/&nbsp;
-            <strong style="color: #FF8080;">diablaadmin1</strong>
-          </p>
+          <p style="font-size: 0.82rem; color: var(--text-main); font-weight: 600; margin-bottom: 2px;">Acceso Protegido y Encriptado</p>
+          <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0;">Uso exclusivo para la administración autorizada de La Diabla.</p>
         </div>
       </div>
     </div>
@@ -127,6 +123,11 @@
       firebase.initializeApp(firebaseConfig);
     }
 
+    async function sha256(str) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
     document.getElementById('loginForm').addEventListener('submit', async function (e) {
       e.preventDefault();
       const email = document.getElementById('email').value.trim();
@@ -136,7 +137,14 @@
       btn.innerHTML = '<span class="material-symbols-rounded md-20" style="animation: spin 1s infinite linear;">sync</span> Verificando...';
       btn.disabled = true;
 
-      if (email.toLowerCase() === 'appladiabla@gmail.com' && password === 'diablaadmin1') {
+      const emailHash = await sha256(email.toLowerCase());
+      const passHash = await sha256(password);
+
+      // Verificación encriptada mediante hashes SHA-256
+      const validEmailHash = 'd6d2d19c04b40f62595a5f0c3271895d2e2ba1f61dcaffedc2f85a2791eaf811';
+      const validPassHash  = '0eb770958fcde1c432206d03a4f3a8aa9a268c274bf52f7eadeb0a159d11b790';
+
+      if (emailHash === validEmailHash && passHash === validPassHash) {
         sessionStorage.setItem('diabla_admin_auth', 'true');
         sessionStorage.setItem('diabla_admin_email', email);
         try {

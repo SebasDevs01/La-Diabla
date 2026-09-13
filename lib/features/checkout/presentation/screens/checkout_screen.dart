@@ -420,9 +420,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     // 🐛 DEBUG: Ayuda a diagnosticar pantalla en blanco
     debugPrint('🛒 CheckoutScreen.build: items=${cartState.items.length}, isEmpty=${cartState.items.isEmpty}, user=${authState.user?.id ?? "null"}');
 
-    final subtotal = cartState.total;
-    final couponDiscount = couponState.coupon?.calculateDiscount(subtotal) ?? 0;
-    final total = (subtotal - couponDiscount).clamp(0.0, double.infinity);
+    final baseSubtotal = cartState.subtotal;
+    final deliveryFee = cartState.effectiveDeliveryFee;
+    final couponDiscount = couponState.coupon != null && couponState.coupon!.type != CouponType.freeDelivery
+        ? couponState.coupon!.calculateDiscount(baseSubtotal)
+        : cartState.discount;
+    final total = (baseSubtotal + deliveryFee - couponDiscount).clamp(0.0, double.infinity);
     final distanceKm = cartState.distanceKm ?? 2.8;
     final isLoading = createOrderState.isLoading;
 
@@ -815,13 +818,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 ),
                                 onPressed: couponState.isLoading
                                     ? null
-                                    : () {
+                                    : () async {
                                         final code = _couponCtrl.text.trim();
                                         if (code.isNotEmpty) {
-                                          ref.read(couponProvider.notifier).validateCoupon(
-                                                code: code,
-                                                userId: authState.user?.id ?? 'guest',
-                                                subtotal: cartState.subtotal,
+                                          final userId = authState.user?.id ?? 'guest';
+                                          await ref.read(cartNotifierProvider.notifier).applyCouponWithFeedback(
+                                                code,
+                                                userId: userId,
                                               );
                                         }
                                       },
@@ -840,6 +843,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 onPressed: () {
                                   _couponCtrl.clear();
                                   ref.read(couponProvider.notifier).clearCoupon();
+                                  ref.read(cartNotifierProvider.notifier).removeCoupon();
                                 },
                               ),
                           ],

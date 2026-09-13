@@ -13,6 +13,7 @@ import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/menu/presentation/screens/menu_screen.dart';
 import '../../features/menu/presentation/screens/product_detail_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
+import '../../features/orders/presentation/screens/order_chat_screen.dart';
 import '../../features/orders/presentation/screens/order_detail_screen.dart';
 import '../../features/orders/presentation/screens/orders_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
@@ -153,6 +154,15 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final orderId = state.pathParameters['orderId']!;
         return OrderTrackingScreen(orderId: orderId);
+      },
+    ),
+    GoRoute(
+      parentNavigatorKey: rootNavigatorKey,
+      path: '/chat/:orderId',
+      name: RouteNames.orderChat,
+      builder: (context, state) {
+        final orderId = state.pathParameters['orderId']!;
+        return OrderChatScreen(orderId: orderId);
       },
     ),
     GoRoute(

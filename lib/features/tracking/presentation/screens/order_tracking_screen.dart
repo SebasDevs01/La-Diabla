@@ -1,4 +1,5 @@
 // lib/features/tracking/presentation/screens/order_tracking_screen.dart
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -184,6 +185,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         ],
       ),
       body: orderAsync.when(
+        skipLoadingOnReload: true,
+        skipLoadingOnRefresh: true,
         loading: () => const Center(
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
@@ -224,61 +227,79 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     }
     _checkDeliveredRating(order);
 
-    // Cargar ruta por calles reales si aún no se ha obtenido
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _ensureSmartRoute(driverPos, destPos);
-    });
+    final bool isDelivered = currentStatus == OrderStatus.delivered;
 
-    final markers = <Marker>{
-      Marker(
-        markerId: const MarkerId('restaurant'),
-        position: MapsService.defaultLocation,
-        infoWindow: const InfoWindow(title: 'La Diabla 🌶️', snippet: 'Cocina Central'),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-      ),
-      Marker(
-        markerId: const MarkerId('driver'),
-        position: driverPos,
-        rotation: _driverBearing,
-        flat: true,
-        anchor: const Offset(0.5, 0.5),
-        infoWindow: InfoWindow(
-          title: 'Repartidor La Diabla 🛵',
-          snippet: _etaText.isNotEmpty
-              ? 'Llegada: $_etaText (${(distanceToDestKm * 1000).toInt()}m)'
-              : 'A ${(distanceToDestKm * 1000).toInt()}m de tu destino',
-        ),
-        icon: _driverIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
-      ),
-      Marker(
-        markerId: const MarkerId('destination'),
-        position: destPos,
-        infoWindow: InfoWindow(
-          title: 'Tu Dirección 🏠',
-          snippet: order.address?.formattedAddress ?? 'Dirección de Entrega',
-        ),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-      ),
-    };
+    // Cargar ruta por calles reales si el pedido está activo (no entregado)
+    if (!isDelivered && currentStatus != OrderStatus.cancelled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _ensureSmartRoute(driverPos, destPos);
+      });
+    }
+
+    final markers = isDelivered
+        ? <Marker>{
+            Marker(
+              markerId: const MarkerId('destination'),
+              position: destPos,
+              infoWindow: InfoWindow(
+                title: '¡Entregado aquí! 🏠🎉',
+                snippet: order.address?.formattedAddress ?? 'Dirección de Entrega',
+              ),
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+            ),
+          }
+        : <Marker>{
+            Marker(
+              markerId: const MarkerId('restaurant'),
+              position: MapsService.defaultLocation,
+              infoWindow: const InfoWindow(title: 'La Diabla 🌶️', snippet: 'Cocina Central'),
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+            ),
+            Marker(
+              markerId: const MarkerId('driver'),
+              position: driverPos,
+              rotation: _driverBearing,
+              flat: true,
+              anchor: const Offset(0.5, 0.5),
+              infoWindow: InfoWindow(
+                title: 'Repartidor La Diabla 🛵',
+                snippet: _etaText.isNotEmpty
+                    ? 'Llegada: $_etaText (${(distanceToDestKm * 1000).toInt()}m)'
+                    : 'A ${(distanceToDestKm * 1000).toInt()}m de tu destino',
+              ),
+              icon: _driverIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
+            ),
+            Marker(
+              markerId: const MarkerId('destination'),
+              position: destPos,
+              infoWindow: InfoWindow(
+                title: 'Tu Dirección 🏠',
+                snippet: order.address?.formattedAddress ?? 'Dirección de Entrega',
+              ),
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+            ),
+          };
 
     final routePoints = _routePoints.isNotEmpty ? _routePoints : [driverPos, destPos];
 
-    final polylines = <Polyline>{
-      // Sombra oscura para alto contraste estilo Waze
-      Polyline(
-        polylineId: const PolylineId('driver_route_shadow'),
-        points: routePoints,
-        color: const Color(0xFF7F1D1D),
-        width: 7,
-      ),
-      // Línea principal rojo fuego sobre las calles
-      Polyline(
-        polylineId: const PolylineId('driver_route'),
-        points: routePoints,
-        color: const Color(0xFFDC2626),
-        width: 4,
-      ),
-    };
+    final polylines = isDelivered
+        ? <Polyline>{}
+        : <Polyline>{
+            // Sombra oscura para alto contraste estilo Waze
+            Polyline(
+              polylineId: const PolylineId('driver_route_shadow'),
+              points: routePoints,
+              color: const Color(0xFF7F1D1D),
+              width: 7,
+            ),
+            // Línea principal rojo fuego sobre las calles
+            Polyline(
+              polylineId: const PolylineId('driver_route'),
+              points: routePoints,
+              color: const Color(0xFFDC2626),
+              width: 4,
+            ),
+          };
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -425,7 +446,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Total: ${PriceFormatter.formatSmart(order.total)} • A ${(distanceToDestKm * 1000).toInt()}m de tu casa',
+                        isDelivered
+                            ? 'Total: ${PriceFormatter.formatSmart(order.total)} • ¡Entregado con éxito! 🎉'
+                            : 'Total: ${PriceFormatter.formatSmart(order.total)} • A ${(distanceToDestKm * 1000).toInt()}m de tu casa',
                         style: const TextStyle(color: Colors.white70, fontSize: 12),
                       ),
                     ],
@@ -482,7 +505,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                   ),
                   child: GoogleMap(
                     initialCameraPosition: CameraPosition(
-                      target: driverPos,
+                      target: isDelivered ? destPos : driverPos,
                       zoom: 15.2,
                     ),
                     onMapCreated: (ctrl) => _mapController = ctrl,
@@ -493,7 +516,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                   ),
                 ),
 
-                // Badge Flotante con ETA en tiempo real estilo Uber
+                // Badge Flotante con ETA o Estado de Entrega
                 Positioned(
                   top: 12,
                   left: 12,
@@ -507,40 +530,70 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                         BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
                       ],
                       border: Border.all(
-                        color: const Color(0xFFDC2626).withAlpha(120),
+                        color: isDelivered ? const Color(0xFF16A34A).withAlpha(150) : const Color(0xFFDC2626).withAlpha(120),
                         width: 1.2,
                       ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Color(0xFF16A34A),
+                    child: isDelivered
+                        ? Row(
+                            children: [
+                              const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 19),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  '¡Pedido Entregado con éxito! 🎉',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _etaText.isNotEmpty ? 'Llegada: $_etaText' : 'Calculando ruta...',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          '${distanceToDestKm.toStringAsFixed(1)} km',
-                          style: const TextStyle(
-                            color: Color(0xFFDC2626),
-                            fontWeight: FontWeight.w900,
-                            fontSize: 12.5,
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF16A34A).withAlpha(20),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: const Color(0xFF16A34A).withAlpha(80)),
+                                ),
+                                child: const Text(
+                                  'Entregado ✅',
+                                  style: TextStyle(
+                                    color: Color(0xFF16A34A),
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Color(0xFF16A34A),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _etaText.isNotEmpty ? 'Llegada: $_etaText' : 'Calculando ruta...',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                '${distanceToDestKm.toStringAsFixed(1)} km',
+                                style: const TextStyle(
+                                  color: Color(0xFFDC2626),
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 12.5,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
               ],
@@ -548,8 +601,16 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           ),
           const SizedBox(height: 20),
 
-          // Tarjeta de Repartidor con Reseñas y Calificaciones (Estilo Rappi)
-          if (order.status.index >= OrderStatus.assigned.index) ...[
+          // Comprobante de Entrega fotográfico registrado por el repartidor
+          if (order.deliveryProofUrl != null && order.deliveryProofUrl!.isNotEmpty) ...[
+            _buildDeliveryProofCard(order.deliveryProofUrl!, isDark),
+            const SizedBox(height: 20),
+          ],
+
+          // Tarjeta de Repartidor visible en todo momento si está asignado o el pedido lo referencia
+          if (order.driverId != null ||
+              order.driverName != null ||
+              order.status.index >= OrderStatus.assigned.index) ...[
             _buildDriverProfileCard(order, isDark),
             const SizedBox(height: 20),
           ],
@@ -567,10 +628,129 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     );
   }
 
+  /// Tarjeta de Comprobante de Entrega fotográfico registrado por el repartidor
+  Widget _buildDeliveryProofCard(String proofUrl, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF2C1B14) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? AppColors.dividerDark : Colors.grey.shade200,
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(isDark ? 30 : 10),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.photo_camera_rounded, color: Color(0xFF16A34A), size: 22),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'COMPROBANTE DE ENTREGA 📸',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                    color: Color(0xFF16A34A),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF16A34A).withAlpha(25),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Verificada',
+                  style: TextStyle(
+                    color: Color(0xFF16A34A),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Foto capturada por el repartidor al momento de entregarte el pedido:',
+            style: TextStyle(fontSize: 11.5, color: Colors.grey),
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: () => _showProfilePhotoDialog(context, proofUrl, 'Comprobante de Entrega'),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  proofUrl.startsWith('data:image/')
+                      ? Image.memory(
+                          base64Decode(proofUrl.split(',').last),
+                          height: 180,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            height: 180,
+                            color: Colors.grey.shade300,
+                            child: const Center(child: Icon(Icons.broken_image, size: 40)),
+                          ),
+                        )
+                      : Image.network(
+                          proofUrl,
+                          height: 180,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            height: 180,
+                            color: Colors.grey.shade300,
+                            child: const Center(child: Icon(Icons.broken_image, size: 40)),
+                          ),
+                        ),
+                  Container(
+                    margin: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withAlpha(180),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.zoom_in_rounded, color: Colors.white, size: 16),
+                        SizedBox(width: 4),
+                        Text(
+                          'Toca para ampliar',
+                          style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Tarjeta del Repartidor asignado con Foto, Calificación, Contacto y Reseñas
   Widget _buildDriverProfileCard(OrderEntity order, bool isDark) {
     final driverId = order.driverId ?? 'driver_01';
     final fallbackName = order.driverName ?? 'Repartidor La Diabla';
+    final bool isDelivered = order.status == OrderStatus.delivered;
 
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('users').doc(driverId).snapshots(),
@@ -583,12 +763,51 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         final vehicleColor = data?['vehicleColor'] as String? ?? '';
         final ratingAvg = (data?['driverAverageRating'] as num?)?.toDouble() ?? 5.0;
         final ratingCount = (data?['driverRatingCount'] as num?)?.toInt() ?? 0;
+        // Priority: live Firestore profile → photo saved in the order → default asset
+        final rawPhoto = (data?['photoUrl'] as String?)?.isNotEmpty == true
+            ? (data!['photoUrl'] as String)
+            : (order.driverPhotoUrl ?? '');
+        final driverPhotoUrl = rawPhoto.isNotEmpty ? rawPhoto : 'assets/images/diabloperfil.png';
 
         final vehicleParts = <String>[];
         if (vehicleModel.isNotEmpty) vehicleParts.add(vehicleModel);
         if (vehiclePlate.isNotEmpty) vehicleParts.add('Placa: $vehiclePlate');
         if (vehicleColor.isNotEmpty) vehicleParts.add('Color: $vehicleColor');
         final vehicleDisplay = vehicleParts.isNotEmpty ? vehicleParts.join(' • ') : 'Repartidor Autorizado';
+
+        Widget buildDriverAvatarWidget(String url) {
+          if (url.startsWith('data:image/')) {
+            try {
+              final bytes = base64Decode(url.split(',').last);
+              return Image.memory(
+                bytes,
+                fit: BoxFit.cover,
+                width: 58,
+                height: 58,
+                errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/diabloperfil.png', fit: BoxFit.cover, width: 58, height: 58),
+              );
+            } catch (_) {
+              return Image.asset('assets/images/diabloperfil.png', fit: BoxFit.cover, width: 58, height: 58);
+            }
+          } else if (url.startsWith('http')) {
+            return Image.network(
+              url,
+              fit: BoxFit.cover,
+              width: 58,
+              height: 58,
+              errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/diabloperfil.png', fit: BoxFit.cover, width: 58, height: 58),
+            );
+          } else if (url.startsWith('assets/')) {
+            return Image.asset(
+              url,
+              fit: BoxFit.cover,
+              width: 58,
+              height: 58,
+              errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/diabloperfil.png', fit: BoxFit.cover, width: 58, height: 58),
+            );
+          }
+          return Image.asset('assets/images/diabloperfil.png', fit: BoxFit.cover, width: 58, height: 58);
+        }
 
         return Container(
           padding: const EdgeInsets.all(16),
@@ -610,18 +829,65 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (isDelivered)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF16A34A).withAlpha(20),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF16A34A), width: 1),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 14),
+                      SizedBox(width: 5),
+                      Text(
+                        'Tu repartidor en esta entrega 🛵✅',
+                        style: TextStyle(
+                          color: Color(0xFF16A34A),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               Row(
                 children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFFDC2626), width: 2),
-                      color: const Color(0xFF1E1712),
-                    ),
-                    child: const Center(
-                      child: Text('🛵', style: TextStyle(fontSize: 26)),
+                  // Foto de perfil del repartidor — toca para ver ampliada
+                  GestureDetector(
+                    onTap: () => _showProfilePhotoDialog(context, driverPhotoUrl, driverName),
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: 58,
+                          height: 58,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFFDC2626), width: 2.5),
+                            color: const Color(0xFF1E1712),
+                          ),
+                          child: ClipOval(
+                            child: buildDriverAvatarWidget(driverPhotoUrl),
+                          ),
+                        ),
+                        if (driverPhotoUrl.isNotEmpty)
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              width: 18,
+                              height: 18,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Color(0xFFDC2626),
+                              ),
+                              child: const Icon(Icons.zoom_in_rounded, color: Colors.white, size: 12),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -692,7 +958,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
               ),
               const Divider(height: 22),
 
-              // Botones de Contacto y Botón de Reseñas
+              // Botones de Contacto (siempre disponibles)
               Row(
                 children: [
                   Expanded(
@@ -754,13 +1020,15 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                     elevation: 1,
                   ),
                   icon: const Icon(Icons.forum_rounded, size: 17),
-                  label: const Text(
-                    'Chat con el Repartidor 💬',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                  label: Text(
+                    isDelivered ? 'Ver Chat del Pedido 💬' : 'Chat con el Repartidor 💬',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
                   ),
                   onPressed: () {
-                    final currentUserId = ref.read(authNotifierProvider).user?.id ?? 'customer';
-                    final currentUserName = ref.read(authNotifierProvider).user?.name ?? 'Cliente';
+                    final currentUser = ref.read(authNotifierProvider).user;
+                    final currentUserId = currentUser?.id ?? 'customer';
+                    final currentUserName = currentUser?.name ?? 'Cliente';
+                    final currentUserPhoto = currentUser?.photoUrl;
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -772,6 +1040,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                           peerName: driverName,
                           peerPhone: phone,
                           peerRole: 'Repartidor',
+                          peerPhotoUrl: driverPhotoUrl,
+                          currentUserPhotoUrl: currentUserPhoto,
                         ),
                       ),
                     );
@@ -806,6 +1076,88 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           ),
         );
       },
+    );
+  }
+
+  /// Muestra la foto de perfil o comprobante en pantalla completa con soporte de zoom.
+  void _showProfilePhotoDialog(BuildContext context, String photoUrl, String name) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) => GestureDetector(
+        onTap: () => Navigator.of(ctx).pop(),
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Stack(
+            children: [
+              Center(
+                child: Hero(
+                  tag: 'profile_photo_$photoUrl',
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: InteractiveViewer(
+                      child: photoUrl.startsWith('data:image/')
+                          ? Image.memory(
+                              base64Decode(photoUrl.split(',').last),
+                              fit: BoxFit.contain,
+                              width: MediaQuery.of(ctx).size.width * 0.88,
+                              errorBuilder: (_, e, s) => const Icon(
+                                Icons.person_rounded,
+                                color: Colors.white54,
+                                size: 80,
+                              ),
+                            )
+                          : Image.network(
+                              photoUrl,
+                              fit: BoxFit.contain,
+                              width: MediaQuery.of(ctx).size.width * 0.88,
+                              errorBuilder: (_, e, s) => const Icon(
+                                Icons.person_rounded,
+                                color: Colors.white54,
+                                size: 80,
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: MediaQuery.of(ctx).padding.top + 12,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: MediaQuery.of(ctx).padding.top + 8,
+                right: 16,
+                child: IconButton(
+                  icon: const CircleAvatar(
+                    backgroundColor: Colors.black54,
+                    child: Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                  ),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

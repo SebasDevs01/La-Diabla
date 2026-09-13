@@ -17,4 +17,5 @@ abstract final class RouteNames {
   static const String profile = 'profile';
   static const String notifications = 'notifications';
   static const String qr = 'qr';
+  static const String orderChat = 'orderChat';
 }

@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -17,12 +19,14 @@ class OrderChatScreen extends StatefulWidget {
   const OrderChatScreen({
     super.key,
     required this.orderId,
-    required this.currentUserId,
-    required this.currentUserName,
-    required this.currentUserRole, // 'customer' o 'driver'
-    required this.peerName,
-    required this.peerPhone,
-    required this.peerRole, // 'Repartidor' o 'Cliente'
+    this.currentUserId = '',
+    this.currentUserName = '',
+    this.currentUserRole = '', // 'customer' o 'driver'
+    this.peerName = '',
+    this.peerPhone = '',
+    this.peerRole = '', // 'Repartidor' o 'Cliente'
+    this.peerPhotoUrl,
+    this.currentUserPhotoUrl,
   });
 
   final String orderId;
@@ -32,6 +36,11 @@ class OrderChatScreen extends StatefulWidget {
   final String peerName;
   final String peerPhone;
   final String peerRole;
+  final String? peerPhotoUrl;
+  final String? currentUserPhotoUrl;
+
+  /// ID de la orden actualmente abierta en pantalla (usado para silenciar notificaciones push/locales redundantes)
+  static String? currentActiveOrderId;
 
   @override
   State<OrderChatScreen> createState() => _OrderChatScreenState();
@@ -42,6 +51,23 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
   final ScrollController _scrollCtrl = ScrollController();
   final AudioRecorder _audioRecorder = AudioRecorder();
   final ImagePicker _imagePicker = ImagePicker();
+
+  // Datos dinámicos del interlocutor (Repartidor o Cliente)
+  late String _peerName;
+  late String _peerPhone;
+  late String _peerRole;
+  String _peerPhotoUrl = '';
+  String _peerUserId = '';
+
+  // Datos dinámicos del usuario actual
+  late String _currentUserId;
+  late String _currentUserName;
+  late String _currentUserRole;
+  String _currentUserPhotoUrl = '';
+
+  StreamSubscription<DocumentSnapshot>? _orderDocSub;
+  StreamSubscription<DocumentSnapshot>? _peerUserSub;
+  StreamSubscription<DocumentSnapshot>? _currentUserSub;
 
   bool _isRecording = false;
   int _recordSeconds = 0;
@@ -67,6 +93,25 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
   @override
   void initState() {
     super.initState();
+    OrderChatScreen.currentActiveOrderId = widget.orderId;
+
+    _peerName = widget.peerName;
+    _peerPhone = widget.peerPhone;
+    _peerRole = widget.peerRole.isNotEmpty ? widget.peerRole : 'Contacto';
+    _peerPhotoUrl = widget.peerPhotoUrl ?? '';
+
+    final currentAuthUser = FirebaseAuth.instance.currentUser;
+    _currentUserId = widget.currentUserId.isNotEmpty
+        ? widget.currentUserId
+        : (currentAuthUser?.uid ?? 'guest');
+    _currentUserName = widget.currentUserName.isNotEmpty
+        ? widget.currentUserName
+        : (currentAuthUser?.displayName ?? 'Usuario');
+    _currentUserRole = widget.currentUserRole.isNotEmpty
+        ? widget.currentUserRole
+        : 'customer';
+    _currentUserPhotoUrl = widget.currentUserPhotoUrl ?? (currentAuthUser?.photoURL ?? '');
+
     _posSub = _audioPlayer.onPositionChanged.listen((pos) {
       if (mounted) setState(() => _audioPosition = pos);
     });
@@ -76,10 +121,18 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     _stateSub = _audioPlayer.onPlayerStateChanged.listen((state) {
       if (mounted) setState(() => _playerState = state);
     });
+
+    _initChatProfiles();
   }
 
   @override
   void dispose() {
+    if (OrderChatScreen.currentActiveOrderId == widget.orderId) {
+      OrderChatScreen.currentActiveOrderId = null;
+    }
+    _orderDocSub?.cancel();
+    _peerUserSub?.cancel();
+    _currentUserSub?.cancel();
     _recordTimer?.cancel();
     _audioRecorder.dispose();
     _posSub?.cancel();
@@ -89,6 +142,101 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     _textCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
+  }
+
+  /// Escucha en tiempo real la orden y los documentos de usuario para mantener fotos y nombres actualizados
+  void _initChatProfiles() {
+    // 1. Escuchar la orden para saber quién es cliente y quién es repartidor
+    _orderDocSub = FirebaseFirestore.instance
+        .collection('orders')
+        .doc(widget.orderId)
+        .snapshots()
+        .listen((orderSnap) {
+      if (!orderSnap.exists || !mounted) return;
+      final dynamic rawOrder = orderSnap.data();
+      if (rawOrder == null || rawOrder is! Map<String, dynamic>) return;
+      final orderData = rawOrder;
+
+      final customerId = orderData['userId'] as String? ?? '';
+      final customerName = orderData['customerName'] as String? ?? 'Cliente';
+      final customerPhone = orderData['customerPhone'] as String? ?? '';
+      final customerPhoto = orderData['customerPhotoUrl'] as String? ?? '';
+
+      final driverId = orderData['driverId'] as String? ?? '';
+      final driverName = orderData['driverName'] as String? ?? 'Repartidor La Diabla';
+      final driverPhone = orderData['driverPhone'] as String? ?? '';
+      final driverPhoto = orderData['driverPhotoUrl'] as String? ?? '';
+
+      // Determinar si soy el repartidor o el cliente
+      final amIDriver = _currentUserRole == 'driver' ||
+          _currentUserId == driverId ||
+          widget.peerRole == 'Cliente';
+
+      setState(() {
+        if (amIDriver) {
+          _currentUserRole = 'driver';
+          _peerRole = 'Cliente';
+          _peerUserId = customerId;
+          if (_peerName.isEmpty || _peerName == 'Cliente') _peerName = customerName;
+          if (_peerPhone.isEmpty) _peerPhone = customerPhone;
+          if (_peerPhotoUrl.isEmpty && customerPhoto.isNotEmpty) _peerPhotoUrl = customerPhoto;
+          if (_currentUserPhotoUrl.isEmpty && driverPhoto.isNotEmpty) _currentUserPhotoUrl = driverPhoto;
+        } else {
+          _currentUserRole = 'customer';
+          _peerRole = 'Repartidor';
+          _peerUserId = driverId;
+          if (_peerName.isEmpty || _peerName == 'Repartidor') _peerName = driverName;
+          if (_peerPhone.isEmpty) _peerPhone = driverPhone;
+          if (_peerPhotoUrl.isEmpty && driverPhoto.isNotEmpty) _peerPhotoUrl = driverPhoto;
+          if (_currentUserPhotoUrl.isEmpty && customerPhoto.isNotEmpty) _currentUserPhotoUrl = customerPhoto;
+        }
+      });
+
+      // 2. Escuchar perfil en vivo del interlocutor en users/{peerId} para obtener su foto más reciente
+      if (_peerUserId.isNotEmpty && _peerUserSub == null) {
+        _peerUserSub = FirebaseFirestore.instance
+            .collection('users')
+            .doc(_peerUserId)
+            .snapshots()
+            .listen((userSnap) {
+          if (!userSnap.exists || !mounted) return;
+          final dynamic rawUser = userSnap.data();
+          if (rawUser == null || rawUser is! Map<String, dynamic>) return;
+          final uData = rawUser;
+
+          final livePhoto = uData['photoUrl'] as String? ?? '';
+          final liveName = uData['name'] as String? ?? '';
+          final livePhone = uData['phone'] as String? ?? '';
+
+          if (mounted) {
+            setState(() {
+              if (livePhoto.isNotEmpty) _peerPhotoUrl = livePhoto;
+              if (liveName.isNotEmpty && _peerName.isEmpty) _peerName = liveName;
+              if (livePhone.isNotEmpty && _peerPhone.isEmpty) _peerPhone = livePhone;
+            });
+          }
+        });
+      }
+
+      // 3. Escuchar perfil del usuario actual para asegurar que mi foto esté al día
+      if (_currentUserId.isNotEmpty && _currentUserSub == null) {
+        _currentUserSub = FirebaseFirestore.instance
+            .collection('users')
+            .doc(_currentUserId)
+            .snapshots()
+            .listen((mySnap) {
+          if (!mySnap.exists || !mounted) return;
+          final dynamic rawMy = mySnap.data();
+          if (rawMy != null && rawMy is Map<String, dynamic> && mounted) {
+            final myData = rawMy;
+            final myPhoto = myData['photoUrl'] as String? ?? '';
+            if (myPhoto.isNotEmpty && myPhoto != _currentUserPhotoUrl) {
+              setState(() => _currentUserPhotoUrl = myPhoto);
+            }
+          }
+        });
+      }
+    });
   }
 
   void _scrollToBottom() {
@@ -102,7 +250,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
   }
 
   Future<void> _makeCall() async {
-    final cleanPhone = widget.peerPhone.replaceAll(RegExp(r'\D'), '');
+    final cleanPhone = _peerPhone.replaceAll(RegExp(r'\D'), '');
     if (cleanPhone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -129,6 +277,55 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     }
   }
 
+  /// Notifica al interlocutor en Firestore y actualiza el último mensaje de la orden
+  Future<void> _notifyRecipient({
+    required String messageText,
+    required String type,
+  }) async {
+    if (_peerUserId.isEmpty) return;
+
+    try {
+      final preview = type == 'image'
+          ? '📷 Envió una foto'
+          : (type == 'audio' ? '🎤 Envió una nota de voz' : messageText);
+
+      final title = _currentUserRole == 'driver'
+          ? '💬 Repartidor: $_currentUserName'
+          : '💬 Cliente: $_currentUserName';
+
+      // 1. Guardar notificación en Firestore para el destinatario
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_peerUserId)
+          .collection('notifications')
+          .add({
+        'title': title,
+        'body': preview,
+        'orderId': widget.orderId,
+        'type': 'chat_message',
+        'senderId': _currentUserId,
+        'senderName': _currentUserName,
+        'senderRole': _currentUserRole,
+        'senderPhotoUrl': _currentUserPhotoUrl,
+        'createdAt': FieldValue.serverTimestamp(),
+        'isRead': false,
+      });
+
+      // 2. Actualizar orders/{orderId} con lastChatMessage
+      await FirebaseFirestore.instance.collection('orders').doc(widget.orderId).set({
+        'lastChatMessage': {
+          'text': preview,
+          'senderId': _currentUserId,
+          'senderName': _currentUserName,
+          'senderRole': _currentUserRole,
+          'timestamp': FieldValue.serverTimestamp(),
+        }
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error enviando notificación en tiempo real: $e');
+    }
+  }
+
   Future<void> _sendTextMessage() async {
     final text = _textCtrl.text.trim();
     if (text.isEmpty) return;
@@ -138,14 +335,17 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     await _chatCol.doc(docId).set({
       'id': docId,
       'orderId': widget.orderId,
-      'senderId': widget.currentUserId,
-      'senderName': widget.currentUserName,
-      'senderRole': widget.currentUserRole,
+      'senderId': _currentUserId,
+      'senderName': _currentUserName,
+      'senderRole': _currentUserRole,
+      'senderPhotoUrl': _currentUserPhotoUrl,
       'type': 'text',
       'text': text,
       'createdAt': FieldValue.serverTimestamp(),
       'isRead': false,
     });
+
+    _notifyRecipient(messageText: text, type: 'text').ignore();
     _scrollToBottom();
   }
 
@@ -153,40 +353,50 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     try {
       final picked = await _imagePicker.pickImage(
         source: source,
-        imageQuality: 80,
-        maxWidth: 1080,
+        imageQuality: 65,
+        maxWidth: 800,
       );
       if (picked == null) return;
 
       setState(() => _isUploadingMedia = true);
       final file = File(picked.path);
-      final fileName = 'chat_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('orders')
-          .child(widget.orderId)
-          .child('chat_images')
-          .child(fileName);
+      final imageBytes = await file.readAsBytes();
 
-      final uploadTask = await ref.putFile(
-        file,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      String downloadUrl;
+      try {
+        final fileName = 'chat_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('orders')
+            .child(widget.orderId)
+            .child('chat_images')
+            .child(fileName);
+
+        final uploadTask = await ref.putFile(
+          file,
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
+        downloadUrl = await uploadTask.ref.getDownloadURL();
+      } catch (storageErr) {
+        debugPrint('ℹ️ Storage upload fallback a Base64: $storageErr');
+        downloadUrl = 'data:image/jpeg;base64,${base64Encode(imageBytes)}';
+      }
 
       final docId = const Uuid().v4();
       await _chatCol.doc(docId).set({
         'id': docId,
         'orderId': widget.orderId,
-        'senderId': widget.currentUserId,
-        'senderName': widget.currentUserName,
-        'senderRole': widget.currentUserRole,
+        'senderId': _currentUserId,
+        'senderName': _currentUserName,
+        'senderRole': _currentUserRole,
+        'senderPhotoUrl': _currentUserPhotoUrl,
         'type': 'image',
         'mediaUrl': downloadUrl,
         'createdAt': FieldValue.serverTimestamp(),
         'isRead': false,
       });
 
+      _notifyRecipient(messageText: 'Foto', type: 'image').ignore();
       _scrollToBottom();
     } catch (e) {
       if (mounted) {
@@ -209,7 +419,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         final tempDir = await getTemporaryDirectory();
         final path = '${tempDir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
         await _audioRecorder.start(
-          const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 64000),
+          const RecordConfig(encoder: AudioEncoder.aacLc),
           path: path,
         );
         setState(() {
@@ -217,22 +427,9 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
           _recordSeconds = 0;
           _recordedAudioPath = path;
         });
-
-        _recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-          if (mounted) {
-            setState(() => _recordSeconds++);
-          }
+        _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+          if (mounted) setState(() => _recordSeconds++);
         });
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Permiso de micrófono no concedido.'),
-              backgroundColor: Color(0xFFDC2626),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
       }
     } catch (e) {
       if (mounted) {
@@ -284,7 +481,6 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     if (!await file.exists()) return;
 
     if (durationSecs < 1) {
-      // Audio demasiado corto
       try {
         await file.delete();
       } catch (_) {}
@@ -293,27 +489,36 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
     try {
       setState(() => _isUploadingMedia = true);
-      final fileName = 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('orders')
-          .child(widget.orderId)
-          .child('chat_audios')
-          .child(fileName);
+      final audioBytes = await file.readAsBytes();
 
-      final uploadTask = await storageRef.putFile(
-        file,
-        SettableMetadata(contentType: 'audio/mp4'),
-      );
-      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      String downloadUrl;
+      try {
+        final fileName = 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('orders')
+            .child(widget.orderId)
+            .child('chat_audios')
+            .child(fileName);
+
+        final uploadTask = await storageRef.putFile(
+          file,
+          SettableMetadata(contentType: 'audio/mp4'),
+        );
+        downloadUrl = await uploadTask.ref.getDownloadURL();
+      } catch (storageErr) {
+        debugPrint('ℹ️ Storage audio fallback a Base64: $storageErr');
+        downloadUrl = 'data:audio/m4a;base64,${base64Encode(audioBytes)}';
+      }
 
       final docId = const Uuid().v4();
       await _chatCol.doc(docId).set({
         'id': docId,
         'orderId': widget.orderId,
-        'senderId': widget.currentUserId,
-        'senderName': widget.currentUserName,
-        'senderRole': widget.currentUserRole,
+        'senderId': _currentUserId,
+        'senderName': _currentUserName,
+        'senderRole': _currentUserRole,
+        'senderPhotoUrl': _currentUserPhotoUrl,
         'type': 'audio',
         'mediaUrl': downloadUrl,
         'audioDurationSeconds': durationSecs,
@@ -321,6 +526,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         'isRead': false,
       });
 
+      _notifyRecipient(messageText: 'Nota de voz', type: 'audio').ignore();
       _scrollToBottom();
     } catch (e) {
       if (mounted) {
@@ -342,8 +548,217 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
       await _audioPlayer.pause();
     } else {
       _currentlyPlayingUrl = url;
-      await _audioPlayer.play(UrlSource(url));
+      if (url.startsWith('data:audio/')) {
+        try {
+          final base64String = url.split(',').last;
+          final bytes = base64Decode(base64String);
+          await _audioPlayer.play(BytesSource(bytes));
+        } catch (e) {
+          debugPrint('Error reproduciendo audio base64: $e');
+        }
+      } else {
+        await _audioPlayer.play(UrlSource(url));
+      }
     }
+  }
+
+  /// Construye un widget de avatar seguro para cualquier tipo de URL o formato Base64
+  Widget _buildAvatarImageWidget(
+    String? photoUrl, {
+    double radius = 18,
+    String fallbackChar = '👤',
+    VoidCallback? onTap,
+  }) {
+    Widget avatarContent;
+
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      if (photoUrl.startsWith('data:image/')) {
+        try {
+          final bytes = base64Decode(photoUrl.split(',').last);
+          avatarContent = Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            width: radius * 2,
+            height: radius * 2,
+            errorBuilder: (context, error, stackTrace) => _buildFallbackInitial(radius, fallbackChar),
+          );
+        } catch (_) {
+          avatarContent = _buildFallbackInitial(radius, fallbackChar);
+        }
+      } else if (photoUrl.startsWith('http')) {
+        avatarContent = CachedNetworkImage(
+          imageUrl: photoUrl,
+          fit: BoxFit.cover,
+          width: radius * 2,
+          height: radius * 2,
+          placeholder: (context, url) => Container(
+            color: Colors.black12,
+            child: const Center(
+              child: SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFFDC2626)),
+              ),
+            ),
+          ),
+          errorWidget: (context, url, error) => _buildFallbackInitial(radius, fallbackChar),
+        );
+      } else if (photoUrl.startsWith('assets/')) {
+        avatarContent = Image.asset(
+          photoUrl,
+          fit: BoxFit.cover,
+          width: radius * 2,
+          height: radius * 2,
+          errorBuilder: (context, error, stackTrace) => _buildFallbackInitial(radius, fallbackChar),
+        );
+      } else {
+        avatarContent = _buildFallbackInitial(radius, fallbackChar);
+      }
+    } else {
+      avatarContent = _buildFallbackInitial(radius, fallbackChar);
+    }
+
+    final avatarWidget = Container(
+      width: radius * 2,
+      height: radius * 2,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white.withAlpha(200), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(25),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: ClipOval(child: avatarContent),
+    );
+
+    if (onTap != null) {
+      return GestureDetector(onTap: onTap, child: avatarWidget);
+    }
+    return avatarWidget;
+  }
+
+  Widget _buildFallbackInitial(double radius, String char) {
+    return Container(
+      width: radius * 2,
+      height: radius * 2,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFDC2626), Color(0xFF991B1B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          char.isNotEmpty ? char[0].toUpperCase() : '?',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: radius * 0.9,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatImageWidget(String url, {double? height, BoxFit fit = BoxFit.cover}) {
+    if (url.startsWith('data:image/')) {
+      try {
+        final base64String = url.split(',').last;
+        final bytes = base64Decode(base64String);
+        return Image.memory(
+          bytes,
+          height: height,
+          width: double.infinity,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) => const Center(
+            child: Icon(Icons.broken_image, color: Colors.grey),
+          ),
+        );
+      } catch (_) {
+        return const Center(child: Icon(Icons.broken_image, color: Colors.grey));
+      }
+    }
+    return CachedNetworkImage(
+      imageUrl: url,
+      height: height,
+      width: double.infinity,
+      fit: fit,
+      placeholder: (context, url) => Container(
+        height: height ?? 170,
+        color: Colors.black12,
+        child: const Center(
+          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFDC2626)),
+        ),
+      ),
+      errorWidget: (context, url, error) => const Center(
+        child: Icon(Icons.broken_image, color: Colors.grey),
+      ),
+    );
+  }
+
+  void _showProfilePhotoDialog(BuildContext context, String imageUrl, String name) {
+    if (imageUrl.isEmpty) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withAlpha(180),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Colors.white),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+            ),
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+              child: InteractiveViewer(
+                child: imageUrl.startsWith('data:image/')
+                    ? Image.memory(
+                        base64Decode(imageUrl.split(',').last),
+                        fit: BoxFit.contain,
+                      )
+                    : CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.contain,
+                        placeholder: (context, url) => const Center(
+                          child: CircularProgressIndicator(color: Color(0xFFDC2626)),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          padding: const EdgeInsets.all(20),
+                          color: Colors.black87,
+                          child: const Text('Error al cargar la foto', style: TextStyle(color: Colors.white)),
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showImagePreview(BuildContext context, String imageUrl) {
@@ -358,18 +773,28 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: InteractiveViewer(
-                child: CachedNetworkImage(
-                  imageUrl: imageUrl,
-                  fit: BoxFit.contain,
-                  placeholder: (context, url) => const Center(
-                    child: CircularProgressIndicator(color: Color(0xFFDC2626)),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    padding: const EdgeInsets.all(20),
-                    color: Colors.black87,
-                    child: const Text('Error al cargar la foto', style: TextStyle(color: Colors.white)),
-                  ),
-                ),
+                child: imageUrl.startsWith('data:image/')
+                    ? Image.memory(
+                        base64Decode(imageUrl.split(',').last),
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          padding: const EdgeInsets.all(20),
+                          color: Colors.black87,
+                          child: const Text('Error al cargar la foto', style: TextStyle(color: Colors.white)),
+                        ),
+                      )
+                    : CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.contain,
+                        placeholder: (context, url) => const Center(
+                          child: CircularProgressIndicator(color: Color(0xFFDC2626)),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          padding: const EdgeInsets.all(20),
+                          color: Colors.black87,
+                          child: const Text('Error al cargar la foto', style: TextStyle(color: Colors.white)),
+                        ),
+                      ),
               ),
             ),
             IconButton(
@@ -392,6 +817,10 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         ? widget.orderId.substring(widget.orderId.length - 6).toUpperCase()
         : widget.orderId.toUpperCase();
 
+    final fallbackChar = _peerName.isNotEmpty
+        ? _peerName[0]
+        : (_peerRole == 'Repartidor' ? '🛵' : '👤');
+
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF140F0D) : const Color(0xFFF9F6F0),
       appBar: AppBar(
@@ -400,13 +829,32 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         titleSpacing: 0,
         title: Row(
           children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: Colors.white.withAlpha(35),
-              child: Text(
-                widget.peerRole == 'Repartidor' ? '🛵' : '👤',
-                style: const TextStyle(fontSize: 18),
-              ),
+            // Avatar del interlocutor (Repartidor o Cliente) — Foto real con zoom al tocar
+            Stack(
+              children: [
+                _buildAvatarImageWidget(
+                  _peerPhotoUrl,
+                  radius: 20,
+                  fallbackChar: fallbackChar,
+                  onTap: _peerPhotoUrl.isNotEmpty
+                      ? () => _showProfilePhotoDialog(context, _peerPhotoUrl, _peerName)
+                      : null,
+                ),
+                // Indicador verde en línea
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 11,
+                    height: 11,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF16A34A),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1.8),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -414,16 +862,29 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.peerName.isNotEmpty ? widget.peerName : widget.peerRole,
+                    _peerName.isNotEmpty ? _peerName : _peerRole,
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
                     overflow: TextOverflow.ellipsis,
                   ),
-                  Text(
-                    '${widget.peerRole} • Pedido #$shortOrderId',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.white.withAlpha(210),
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        '$_peerRole • Pedido #$shortOrderId',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withAlpha(220),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Text(
+                        '• En línea',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: Color(0xFF86EFAC),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -432,7 +893,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         ),
         actions: [
           IconButton(
-            tooltip: 'Llamar a ${widget.peerName}',
+            tooltip: 'Llamar a $_peerName',
             icon: const Icon(Icons.phone_rounded, color: Colors.white),
             onPressed: _makeCall,
           ),
@@ -451,7 +912,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'Chat exclusivo de la entrega del Pedido #$shortOrderId.',
+                      'Chat exclusivo y en tiempo real de la entrega del Pedido #$shortOrderId.',
                       style: TextStyle(
                         fontSize: 11,
                         color: isDark ? const Color(0xFFF59E0B) : const Color(0xFFB45309),
@@ -477,18 +938,26 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.forum_outlined,
-                            size: 48,
-                            color: isDark ? Colors.white24 : Colors.grey.shade400,
+                          _buildAvatarImageWidget(
+                            _peerPhotoUrl,
+                            radius: 36,
+                            fallbackChar: fallbackChar,
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 12),
                           Text(
-                            'Inicia la conversación con el ${widget.peerRole.toLowerCase()}',
+                            'Inicia la conversación con ${_peerName.isNotEmpty ? _peerName : "el $_peerRole"}',
                             style: TextStyle(
-                              color: isDark ? Colors.white54 : Colors.grey.shade600,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 13,
+                              color: isDark ? Colors.white70 : Colors.grey.shade700,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Envía un mensaje, foto o nota de voz',
+                            style: TextStyle(
+                              color: isDark ? Colors.white38 : Colors.grey.shade500,
+                              fontSize: 12,
                             ),
                           ),
                         ],
@@ -505,112 +974,136 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                     itemBuilder: (context, index) {
                       final data = docs[index].data() as Map<String, dynamic>;
                       final senderId = data['senderId'] as String? ?? '';
-                      final isMe = senderId == widget.currentUserId;
+                      final isMe = senderId == _currentUserId;
                       final type = data['type'] as String? ?? 'text';
                       final senderName = data['senderName'] as String? ?? '';
+                      final senderPhoto = data['senderPhotoUrl'] as String? ?? (isMe ? _currentUserPhotoUrl : _peerPhotoUrl);
                       final timestamp = (data['createdAt'] as Timestamp?)?.toDate();
                       final timeStr = timestamp != null ? DateFormat('hh:mm a').format(timestamp) : '';
 
-                      return Align(
-                        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.78,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isMe
-                                ? const Color(0xFFDC2626)
-                                : (isDark ? const Color(0xFF261D18) : Colors.white),
-                            borderRadius: BorderRadius.only(
-                              topLeft: const Radius.circular(16),
-                              topRight: const Radius.circular(16),
-                              bottomLeft: Radius.circular(isMe ? 16 : 4),
-                              bottomRight: Radius.circular(isMe ? 4 : 16),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withAlpha(isDark ? 30 : 12),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Row(
+                          mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            // Foto del interlocutor (a la izquierda de sus mensajes)
+                            if (!isMe) ...[
+                              _buildAvatarImageWidget(
+                                senderPhoto,
+                                radius: 14,
+                                fallbackChar: senderName.isNotEmpty ? senderName[0] : fallbackChar,
+                                onTap: senderPhoto.isNotEmpty
+                                    ? () => _showProfilePhotoDialog(context, senderPhoto, senderName)
+                                    : null,
                               ),
+                              const SizedBox(width: 6),
                             ],
-                            border: Border.all(
-                              color: isMe
-                                  ? const Color(0xFFDC2626)
-                                  : (isDark ? AppColors.dividerDark : Colors.grey.shade200),
-                              width: 1,
-                            ),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (!isMe && senderName.isNotEmpty) ...[
-                                Text(
-                                  senderName,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFFDC2626),
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                              ],
 
-                              // Contenido según el tipo
-                              if (type == 'text') ...[
-                                Text(
-                                  data['text'] as String? ?? '',
-                                  style: TextStyle(
-                                    fontSize: 13.5,
-                                    color: isMe ? Colors.white : (isDark ? Colors.white : Colors.black87),
-                                  ),
+                            // Burbuja de mensaje
+                            Container(
+                              constraints: BoxConstraints(
+                                maxWidth: MediaQuery.of(context).size.width * 0.72,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isMe
+                                    ? const Color(0xFFDC2626)
+                                    : (isDark ? const Color(0xFF261D18) : Colors.white),
+                                borderRadius: BorderRadius.only(
+                                  topLeft: const Radius.circular(16),
+                                  topRight: const Radius.circular(16),
+                                  bottomLeft: Radius.circular(isMe ? 16 : 4),
+                                  bottomRight: Radius.circular(isMe ? 4 : 16),
                                 ),
-                              ] else if (type == 'image') ...[
-                                GestureDetector(
-                                  onTap: () => _showImagePreview(context, data['mediaUrl'] as String? ?? ''),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: CachedNetworkImage(
-                                      imageUrl: data['mediaUrl'] as String? ?? '',
-                                      height: 170,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                      placeholder: (context, url) => Container(
-                                        height: 170,
-                                        color: Colors.black12,
-                                        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withAlpha(isDark ? 30 : 12),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                                border: Border.all(
+                                  color: isMe
+                                      ? const Color(0xFFDC2626)
+                                      : (isDark ? AppColors.dividerDark : Colors.grey.shade200),
+                                  width: 1,
+                                ),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (!isMe && senderName.isNotEmpty) ...[
+                                    Text(
+                                      senderName,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFFDC2626),
                                       ),
                                     ),
-                                  ),
-                                ),
-                              ] else if (type == 'audio') ...[
-                                _buildAudioBubble(
-                                  data['mediaUrl'] as String? ?? '',
-                                  (data['audioDurationSeconds'] as num?)?.toInt() ?? 0,
-                                  isMe,
-                                ),
-                              ],
+                                    const SizedBox(height: 3),
+                                  ],
 
-                              const SizedBox(height: 4),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    timeStr,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: isMe
-                                          ? Colors.white.withAlpha(200)
-                                          : (isDark ? Colors.white38 : Colors.grey.shade500),
+                                  // Contenido según el tipo
+                                  if (type == 'text') ...[
+                                    Text(
+                                      data['text'] as String? ?? '',
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        color: isMe ? Colors.white : (isDark ? Colors.white : Colors.black87),
+                                      ),
                                     ),
+                                  ] else if (type == 'image') ...[
+                                    GestureDetector(
+                                      onTap: () => _showImagePreview(context, data['mediaUrl'] as String? ?? ''),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: _buildChatImageWidget(
+                                          data['mediaUrl'] as String? ?? '',
+                                          height: 170,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                    ),
+                                  ] else if (type == 'audio') ...[
+                                    _buildAudioBubble(
+                                      data['mediaUrl'] as String? ?? '',
+                                      (data['audioDurationSeconds'] as num?)?.toInt() ?? 0,
+                                      isMe,
+                                    ),
+                                  ],
+
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        timeStr,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: isMe
+                                              ? Colors.white.withAlpha(200)
+                                              : (isDark ? Colors.white38 : Colors.grey.shade500),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
+                            ),
+
+                            // Foto mía (a la derecha de mis mensajes)
+                            if (isMe) ...[
+                              const SizedBox(width: 6),
+                              _buildAvatarImageWidget(
+                                _currentUserPhotoUrl,
+                                radius: 14,
+                                fallbackChar: _currentUserName.isNotEmpty ? _currentUserName[0] : 'Yo',
+                              ),
                             ],
-                          ),
+                          ],
                         ),
                       );
                     },

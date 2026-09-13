@@ -24,7 +24,12 @@ class AuthRepositoryImpl implements AuthRepository {
               .getUserProfile(user.uid)
               .timeout(const Duration(seconds: 3));
           if (firestoreUser != null) {
-            return firestoreUser;
+            final effectivePhoto = (firestoreUser.photoUrl != null &&
+                    firestoreUser.photoUrl!.isNotEmpty &&
+                    !firestoreUser.photoUrl!.startsWith('assets/'))
+                ? firestoreUser.photoUrl
+                : (user.photoURL ?? firestoreUser.photoUrl);
+            return firestoreUser.copyWith(photoUrl: effectivePhoto);
           }
         } catch (_) {}
         return UserEntity(
@@ -86,7 +91,9 @@ class AuthRepositoryImpl implements AuthRepository {
       email: user.email ?? '',
       role: effectiveRole,
       phone: existingUser?.phone ?? user.phoneNumber,
-      photoUrl: user.photoURL ?? existingUser?.photoUrl,
+      photoUrl: (user.photoURL != null && user.photoURL!.isNotEmpty)
+          ? user.photoURL
+          : (existingUser?.photoUrl?.startsWith('assets/') == true ? null : existingUser?.photoUrl),
       createdAt: existingUser?.createdAt ?? DateTime.now(),
     );
 
@@ -146,14 +153,25 @@ class AuthRepositoryImpl implements AuthRepository {
       final credential = await _authService.signInWithEmail(cleanEmail, password);
       final user = credential.user!;
 
+      UserModel? existingUser;
+      try {
+        existingUser = await _userRemoteDataSource
+            .getUserProfile(user.uid)
+            .timeout(const Duration(seconds: 3));
+      } catch (_) {
+        existingUser = null;
+      }
+
       final userEntity = UserEntity(
         id: user.uid,
-        name: isAdmin ? 'Administrador La Diabla' : (user.displayName ?? email.split('@').first),
+        name: (existingUser != null && existingUser.name.isNotEmpty && existingUser.name != 'Usuario La Diabla')
+            ? existingUser.name
+            : (isAdmin ? 'Administrador La Diabla' : (user.displayName ?? email.split('@').first)),
         email: user.email ?? email,
-        role: isAdmin ? UserRole.admin : UserRole.customer,
-        phone: user.phoneNumber,
-        photoUrl: user.photoURL,
-        createdAt: DateTime.now(),
+        role: existingUser?.role ?? (isAdmin ? UserRole.admin : UserRole.customer),
+        phone: existingUser?.phone ?? user.phoneNumber,
+        photoUrl: existingUser?.photoUrl ?? user.photoURL,
+        createdAt: existingUser?.createdAt ?? DateTime.now(),
       );
 
       _userRemoteDataSource.createOrUpdateUserProfile(

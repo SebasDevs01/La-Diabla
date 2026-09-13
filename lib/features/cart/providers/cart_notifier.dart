@@ -8,6 +8,8 @@ import '../../../domain/entities/extra_entity.dart';
 import '../../../domain/entities/product_entity.dart';
 import '../../../domain/repositories/cart_repository.dart';
 import '../../../core/services/maps_service.dart';
+import '../../auth/providers/auth_notifier.dart';
+import '../../checkout/providers/coupon_provider.dart';
 
 final cartRepositoryProvider = Provider<CartRepository>((ref) {
   return CartRepositoryImpl();
@@ -22,6 +24,7 @@ class CartState {
     this.appliedReferralCode,
     this.distanceKm,
     this.deliveryAddressFormatted,
+    this.isFreeDeliveryCoupon = false,
   });
 
   final List<CartItemEntity> items;
@@ -31,13 +34,18 @@ class CartState {
   final String? appliedReferralCode;
   final double? distanceKm;
   final String? deliveryAddressFormatted;
+  final bool isFreeDeliveryCoupon;
 
   double get subtotal => items.fold(0.0, (sum, item) => sum + item.subtotal);
 
   double get effectiveDeliveryFee {
     if (items.isEmpty) return 0.0;
     // Cupón de envío gratis, código de referido o compra mayor a $40.000 COP
-    if (appliedCoupon == 'DIABLAFREE' || appliedReferralCode != null || subtotal >= 40000.0) {
+    if (appliedCoupon == 'DIABLAFREE' ||
+        appliedCoupon == 'ENVIOGRATIS' ||
+        isFreeDeliveryCoupon ||
+        appliedReferralCode != null ||
+        subtotal >= 40000.0) {
       return 0.0;
     }
     return deliveryFee;
@@ -64,6 +72,7 @@ class CartState {
     String? appliedReferralCode,
     double? distanceKm,
     String? deliveryAddressFormatted,
+    bool? isFreeDeliveryCoupon,
     bool clearCoupon = false,
     bool clearReferral = false,
   }) {
@@ -75,6 +84,7 @@ class CartState {
       appliedReferralCode: clearReferral ? null : (appliedReferralCode ?? this.appliedReferralCode),
       distanceKm: distanceKm ?? this.distanceKm,
       deliveryAddressFormatted: deliveryAddressFormatted ?? this.deliveryAddressFormatted,
+      isFreeDeliveryCoupon: clearCoupon ? false : (isFreeDeliveryCoupon ?? this.isFreeDeliveryCoupon),
     );
   }
 }
@@ -92,16 +102,26 @@ class CartNotifier extends StateNotifier<CartState> {
     final hasFreeDeliveryCoupon = prefs.getBool('diabla_free_coupon_redeemed') ?? false;
 
     if (hasFreeDeliveryCoupon) {
-      state = state.copyWith(appliedCoupon: 'DIABLAFREE');
+      state = state.copyWith(appliedCoupon: 'DIABLAFREE', isFreeDeliveryCoupon: true);
     }
 
     final repo = _ref.read(cartRepositoryProvider);
     _cartSubscription = repo.watchItems().listen((items) {
       double discount = state.discount;
       final subtotal = items.fold(0.0, (sum, item) => sum + item.subtotal);
-      if (state.appliedCoupon == 'DIABLITO10') {
+      
+      // Recalcular descuento si hay un cupón activo
+      final coupon = _ref.read(couponProvider).coupon;
+      if (coupon != null) {
+        if (coupon.type == CouponType.percent) {
+          discount = coupon.calculateDiscount(subtotal);
+        } else if (coupon.type == CouponType.fixed) {
+          discount = coupon.discount.clamp(0.0, subtotal);
+        }
+      } else if (state.appliedCoupon == 'DIABLITO10') {
         discount = subtotal * 0.10;
       }
+
       state = state.copyWith(
         items: items,
         discount: discount,
@@ -126,34 +146,76 @@ class CartNotifier extends StateNotifier<CartState> {
     );
   }
 
-  /// Aplica un cupón tradicional (DIABLAFREE, DIABLITO10) o código de referido.
-  Future<bool> applyCoupon(String rawCode) async {
+  /// Aplica un cupón tradicional, código de referido o cupón de Firestore / catálogo.
+  /// Retorna un objeto con `success` y `message` descriptivo del resultado.
+  Future<({bool success, String message})> applyCouponWithFeedback(String rawCode, {String? userId}) async {
     final code = rawCode.trim().toUpperCase();
-    final prefs = await SharedPreferences.getInstance();
+    if (code.isEmpty) {
+      return (success: false, message: 'Por favor ingresa un código.');
+    }
 
-    if (code == 'DIABLAFREE') {
-      await prefs.setBool('diabla_free_coupon_redeemed', true);
-      state = state.copyWith(appliedCoupon: 'DIABLAFREE', discount: 0.0);
-      return true;
-    } else if (code == 'DIABLITO10') {
-      final disc = state.subtotal * 0.10;
-      state = state.copyWith(appliedCoupon: 'DIABLITO10', discount: disc);
-      return true;
-    } else if (code.startsWith('DIABLA-') || code.startsWith('REF-') || code == 'AMIGODIABLE') {
-      // Código de referido válido -> Envío gratis + $5.000 COP de descuento
+    final prefs = await SharedPreferences.getInstance();
+    final effectiveUserId = userId ?? _ref.read(authNotifierProvider).user?.id ?? 'guest';
+
+    // 1. Código de referido
+    if (code.startsWith('DIABLA-') || code.startsWith('REF-') || code == 'AMIGODIABLE') {
       final disc = (state.discount + 5000.0).clamp(0.0, state.subtotal);
       state = state.copyWith(
         appliedReferralCode: code,
         discount: disc,
+        isFreeDeliveryCoupon: true,
       );
       await prefs.setString('applied_referral_code', code);
-      return true;
+      return (success: true, message: '¡Código de referido aplicado! Domicilio gratis + \$5.000 COP');
     }
-    return false;
+
+    // 2. Validación centralizada mediante CouponProvider (Firestore + catálogo local)
+    final couponNotifier = _ref.read(couponProvider.notifier);
+    final isValid = await couponNotifier.validateCoupon(
+      code: code,
+      userId: effectiveUserId,
+      subtotal: state.subtotal,
+      deliveryFee: state.deliveryFee,
+    );
+
+    if (isValid) {
+      final coupon = _ref.read(couponProvider).coupon!;
+      if (coupon.type == CouponType.freeDelivery) {
+        state = state.copyWith(
+          appliedCoupon: coupon.code,
+          discount: 0.0,
+          isFreeDeliveryCoupon: true,
+        );
+        return (success: true, message: '¡Cupón ${coupon.code} aplicado! Envío 100% GRATIS 🛵💨');
+      } else {
+        final disc = coupon.calculateDiscount(state.subtotal, deliveryFee: state.deliveryFee);
+        state = state.copyWith(
+          appliedCoupon: coupon.code,
+          discount: disc,
+          isFreeDeliveryCoupon: false,
+        );
+        return (success: true, message: '¡Cupón ${coupon.code} aplicado! Descuento activado 🔥');
+      }
+    } else {
+      final errorMsg = _ref.read(couponProvider).errorMessage ?? 'Cupón no válido o expirado ❌';
+      return (success: false, message: errorMsg);
+    }
+  }
+
+  /// Wrapper de compatibilidad hacia atrás
+  Future<bool> applyCoupon(String rawCode) async {
+    final res = await applyCouponWithFeedback(rawCode);
+    return res.success;
   }
 
   void removeCoupon() {
-    state = state.copyWith(clearCoupon: true, clearReferral: true, discount: 0.0);
+    _ref.read(couponProvider.notifier).clearCoupon();
+    state = state.copyWith(
+      clearCoupon: true,
+      clearReferral: true,
+      discount: 0.0,
+      isFreeDeliveryCoupon: false,
+    );
   }
 
   Future<void> addItem({

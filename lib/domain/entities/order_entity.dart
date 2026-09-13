@@ -85,6 +85,8 @@ class OrderEntity extends Equatable {
     this.customerPhone,
     this.driverId,
     this.driverName,
+    this.driverPhotoUrl,
+    this.driverVehiclePlatePhotoUrl,
     this.driverLatitude,
     this.driverLongitude,
     this.deliveryProofUrl,
@@ -116,6 +118,8 @@ class OrderEntity extends Equatable {
   final String? customerPhone;
   final String? driverId;
   final String? driverName;
+  final String? driverPhotoUrl;
+  final String? driverVehiclePlatePhotoUrl;
   final double? driverLatitude;
   final double? driverLongitude;
   final String? deliveryProofUrl;
@@ -151,6 +155,8 @@ class OrderEntity extends Equatable {
     String? customerPhone,
     String? driverId,
     String? driverName,
+    String? driverPhotoUrl,
+    String? driverVehiclePlatePhotoUrl,
     double? driverLatitude,
     double? driverLongitude,
     String? deliveryProofUrl,
@@ -182,6 +188,8 @@ class OrderEntity extends Equatable {
       customerPhone: customerPhone ?? this.customerPhone,
       driverId: driverId ?? this.driverId,
       driverName: driverName ?? this.driverName,
+      driverPhotoUrl: driverPhotoUrl ?? this.driverPhotoUrl,
+      driverVehiclePlatePhotoUrl: driverVehiclePlatePhotoUrl ?? this.driverVehiclePlatePhotoUrl,
       driverLatitude: driverLatitude ?? this.driverLatitude,
       driverLongitude: driverLongitude ?? this.driverLongitude,
       deliveryProofUrl: deliveryProofUrl ?? this.deliveryProofUrl,
@@ -196,7 +204,8 @@ class OrderEntity extends Equatable {
     status, paymentMethod, paymentStatus, orderType,
     cashPaymentAmount, cashChangeAmount, transactionReference,
     customerName, customerPhone,
-    driverId, driverName, driverLatitude, driverLongitude,
+    driverId, driverName, driverPhotoUrl, driverVehiclePlatePhotoUrl,
+    driverLatitude, driverLongitude,
     deliveryProofUrl,
   ];
 }

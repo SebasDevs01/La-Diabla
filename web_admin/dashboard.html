@@ -49,7 +49,7 @@
       <div class="nav-links">
         <div class="admin-pill">
           <span class="material-symbols-rounded md-18">admin_panel_settings</span>
-          <span id="adminEmailDisplay">appladiabla@gmail.com</span>
+          <span id="adminEmailDisplay">Administrador</span>
         </div>
         <button onclick="toggleWebTheme()" id="themeToggleBtn" class="btn-icon-text" title="Cambiar Tema">
           <span class="material-symbols-rounded md-20" id="themeIcon">light_mode</span>
@@ -166,6 +166,18 @@
       <button class="tab-btn tab-btn-refunds" data-filter="refunds" onclick="setFilter('refunds')">
         <span class="material-symbols-rounded md-18">currency_exchange</span> Reembolsos
         (<span id="refundCount">0</span>)
+      </button>
+    </div>
+
+    <!-- Evidence Sub-Tab Selector (shown only when evidence filter is active) -->
+    <div id="evidenceSubTabs" style="display:none; gap:10px; margin-bottom:1.25rem; flex-wrap:wrap;">
+      <button class="evidence-sub-btn active" data-sub="proofs" onclick="setEvidenceSubFilter('proofs')">
+        <span class="material-symbols-rounded md-18">photo_camera</span>
+        <span>📸 Comprobantes de Pedidos</span>
+      </button>
+      <button class="evidence-sub-btn" data-sub="plates" onclick="setEvidenceSubFilter('plates')">
+        <span class="material-symbols-rounded md-18">directions_car</span>
+        <span>🛵 Placas de Repartidores</span>
       </button>
     </div>
 

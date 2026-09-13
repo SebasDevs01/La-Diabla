@@ -1,9 +1,13 @@
 // lib/core/services/notification_service.dart
+import 'dart:async';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:logger/logger.dart';
+import '../../app/router/app_router.dart';
+import '../../features/orders/presentation/screens/order_chat_screen.dart';
 
 /// Manejador de mensajes en background (debe ser top-level).
 @pragma('vm:entry-point')
@@ -22,6 +26,8 @@ class NotificationService {
   final FirebaseMessaging _messaging;
   final Logger _logger = Logger();
   String? _currentUserId;
+  StreamSubscription<QuerySnapshot>? _realtimeNotifsSub;
+  DateTime _sessionStartTime = DateTime.now();
 
   // ─── Plugin de notificaciones locales ────────────────────────────────────
   static final FlutterLocalNotificationsPlugin _localNotifications =
@@ -67,7 +73,26 @@ class NotificationService {
       // 5. Escuchar mensajes en foreground y mostrar banner local
       FirebaseMessaging.onMessage.listen(_showForegroundNotification);
 
-      // 6. Escuchar renovación de token FCM en tiempo real
+      // 6. Al tocar una notificación push en segundo plano
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        final orderId = message.data['orderId'] as String?;
+        if (orderId != null && orderId.isNotEmpty) {
+          navigateToChat(orderId);
+        }
+      });
+
+      // 7. Al abrir la app desde estado terminado mediante push
+      final initialMessage = await _messaging.getInitialMessage();
+      if (initialMessage != null) {
+        final orderId = initialMessage.data['orderId'] as String?;
+        if (orderId != null && orderId.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            navigateToChat(orderId);
+          });
+        }
+      }
+
+      // 8. Escuchar renovación de token FCM en tiempo real
       _messaging.onTokenRefresh.listen((newToken) async {
         if (_currentUserId != null && _currentUserId!.isNotEmpty) {
           await _saveTokenToFirestore(_currentUserId!, newToken);
@@ -94,7 +119,26 @@ class NotificationService {
       android: initSettingsAndroid,
       iOS: initSettingsIOS,
     );
-    await _localNotifications.initialize(initSettings);
+    await _localNotifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        final payload = response.payload;
+        if (payload != null && payload.isNotEmpty) {
+          _handleNotificationPayload(payload);
+        }
+      },
+    );
+
+    // Si la app fue lanzada al tocar una notificación local
+    final launchDetails = await _localNotifications.getNotificationAppLaunchDetails();
+    if (launchDetails != null && launchDetails.didNotificationLaunchApp) {
+      final payload = launchDetails.notificationResponse?.payload;
+      if (payload != null && payload.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _handleNotificationPayload(payload);
+        });
+      }
+    }
 
     // Crear canal de alta importancia en Android
     final androidPlugin = _localNotifications
@@ -103,10 +147,38 @@ class NotificationService {
     await androidPlugin?.createNotificationChannel(_channel);
   }
 
+  static void _handleNotificationPayload(String payload) {
+    try {
+      final data = jsonDecode(payload) as Map<String, dynamic>;
+      final orderId = data['orderId'] as String?;
+      if (orderId != null && orderId.isNotEmpty) {
+        navigateToChat(orderId);
+      }
+    } catch (e) {
+      debugPrint('Error procesando payload de notificación: $e');
+    }
+  }
+
+  /// Redirige al chat del pedido en tiempo real
+  static void navigateToChat(String orderId) {
+    final nav = rootNavigatorKey.currentState;
+    if (nav != null) {
+      nav.push(
+        MaterialPageRoute(
+          builder: (_) => OrderChatScreen(
+            orderId: orderId,
+          ),
+        ),
+      );
+    }
+  }
+
   /// Muestra una notificación local cuando la app está en foreground.
   Future<void> _showForegroundNotification(RemoteMessage message) async {
     final notification = message.notification;
     if (notification == null) return;
+
+    final orderId = message.data['orderId'] as String? ?? '';
 
     const androidDetails = AndroidNotificationDetails(
       'la_diabla_orders',
@@ -135,14 +207,19 @@ class NotificationService {
       notification.title,
       notification.body,
       notificationDetails,
+      payload: jsonEncode({
+        'type': 'chat',
+        'orderId': orderId,
+      }),
     );
   }
 
-  /// Muestra una notificación local manualmente (sin FCM, útil para repartidores).
+  /// Muestra una notificación local manualmente (con soporte para payload y redirección).
   static Future<void> showLocalNotification({
     required String title,
     required String body,
     int id = 0,
+    String? payload,
   }) async {
     const androidDetails = AndroidNotificationDetails(
       'la_diabla_orders',
@@ -162,7 +239,64 @@ class NotificationService {
         presentSound: true,
       ),
     );
-    await _localNotifications.show(id, title, body, details);
+    final notifId = id == 0 ? DateTime.now().millisecondsSinceEpoch.remainder(100000) : id;
+    await _localNotifications.show(notifId, title, body, details, payload: payload);
+  }
+
+  // ─── Realtime Notification Listener ────────────────────────────────────────
+
+  /// Escucha en tiempo real nuevas notificaciones en Firestore y muestra banners con sonido y vibración
+  void startRealtimeNotificationListener(String userId) {
+    if (userId.isEmpty || userId == 'guest') return;
+    _realtimeNotifsSub?.cancel();
+    _sessionStartTime = DateTime.now().subtract(const Duration(seconds: 3));
+
+    _realtimeNotifsSub = FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('notifications')
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .listen((snapshot) {
+      for (final change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added) {
+          final data = change.doc.data();
+          if (data == null) continue;
+
+          final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+          if (createdAt != null && createdAt.isBefore(_sessionStartTime)) {
+            continue;
+          }
+
+          final senderId = data['senderId'] as String? ?? '';
+          if (senderId == userId) continue;
+
+          final orderId = data['orderId'] as String? ?? '';
+          final title = data['title'] as String? ?? 'Nuevo mensaje';
+          final body = data['body'] as String? ?? '';
+          final type = data['type'] as String? ?? 'chat_message';
+
+          // Si el usuario ya está viendo activamente el chat de esta orden, omitir banner redundante
+          if (OrderChatScreen.currentActiveOrderId != null &&
+              OrderChatScreen.currentActiveOrderId == orderId) {
+            continue;
+          }
+
+          showLocalNotification(
+            title: title,
+            body: body,
+            payload: jsonEncode({
+              'type': type,
+              'orderId': orderId,
+              'title': title,
+              'body': body,
+            }),
+          );
+        }
+      }
+    }, onError: (e) {
+      _logger.w('Error en listener de notificaciones en tiempo real: $e');
+    });
   }
 
   // ─── FCM Token ────────────────────────────────────────────────────────────
@@ -192,6 +326,9 @@ class NotificationService {
         await _saveTokenToFirestore(userId, token);
         _logger.i('FCM Token sincronizado para $userId (rol: ${role ?? "desconocido"})');
       }
+
+      // Iniciar escucha activa en tiempo real de notificaciones/chat
+      startRealtimeNotificationListener(userId);
 
       // Suscribir al topic general de notificaciones
       await _messaging.subscribeToTopic(NotificationTopics.allUsers);
@@ -226,6 +363,7 @@ class NotificationService {
     if (userId.isEmpty) return;
     try {
       _currentUserId = null;
+      _realtimeNotifsSub?.cancel();
       await FirebaseFirestore.instance
           .collection('users')
           .doc(userId)

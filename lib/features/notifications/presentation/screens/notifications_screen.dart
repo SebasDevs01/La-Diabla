@@ -253,7 +253,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                               borderRadius: BorderRadius.circular(16),
                               onTap: () {
                                 _markAsRead(userId, docId);
-                                if (orderId != null && orderId.isNotEmpty) {
+                                final notifType = data['type'] as String? ?? '';
+                                if (notifType == 'chat_message' && orderId != null && orderId.isNotEmpty) {
+                                  context.push('/chat/$orderId');
+                                } else if (orderId != null && orderId.isNotEmpty) {
                                   context.push('/tracking/$orderId');
                                 }
                               },

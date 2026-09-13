@@ -10,6 +10,8 @@ import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/widgets/diabla_button.dart';
 import '../../../../core/widgets/diabla_empty_state.dart';
 
+import '../../../auth/providers/auth_notifier.dart';
+
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
 
@@ -32,23 +34,46 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     if (code.isEmpty) return;
 
     setState(() => _isApplyingCoupon = true);
-    final success = await ref.read(cartNotifierProvider.notifier).applyCoupon(code);
+    final userId = ref.read(authNotifierProvider).user?.id ?? 'guest';
+    final result = await ref.read(cartNotifierProvider.notifier).applyCouponWithFeedback(code, userId: userId);
     setState(() => _isApplyingCoupon = false);
 
     if (!mounted) return;
-    if (success) {
+    if (result.success) {
       _couponController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('🎉 Cupón / Código $code aplicado con éxito.'),
-          backgroundColor: AppColors.secondary,
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  result.message,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF16A34A),
           behavior: SnackBarBehavior.floating,
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cupón no válido o expirado ❌'),
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  result.message,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
@@ -411,9 +436,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         Text(
                           cartState.appliedReferralCode != null
                               ? '¡Envío Gratis + \$5.000 COP Descuento Amigo! 🎁'
-                              : cartState.appliedCoupon == 'DIABLAFREE'
+                              : (cartState.isFreeDeliveryCoupon || cartState.appliedCoupon == 'ENVIOGRATIS' || cartState.appliedCoupon == 'DIABLAFREE')
                                   ? '¡Envío Gratis activado! 🛵💨'
-                                  : '¡10% de descuento aplicado! 🔥',
+                                  : (cartState.discount > 0
+                                      ? '¡Descuento de -${PriceFormatter.formatSmart(cartState.discount)} aplicado! 🔥'
+                                      : '¡Cupón aplicado con éxito! 🔥'),
                           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF16A34A)),
                         ),
                       ],

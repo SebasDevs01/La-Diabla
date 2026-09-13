@@ -45,6 +45,7 @@ enum OrderStatus {
       'ready' => OrderStatus.ready,
       'assigned' => OrderStatus.assigned,
       'on_the_way' => OrderStatus.onTheWay,
+      'onTheWay' => OrderStatus.onTheWay,   // compat alias for .name writes
       'delivered' => OrderStatus.delivered,
       'cancelled' => OrderStatus.cancelled,
       _ => OrderStatus.pending,

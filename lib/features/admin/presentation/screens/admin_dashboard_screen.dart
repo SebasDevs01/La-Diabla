@@ -1,4 +1,5 @@
 // lib/features/admin/presentation/screens/admin_dashboard_screen.dart
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import '../../../../core/services/notification_service.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../domain/entities/user_entity.dart';
 import '../../../auth/providers/auth_notifier.dart';
+import '../../../checkout/providers/coupon_provider.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -240,6 +242,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
               _FilterChip(label: '🍳 Preparando', value: 'preparing', selected: _filterStatus == 'preparing', onTap: () => setState(() => _filterStatus = 'preparing')),
               _FilterChip(label: '🛵 En camino', value: 'onTheWay', selected: _filterStatus == 'onTheWay', onTap: () => setState(() => _filterStatus = 'onTheWay')),
               _FilterChip(label: '✅ Entregados', value: 'delivered', selected: _filterStatus == 'delivered', onTap: () => setState(() => _filterStatus = 'delivered')),
+              _FilterChip(label: '📸 Evidencias', value: 'evidence', selected: _filterStatus == 'evidence', onTap: () => setState(() => _filterStatus = 'evidence')),
             ],
           ),
         ),
@@ -283,8 +286,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
     Query query = FirebaseFirestore.instance
         .collection('orders')
         .orderBy('createdAt', descending: true)
-        .limit(50);
-    if (_filterStatus != 'all') {
+        .limit(60);
+    if (_filterStatus == 'evidence') {
+      query = query.where('status', isEqualTo: 'delivered');
+    } else if (_filterStatus != 'all') {
       query = query.where('status', isEqualTo: _filterStatus);
     }
     return query.snapshots();
@@ -417,8 +422,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
   void _showAddCouponSheet(bool isDark) {
     final codeCtrl = TextEditingController();
     final discountCtrl = TextEditingController();
-    final minOrderCtrl = TextEditingController(text: '25000');
+    final minOrderCtrl = TextEditingController(text: '25.000');
     String type = 'fixed';
+    bool singleUse = true;
 
     showModalBottomSheet(
       context: context,
@@ -437,27 +443,77 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Crear cupon', style: TextStyle(fontFamily: AppTypography.displayFamily, fontSize: 20)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Crear Cupón 🌶️', style: TextStyle(fontFamily: AppTypography.displayFamily, fontSize: 20)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDC2626).withAlpha(20),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text('Validez: 30 Días ⏳', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 16),
-                TextField(controller: codeCtrl, decoration: const InputDecoration(labelText: 'Codigo (ej: DIABLO20)', border: OutlineInputBorder()), textCapitalization: TextCapitalization.characters),
+                TextField(
+                  controller: codeCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Código (ej: ENVIOGRATIS, DIABLO20)',
+                    border: OutlineInputBorder(),
+                  ),
+                  textCapitalization: TextCapitalization.characters,
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(child: TextField(controller: discountCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: type == 'percent' ? 'Porcentaje (%)' : 'Valor fijo (COP)', border: const OutlineInputBorder()))),
-                    const SizedBox(width: 12),
-                    SegmentedButton<String>(
-                      segments: const [
-                        ButtonSegment(value: 'fixed', label: Text('\$')),
-                        ButtonSegment(value: 'percent', label: Text('%')),
-                      ],
-                      selected: {type},
-                      onSelectionChanged: (s) => setSheetState(() => type = s.first),
+                    if (type != 'freeDelivery') ...[
+                      Expanded(
+                        child: TextField(
+                          controller: discountCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: type == 'percent' ? 'Porcentaje (%) ej: 10' : 'Valor fijo (COP) ej: 5.000',
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                    Expanded(
+                      child: SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(value: 'fixed', label: Text('\$')),
+                          ButtonSegment(value: 'percent', label: Text('%')),
+                          ButtonSegment(value: 'freeDelivery', label: Text('🛵')),
+                        ],
+                        selected: {type},
+                        onSelectionChanged: (s) => setSheetState(() => type = s.first),
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                TextField(controller: minOrderCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Pedido minimo (COP)', border: OutlineInputBorder())),
-                const SizedBox(height: 20),
+                TextField(
+                  controller: minOrderCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Pedido mínimo (COP) ej: 25.000',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: singleUse,
+                  title: const Text('Cupón de un solo uso por cliente 🎟️', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Cada cliente podrá canjearlo una única vez', style: TextStyle(fontSize: 11.5)),
+                  activeTrackColor: const Color(0xFFDC2626),
+                  onChanged: (val) => setSheetState(() => singleUse = val),
+                ),
+                const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
@@ -465,16 +521,39 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
                     onPressed: () async {
                       final code = codeCtrl.text.trim().toUpperCase();
                       if (code.isEmpty) return;
+
+                      final messenger = ScaffoldMessenger.of(context);
+                      final parsedDiscount = type == 'freeDelivery'
+                          ? 4500.0
+                          : CouponNotifier.parseMoneyOrPercent(discountCtrl.text, isPercent: type == 'percent');
+                      final parsedMinOrder = CouponNotifier.parseMoneyOrPercent(minOrderCtrl.text);
+
+                      final expiresAt = DateTime.now().add(const Duration(days: 30));
+
                       await FirebaseFirestore.instance.collection('coupons').doc(code).set({
                         'active': true,
                         'type': type,
-                        'discount': double.tryParse(discountCtrl.text) ?? 0,
-                        'minOrder': double.tryParse(minOrderCtrl.text) ?? 0,
+                        'discount': parsedDiscount,
+                        'minOrder': parsedMinOrder,
+                        'singleUse': singleUse,
+                        'description': type == 'freeDelivery'
+                            ? 'Envío 100% Gratis 🛵'
+                            : (type == 'percent'
+                                ? '${parsedDiscount.toInt()}% de descuento 🔥'
+                                : '\$${PriceFormatter.formatSmart(parsedDiscount)} COP de descuento 🌶️'),
                         'createdAt': FieldValue.serverTimestamp(),
-                      });
+                        'expiresAt': Timestamp.fromDate(expiresAt),
+                      }, SetOptions(merge: true));
+
                       if (ctx.mounted) Navigator.pop(ctx);
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text('✅ Cupón $code creado exitosamente (Válido 30 días)'),
+                          backgroundColor: const Color(0xFF16A34A),
+                        ),
+                      );
                     },
-                    child: const Text('Crear cupon', style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: const Text('Crear cupón', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -547,6 +626,10 @@ class _OrderCard extends StatelessWidget {
     final timeStr = createdAt != null ? DateFormat('hh:mm a').format(createdAt) : '';
     final items = (data['items'] as List?)?.length ?? 0;
     final payMethod = data['paymentMethod'] as String? ?? '';
+    final customerName = data['userName'] as String? ?? data['customerName'] as String? ?? '';
+    final driverName = data['driverName'] as String? ?? '';
+    final driverPlate = data['driverVehiclePlate'] as String? ?? data['vehiclePlate'] as String? ?? '';
+    final deliveryProofUrl = data['deliveryProofUrl'] as String? ?? '';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -581,12 +664,40 @@ class _OrderCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (customerName.isNotEmpty) ...[
+                  Row(children: [
+                    const Icon(Icons.person_rounded, size: 15, color: Color(0xFFDC2626)),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        'Cliente: $customerName',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 5),
+                ],
                 Row(children: [
                   const Icon(Icons.location_on_rounded, size: 15, color: Color(0xFFDC2626)),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 5),
                   Expanded(child: Text(address, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis)),
                 ]),
                 const SizedBox(height: 6),
+                if (driverName.isNotEmpty) ...[
+                  Row(children: [
+                    const Icon(Icons.two_wheeler_rounded, size: 15, color: Color(0xFF10B981)),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        'Repartidor: $driverName ${driverPlate.isNotEmpty ? "• Placa: $driverPlate" : ""}',
+                        style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 6),
+                ],
                 Row(children: [
                   Icon(Icons.shopping_bag_rounded, size: 15, color: Colors.grey.shade500),
                   const SizedBox(width: 4),
@@ -602,6 +713,10 @@ class _OrderCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(payMethod, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                   ]),
+                ],
+                if (deliveryProofUrl.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _buildProofButton(context, deliveryProofUrl, shortId, customerName),
                 ],
                 const SizedBox(height: 12),
                 Row(
@@ -641,6 +756,119 @@ class _OrderCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildProofButton(BuildContext context, String url, String orderShortId, String client) {
+    return InkWell(
+      onTap: () => _showProofZoomDialog(context, url, orderShortId, client),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF10B981).withAlpha(25),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF10B981).withAlpha(90)),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: _buildProofImage(url),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('📸 Evidencia de Entrega', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF10B981))),
+                  Text(client.isNotEmpty ? 'Entregado a: $client' : 'Comprobante registrado', style: TextStyle(fontSize: 11, color: Colors.grey.shade600), overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            const Icon(Icons.zoom_in_rounded, color: Color(0xFF10B981), size: 22),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Widget _buildProofImage(String url) {
+    if (url.startsWith('data:image/')) {
+      try {
+        final bytes = base64Decode(url.split(',').last);
+        return Image.memory(bytes, fit: BoxFit.cover);
+      } catch (_) {
+        return const Icon(Icons.broken_image_rounded, color: Colors.grey);
+      }
+    } else if (url.startsWith('http')) {
+      return Image.network(url, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image_rounded, color: Colors.grey));
+    }
+    return const Icon(Icons.image_rounded, color: Color(0xFF10B981));
+  }
+
+  void _showProofZoomDialog(BuildContext context, String url, String orderShortId, String client) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: const BoxDecoration(
+                color: Color(0xFF1E1712),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.photo_camera_rounded, color: Color(0xFF10B981), size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Orden #$orderShortId ${client.isNotEmpty ? "• $client" : ""}',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+            ),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * 0.7,
+                maxWidth: double.infinity,
+              ),
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Center(
+                  child: _buildProofImage(url),
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+              alignment: Alignment.center,
+              child: const Text(
+                'Pellizca para hacer zoom en la evidencia',
+                style: TextStyle(color: Colors.white54, fontSize: 11),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

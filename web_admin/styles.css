@@ -1154,4 +1154,96 @@ header {
   flex: 1;
 }
 
+/* ── Evidence Sub-Tab Buttons ─────────────────────────────── */
+.evidence-sub-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: 30px;
+  border: 1.5px solid var(--card-border);
+  background: var(--tab-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.evidence-sub-btn:hover {
+  border-color: rgba(220, 38, 38, 0.5);
+  color: var(--text-main);
+}
+
+.evidence-sub-btn.active {
+  background: linear-gradient(135deg, rgba(220,38,38,0.18) 0%, rgba(245,158,11,0.1) 100%);
+  border-color: #DC2626;
+  color: #DC2626;
+}
+
+/* ── Preview Button ─────────────────────────────────────────── */
+.btn-proof-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1.5px solid #10B981;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #10B981;
+  font-weight: 600;
+  font-size: 0.78rem;
+  font-family: inherit;
+  transition: all 0.18s ease;
+}
+
+.btn-proof-preview:hover {
+  background: rgba(16, 185, 129, 0.12);
+  transform: translateY(-1px);
+}
+
+/* ── Plate Card ──────────────────────────────────────────────── */
+.plate-card {
+  background: var(--card-bg);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.plate-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.15);
+  border-color: #3B82F6;
+}
+
+.plate-thumb-wrapper {
+  position: relative;
+  width: 100%;
+  height: 190px;
+  background: linear-gradient(135deg, #0D1B3E, #0F2D4A);
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.plate-thumb-wrapper:hover .evidence-thumb-img {
+  transform: scale(1.04);
+}
+
+.plate-no-photo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: rgba(59, 130, 246, 0.5);
+}
 

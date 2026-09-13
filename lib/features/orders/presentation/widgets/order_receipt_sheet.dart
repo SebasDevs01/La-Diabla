@@ -48,11 +48,15 @@ class OrderReceiptSheet extends StatelessWidget {
       PaymentMethod.pos => '📟 Datáfono (Pago con tarjeta en la puerta)',
     };
 
+    final notesSection = (order.notes != null && order.notes!.trim().isNotEmpty)
+        ? '\n📝 *Notas adicionales:* ${order.notes}\n'
+        : '';
+
     final message = '''
 🌶️ *RECIBO DIGITAL — LA DIABLA* 🔥
 *Orden:* #LD-$shortId
 *Fecha:* $formattedDate
-*Cliente:* ${order.address?.formattedAddress ?? 'Domicilio'}
+*Cliente:* ${order.address?.formattedAddress ?? 'Domicilio'}$notesSection
 
 🛒 *ITEMS DEL PEDIDO:*
 $itemsList
@@ -241,6 +245,52 @@ ${order.discount > 0 ? '• Descuento: -${PriceFormatter.formatSmart(order.disco
                     isDark,
                     isAddress: true,
                   ),
+                  if (order.notes != null && order.notes!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF2C2219) : const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFFB45309).withAlpha(120) : const Color(0xFFFCD34D),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.edit_note_rounded, size: 18, color: Color(0xFFD97706)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: RichText(
+                              text: TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: 'Nota de entrega: ',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: isDark ? const Color(0xFFFCD34D) : const Color(0xFF92400E),
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: order.notes!,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? Colors.white70 : Colors.black87,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: 10),
                   Divider(color: isDark ? AppColors.dividerDark : Colors.grey.shade200),

@@ -1,7 +1,10 @@
 // lib/features/driver/presentation/screens/driver_dashboard_screen.dart
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
@@ -21,6 +24,7 @@ import '../../../../core/services/storage_service.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/widgets/diabla_offline_view.dart';
 import '../../../../core/widgets/navigation_app_picker.dart';
+import '../../../../data/models/order_model.dart';
 import '../../../../domain/entities/order_entity.dart';
 import '../../../../domain/entities/order_status.dart';
 import '../../../auth/providers/auth_notifier.dart';
@@ -48,12 +52,16 @@ class DriverDashboardScreen extends ConsumerStatefulWidget {
 class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     with WidgetsBindingObserver {
   int _currentNavIndex = 0; // 0: Pedidos, 1: Mapa/Ruta, 2: Ganancias, 3: Perfil
+  int _ordersSubTabIndex = 0; // 0: Disponibles, 1: Mis Entregas (Historial)
   bool _isAvailable = true;
 
   // GPS real — stream de posición del repartidor
   StreamSubscription<Position>? _gpsStreamSubscription;
   bool _gpsActive = false;
   bool _arrivalAlertSpoken = false; // Evitar repetir el aviso de voz
+
+  // Suscripción Firestore para mantener _activeOrder sincronizado con el admin
+  StreamSubscription<DocumentSnapshot>? _activeOrderSub;
 
   // TTS para aviso de llegada
   final FlutterTts _flutterTts = FlutterTts();
@@ -112,6 +120,8 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       _centerMapOnRealGps();
     });
   }
+
+
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -250,6 +260,29 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       final effectiveVehicleModel = dummyModels.contains(savedVehicleModel) ? '' : savedVehicleModel;
       final effectiveVehiclePlate = dummyPlates.contains(savedVehiclePlate) ? '' : savedVehiclePlate;
 
+      final savedDriverPhoto = prefs.getString('driver_photo');
+      final fbPhoto = FirebaseAuth.instance.currentUser?.photoURL;
+      final userPhoto = user?.photoUrl;
+      final googlePhoto = (fbPhoto != null && fbPhoto.startsWith('http'))
+          ? fbPhoto
+          : ((userPhoto != null && userPhoto.startsWith('http')) ? userPhoto : '');
+      
+      String effectiveDriverPhoto;
+      if (googlePhoto.isNotEmpty) {
+        if (savedDriverPhoto == null || savedDriverPhoto.isEmpty || savedDriverPhoto.contains('diabloperfil') || savedDriverPhoto.startsWith('assets/')) {
+          effectiveDriverPhoto = googlePhoto;
+          prefs.setString('driver_photo', googlePhoto);
+        } else {
+          effectiveDriverPhoto = savedDriverPhoto;
+        }
+      } else if (savedDriverPhoto != null && savedDriverPhoto.isNotEmpty && !savedDriverPhoto.startsWith('assets/')) {
+        effectiveDriverPhoto = savedDriverPhoto;
+      } else if (userPhoto != null && userPhoto.isNotEmpty && !userPhoto.startsWith('assets/')) {
+        effectiveDriverPhoto = userPhoto;
+      } else {
+        effectiveDriverPhoto = 'assets/images/diabloperfil.png';
+      }
+
       setState(() {
         _vehicleModel = effectiveVehicleModel;
         _vehiclePlate = effectiveVehiclePlate;
@@ -258,11 +291,19 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         _vehicleSoat = savedVehicleSoat;
         _driverName = effectiveName;
         _driverPhone = effectivePhone;
-        _driverPhoto = prefs.getString('driver_photo') ?? (user?.photoUrl ?? 'assets/images/diabloperfil.png');
+        _driverPhoto = effectiveDriverPhoto;
       });
 
       // Si hay usuario autenticado, sincronizar datos con Firestore
       if (user != null && user.id.isNotEmpty) {
+        // Asegurar que si inició sesión con Google, su foto de Google quede registrada en users/{id}
+        if (googlePhoto.isNotEmpty) {
+          FirebaseFirestore.instance.collection('users').doc(user.id).set({
+            'photoUrl': googlePhoto,
+            'name': effectiveName,
+          }, SetOptions(merge: true)).ignore();
+        }
+
         FirebaseFirestore.instance.collection('users').doc(user.id).get().then((doc) {
           if (doc.exists && mounted) {
             final d = doc.data();
@@ -272,16 +313,25 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               final remoteColor = d['vehicleColor'] as String? ?? '';
               final remotePhoto = d['vehiclePlatePhotoUrl'] as String? ?? '';
               final remotePhone = d['phone'] as String? ?? '';
+              final remoteDriverPhoto = d['photoUrl'] as String? ?? '';
 
-              if (remoteModel.isNotEmpty || remotePlate.isNotEmpty || remoteColor.isNotEmpty) {
-                setState(() {
-                  if (_vehicleModel.isEmpty && remoteModel.isNotEmpty) _vehicleModel = remoteModel;
-                  if (_vehiclePlate.isEmpty && remotePlate.isNotEmpty) _vehiclePlate = remotePlate;
-                  if (_vehicleColor.isEmpty && remoteColor.isNotEmpty) _vehicleColor = remoteColor;
-                  if (_vehiclePlatePhoto.isEmpty && remotePhoto.isNotEmpty) _vehiclePlatePhoto = remotePhoto;
-                  if (_driverPhone.isEmpty && remotePhone.isNotEmpty) _driverPhone = remotePhone;
-                });
-              }
+              setState(() {
+                if (_vehicleModel.isEmpty && remoteModel.isNotEmpty) _vehicleModel = remoteModel;
+                if (_vehiclePlate.isEmpty && remotePlate.isNotEmpty) _vehiclePlate = remotePlate;
+                if (_vehicleColor.isEmpty && remoteColor.isNotEmpty) _vehicleColor = remoteColor;
+                if (_vehiclePlatePhoto.isEmpty && remotePhoto.isNotEmpty) _vehiclePlatePhoto = remotePhoto;
+                if (_driverPhone.isEmpty && remotePhone.isNotEmpty) _driverPhone = remotePhone;
+                if (remoteDriverPhoto.isNotEmpty && !remoteDriverPhoto.startsWith('assets/')) {
+                  _driverPhoto = remoteDriverPhoto;
+                  prefs.setString('driver_photo', remoteDriverPhoto);
+                } else if (_driverPhoto.isNotEmpty && !_driverPhoto.startsWith('assets/')) {
+                  // Si Firestore no la tenía, sincronizar nuestra foto real
+                  FirebaseFirestore.instance.collection('users').doc(user.id).set({
+                    'photoUrl': _driverPhoto,
+                    'name': effectiveName,
+                  }, SetOptions(merge: true)).ignore();
+                }
+              });
             }
           }
         }).catchError((_) {});
@@ -289,11 +339,46 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     }
   }
 
+  /// Suscribe el listener de Firestore para mantener _activeOrder en tiempo real.
+  /// Esta es la ÚNICA definición canónica — siempre actualiza desde Firestore,
+  /// incluyendo cambios de estado hechos por el admin.
+  void _subscribeToActiveOrder(String orderId) {
+    _activeOrderSub?.cancel();
+    _activeOrderSub = FirebaseFirestore.instance
+        .collection('orders')
+        .doc(orderId)
+        .snapshots()
+        .listen((snapshot) {
+      if (!snapshot.exists || snapshot.data() == null) return;
+      try {
+        final updated = OrderModel.fromFirestore(snapshot);
+        final data = snapshot.data();
+        final phase = data?['driverPhase'] as String?;
+        if (mounted) {
+          setState(() {
+            _activeOrder = updated;
+            if (phase == 'heading_to_kitchen') {
+              _headingToKitchen = true;
+            } else if (phase == 'heading_to_client' || updated.status == OrderStatus.onTheWay) {
+              _headingToKitchen = false;
+            }
+          });
+        }
+      } catch (_) {}
+    });
+  }
+
+  void _unsubscribeFromActiveOrder() {
+    _activeOrderSub?.cancel();
+    _activeOrderSub = null;
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     FloatingBubbleService.instance.hideBubble();
     _gpsStreamSubscription?.cancel();
+    _activeOrderSub?.cancel();
     _flutterTts.stop();
     super.dispose();
   }
@@ -335,12 +420,8 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           bearing = MapsService.calculateBearing(_driverCurrentPos, newPos);
         }
 
-        if (mounted) {
-          setState(() {
-            _driverCurrentPos = newPos;
-            if (bearing > 0) _currentBearing = bearing;
-          });
-        }
+        _driverCurrentPos = newPos;
+        if (bearing > 0) _currentBearing = bearing;
 
         // Transmitir coordenadas reales a Firestore cada actualización
         try {
@@ -360,12 +441,14 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         if (destLat != null && destLng != null) {
           final distKm = MapsService.calculateDistanceKm(newPos, LatLng(destLat, destLng));
           final timeText = MapsService.estimateDeliveryTime(distKm);
-          if (mounted) {
-            setState(() {
-              _remainingDistanceKm = distKm;
-              _remainingTimeText = timeText;
-            });
-          }
+          _remainingDistanceKm = distKm;
+          _remainingTimeText = timeText;
+        }
+
+        // Solo activar setState si el repartidor está en la pestaña de Mapa GPS (_currentNavIndex == 1)
+        // Esto previene que las pestañas de Pedidos, Ganancias y Perfil parpadeen continuamente.
+        if (mounted && _currentNavIndex == 1) {
+          setState(() {});
         }
 
         // Seguimiento de cámara en vivo estilo navegación GPS si está habilitado
@@ -460,24 +543,28 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     try {
       final user = ref.read(authNotifierProvider).user;
       final driverId = user?.id ?? 'driver_01';
-      final driverName = user?.name ?? 'Repartidor Diabla';
+      final effectiveDriverName = _driverName.isNotEmpty ? _driverName : (user?.name ?? 'Repartidor Diabla');
 
-      final kitchenPos = MapsService.defaultLocation;
-      final distToKitchenMeters = Geolocator.distanceBetween(
-        _driverCurrentPos.latitude,
-        _driverCurrentPos.longitude,
-        kitchenPos.latitude,
-        kitchenPos.longitude,
-      );
-      // Si el repartidor está a más de 200 metros de la cocina, primero debe ir a la cocina
-      final isFarFromKitchen = distToKitchenMeters > 200;
+      final fbPhoto = FirebaseAuth.instance.currentUser?.photoURL;
+      final uPhoto = user?.photoUrl;
+      final effectiveDriverPhoto = (_driverPhoto.isNotEmpty && !_driverPhoto.startsWith('assets/'))
+          ? _driverPhoto
+          : ((uPhoto != null && uPhoto.isNotEmpty && !uPhoto.startsWith('assets/'))
+              ? uPhoto
+              : (fbPhoto ?? _driverPhoto));
 
-      // Estado: assigned (repartidor asignado, aún no ha salido)
+      // Estado: assigned (repartidor asignado, siempre se dirige primero a la cocina central a reclamar el pedido)
       await FirebaseFirestore.instance.collection('orders').doc(order.id).update({
         'status': OrderStatus.assigned.name,
         'driverId': driverId,
-        'driverName': driverName,
-        'driverPhase': isFarFromKitchen ? 'heading_to_kitchen' : 'heading_to_client',
+        'driverName': effectiveDriverName,
+        'driverPhone': _driverPhone,
+        'driverPhotoUrl': effectiveDriverPhoto,
+        'driverVehicleModel': _vehicleModel,
+        'driverVehiclePlate': _vehiclePlate,
+        'driverVehicleColor': _vehicleColor,
+        if (_vehiclePlatePhoto.isNotEmpty) 'driverVehiclePlatePhotoUrl': _vehiclePlatePhoto,
+        'driverPhase': 'heading_to_kitchen',
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -492,23 +579,22 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       );
 
       setState(() {
-        _headingToKitchen = isFarFromKitchen;
-        _activeOrder = order.copyWith(status: OrderStatus.assigned);
+        _headingToKitchen = true;
         _currentNavIndex = 1; // Ir a pestaña Mapa
       });
 
+      // Suscribir a cambios en tiempo real del pedido (sincroniza con el admin)
+      _subscribeToActiveOrder(order.id);
+
       ref.read(driverOperationalProvider.notifier).setActiveDelivery(order.id);
       _calculateSmartRoute(order);
-
 
       if (mounted) {
         final shortCode = order.id.length > 6 ? order.id.substring(order.id.length - 6).toUpperCase() : order.id;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              isFarFromKitchen
-                  ? '🛵 Pedido #$shortCode aceptado. Dirígete a la Cocina Central La Diabla para reclamar el pedido.'
-                  : '✅ Pedido #$shortCode aceptado. Ya estás en la cocina, reclama el pedido e inicia la ruta al cliente.',
+              '🛵 Pedido #$shortCode aceptado. Dirígete a la Cocina Central La Diabla para reclamar los platillos.',
             ),
             backgroundColor: const Color(0xFF0369A1),
             behavior: SnackBarBehavior.floating,
@@ -526,6 +612,141 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         );
       }
     }
+  }
+
+  /// Permite al repartidor navegar hacia la Cocina Central en In-App, Waze o Google Maps
+  Future<void> _startTripToKitchen(OrderEntity order) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final kitchenPos = MapsService.defaultLocation;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1712) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(isDark ? 80 : 30),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD97706).withAlpha(25),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.restaurant_rounded, color: Color(0xFFD97706), size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Ruta a Cocina Central 🍳',
+                        style: TextStyle(
+                          fontFamily: AppTypography.displayFamily,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF1C1C1C),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Cl. 59 # 39W-24, Bucaramanga',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: isDark ? AppColors.textMutedDark : Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+
+            // In-App
+            ListTile(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: isDark ? AppColors.dividerDark : Colors.grey.shade300)),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: const Color(0xFFDC2626).withAlpha(20), borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.two_wheeler_rounded, color: Color(0xFFDC2626)),
+              ),
+              title: const Text('Navegar en App La Diabla', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+              subtitle: const Text('Ruta inteligente en pantalla con velocímetro', style: TextStyle(fontSize: 11.5)),
+              trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+              onTap: () {
+                Navigator.pop(ctx);
+                setState(() => _headingToKitchen = true);
+                _calculateSmartRoute(order);
+              },
+            ),
+            const SizedBox(height: 8),
+
+            // Waze
+            ListTile(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: isDark ? AppColors.dividerDark : Colors.grey.shade300)),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: const Color(0xFF00A3DA).withAlpha(20), borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.directions_car_rounded, color: Color(0xFF00A3DA)),
+              ),
+              title: const Text('Waze GPS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+              subtitle: const Text('Abrir ruta hacia la cocina en Waze', style: TextStyle(fontSize: 11.5)),
+              trailing: const Icon(Icons.open_in_new_rounded, size: 16),
+              onTap: () {
+                Navigator.pop(ctx);
+                MapsService.openInWaze(kitchenPos.latitude, kitchenPos.longitude);
+              },
+            ),
+            const SizedBox(height: 8),
+
+            // Google Maps
+            ListTile(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: isDark ? AppColors.dividerDark : Colors.grey.shade300)),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: const Color(0xFF10B981).withAlpha(20), borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.map_rounded, color: Color(0xFF10B981)),
+              ),
+              title: const Text('Google Maps', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+              subtitle: const Text('Abrir ruta hacia la cocina en Google Maps', style: TextStyle(fontSize: 11.5)),
+              trailing: const Icon(Icons.open_in_new_rounded, size: 16),
+              onTap: () {
+                Navigator.pop(ctx);
+                MapsService.openInGoogleMaps(kitchenPos.latitude, kitchenPos.longitude, label: 'Cocina Central La Diabla');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Muestra selector para elegir cómo navegar la ruta: In-App, Waze o Google Maps
@@ -813,7 +1034,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       final destLng = order.address?.longitude ?? order.longitude;
 
       await FirebaseFirestore.instance.collection('orders').doc(order.id).update({
-        'status': OrderStatus.onTheWay.name,
+        'status': OrderStatus.onTheWay.firestoreValue, // 'on_the_way'
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -823,11 +1044,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         title: '🛵 ¡El repartidor va en camino!',
         body: 'Tu comida de La Diabla está en ruta hacia tu puerta 🔥',
         emoji: '🛵',
-        status: OrderStatus.onTheWay.name,
+        status: OrderStatus.onTheWay.firestoreValue,
       );
 
       setState(() {
-        _activeOrder = order.copyWith(status: OrderStatus.onTheWay);
+        // No sobreescribir _activeOrder — el stream de Firestore actualizará
+        // el estado en tiempo real (incluyendo driverId/driverName del admin).
         _currentNavIndex = 1; // Pestaña del Mapa
         _isCameraFollowEnabled = true;
       });
@@ -905,6 +1127,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         builder: (ctx, setModalState) {
           final isDark = Theme.of(ctx).brightness == Brightness.dark;
           final shortId = order.id.length > 6 ? order.id.substring(order.id.length - 6).toUpperCase() : order.id;
+          final bool canFinish = proofImage != null && !isUploading;
 
           Future<void> pickProofImage(ImageSource source) async {
             try {
@@ -930,34 +1153,59 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           }
 
           Future<void> submitDelivery() async {
+            if (proofImage == null) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('⚠️ Debes adjuntar la foto del comprobante de entrega obligatoriamente.'),
+                    backgroundColor: Color(0xFFDC2626),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+              return;
+            }
+
             setModalState(() => isUploading = true);
             try {
-              String? proofUrl;
-              if (proofImage != null) {
-                try {
-                  proofUrl = await StorageService().uploadDeliveryProof(
-                    orderId: order.id,
-                    file: proofImage!,
-                  ).timeout(const Duration(seconds: 25));
-                } catch (e) {
-                  debugPrint('⚠️ Upload de comprobante falló: $e');
-                  // Continuar sin URL — el pedido igual se marca entregado
-                }
+              String proofUrl = '';
+              try {
+                proofUrl = await StorageService().uploadDeliveryProof(
+                  orderId: order.id,
+                  file: proofImage!,
+                ).timeout(const Duration(seconds: 25));
+              } catch (e) {
+                debugPrint('⚠️ Upload de comprobante a Storage falló, usando Base64: $e');
+                final bytes = await proofImage!.readAsBytes();
+                proofUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
               }
 
               final driverId = ref.read(authNotifierProvider).user?.id ?? 'driver_01';
               final fee = order.deliveryFee > 0 ? order.deliveryFee : 7500.0;
 
+              final user = ref.read(authNotifierProvider).user;
+              final fbPhoto = FirebaseAuth.instance.currentUser?.photoURL;
+              final uPhoto = user?.photoUrl;
+              final effectiveDriverPhoto = (_driverPhoto.isNotEmpty && !_driverPhoto.startsWith('assets/'))
+                  ? _driverPhoto
+                  : ((uPhoto != null && uPhoto.isNotEmpty && !uPhoto.startsWith('assets/'))
+                      ? uPhoto
+                      : (fbPhoto ?? _driverPhoto));
+
               final updateData = <String, dynamic>{
                 'status': OrderStatus.delivered.name,
                 'driverId': driverId,
                 'driverName': _driverName,
+                'driverPhone': _driverPhone,
+                'driverPhotoUrl': effectiveDriverPhoto,
+                'driverVehicleModel': _vehicleModel,
+                'driverVehiclePlate': _vehiclePlate,
+                'driverVehicleColor': _vehicleColor,
+                if (_vehiclePlatePhoto.isNotEmpty) 'driverVehiclePlatePhotoUrl': _vehiclePlatePhoto,
+                'deliveryProofUrl': proofUrl,
                 'deliveredAt': FieldValue.serverTimestamp(),
                 'updatedAt': FieldValue.serverTimestamp(),
               };
-              if (proofUrl != null) {
-                updateData['deliveryProofUrl'] = proofUrl;
-              }
 
               await FirebaseFirestore.instance.collection('orders').doc(order.id).update(updateData);
 
@@ -1010,6 +1258,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                 setState(() {
                   _activeOrder = null;
                 });
+                _unsubscribeFromActiveOrder();
                 ref.read(driverOperationalProvider.notifier).setActiveDelivery(null);
 
                 showDialog(
@@ -1149,11 +1398,11 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                   ],
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF16A34A),
-                      foregroundColor: Colors.white,
+                      backgroundColor: canFinish ? const Color(0xFF16A34A) : (isDark ? Colors.white12 : Colors.grey.shade400),
+                      foregroundColor: canFinish ? Colors.white : (isDark ? Colors.white38 : Colors.black45),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      elevation: 2,
+                      elevation: canFinish ? 2 : 0,
                     ),
                     icon: isUploading
                         ? const SizedBox(
@@ -1161,12 +1410,16 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                           )
-                        : const Icon(Icons.check_circle_rounded, size: 20),
+                        : Icon(canFinish ? Icons.check_circle_rounded : Icons.photo_camera_rounded, size: 20),
                     label: Text(
-                      isUploading ? 'Finalizando entrega...' : 'FINALIZAR ENTREGA ✅',
-                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                      isUploading
+                          ? 'Finalizando entrega...'
+                          : (proofImage == null
+                              ? '📸 ADJUNTA FOTO DE ENTREGA PRIMERO'
+                              : 'FINALIZAR ENTREGA ✅'),
+                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
                     ),
-                    onPressed: isUploading ? null : submitDelivery,
+                    onPressed: canFinish ? submitDelivery : null,
                   ),
                 ],
               ),
@@ -1184,6 +1437,88 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       longitude: lng,
       destinationName: 'Entrega de Pedido La Diabla',
       addressText: address,
+    );
+  }
+
+  /// Muestra la foto de perfil en pantalla completa con fondo oscuro y opción de cerrar.
+  void _showProfilePhotoDialog(BuildContext context, String photoUrl, String name) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) => GestureDetector(
+        onTap: () => Navigator.of(ctx).pop(),
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Stack(
+            children: [
+              Center(
+                child: Hero(
+                  tag: 'profile_photo_$photoUrl',
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: InteractiveViewer(
+                      child: photoUrl.startsWith('data:image/')
+                          ? Image.memory(
+                              base64Decode(photoUrl.split(',').last),
+                              fit: BoxFit.contain,
+                              width: MediaQuery.of(ctx).size.width * 0.88,
+                              errorBuilder: (_, e, s) => const Icon(
+                                Icons.person_rounded,
+                                color: Colors.white54,
+                                size: 80,
+                              ),
+                            )
+                          : Image.network(
+                              photoUrl,
+                              fit: BoxFit.contain,
+                              width: MediaQuery.of(ctx).size.width * 0.88,
+                              errorBuilder: (_, e, s) => const Icon(
+                                Icons.person_rounded,
+                                color: Colors.white54,
+                                size: 80,
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: MediaQuery.of(ctx).padding.top + 12,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: MediaQuery.of(ctx).padding.top + 8,
+                right: 16,
+                child: IconButton(
+                  icon: const CircleAvatar(
+                    backgroundColor: Colors.black54,
+                    child: Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                  ),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -1219,6 +1554,21 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     ref.listen<DriverOperationalState>(driverOperationalProvider, (prev, next) {
       if (next.isBatteryLow && (prev == null || !prev.isBatteryLow)) {
         LowBatteryModal.showIfNeeded(context, next.batteryLevel);
+      }
+    });
+
+    // Escuchar cambios de autenticación para sincronizar inmediatamente la foto de Google si llega al loguearse
+    ref.listen<AuthState>(authNotifierProvider, (prev, next) {
+      final nextUser = next.user;
+      final fbPhoto = FirebaseAuth.instance.currentUser?.photoURL;
+      final newPhoto = (fbPhoto != null && fbPhoto.startsWith('http'))
+          ? fbPhoto
+          : ((nextUser?.photoUrl != null && nextUser!.photoUrl!.startsWith('http')) ? nextUser.photoUrl! : '');
+      if (newPhoto.isNotEmpty && (_driverPhoto.startsWith('assets/') || _driverPhoto.isEmpty)) {
+        setState(() {
+          _driverPhoto = newPhoto;
+        });
+        SharedPreferences.getInstance().then((p) => p.setString('driver_photo', newPhoto));
       }
     });
 
@@ -1562,6 +1912,8 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     final opState = ref.watch(driverOperationalProvider);
 
     return allOrdersAsync.when(
+      skipLoadingOnReload: true,
+      skipLoadingOnRefresh: true,
       loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFDC2626))),
       error: (err, _) => DiablaOfflineView(
         title: 'Ups, algo salió mal.',
@@ -1804,8 +2156,119 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               const SizedBox(height: 16),
             ],
 
-            // Título de Sección
-            Row(
+            // Selector de Subpestañas: [🛵 Disponibles (X)] | [✅ Mis Entregas (Historial)]
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1712) : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _ordersSubTabIndex = 0),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(vertical: 9),
+                        decoration: BoxDecoration(
+                          color: _ordersSubTabIndex == 0
+                              ? const Color(0xFFDC2626)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: _ordersSubTabIndex == 0
+                              ? [
+                                  BoxShadow(
+                                    color: const Color(0xFFDC2626).withAlpha(80),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  )
+                                ]
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.two_wheeler_rounded,
+                              size: 16,
+                              color: _ordersSubTabIndex == 0
+                                  ? Colors.white
+                                  : (isDark ? Colors.white60 : Colors.grey.shade700),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Disponibles (${availableOrders.length})',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                                color: _ordersSubTabIndex == 0
+                                    ? Colors.white
+                                    : (isDark ? Colors.white70 : Colors.grey.shade800),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _ordersSubTabIndex = 1),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(vertical: 9),
+                        decoration: BoxDecoration(
+                          color: _ordersSubTabIndex == 1
+                              ? const Color(0xFF16A34A)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: _ordersSubTabIndex == 1
+                              ? [
+                                  BoxShadow(
+                                    color: const Color(0xFF16A34A).withAlpha(80),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  )
+                                ]
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.task_alt_rounded,
+                              size: 16,
+                              color: _ordersSubTabIndex == 1
+                                  ? Colors.white
+                                  : (isDark ? Colors.white60 : Colors.grey.shade700),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Mis Entregas',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                                color: _ordersSubTabIndex == 1
+                                    ? Colors.white
+                                    : (isDark ? Colors.white70 : Colors.grey.shade800),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            if (_ordersSubTabIndex == 1) ...[
+              _buildDeliveredOrdersHistory(isDark),
+            ] else ...[
+              // Título de Sección
+              Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
@@ -1868,6 +2331,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                     isAvailable: true,
                     opState: opState,
                   )),
+            ],
           ],
         );
       },
@@ -2004,6 +2468,38 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               ),
             ],
           ),
+          if (order.notes != null && order.notes!.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF2C2219) : const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isDark ? const Color(0xFFB45309).withAlpha(120) : const Color(0xFFFCD34D),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.edit_note_rounded, size: 18, color: Color(0xFFD97706)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Indicaciones del cliente: ${order.notes}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? const Color(0xFFFCD34D) : const Color(0xFF92400E),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 6),
           Text(
             '🌮 Platillos: ${order.items.map((i) => '${i.quantity}x ${i.product.name}').join(', ')}',
@@ -2085,7 +2581,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               icon: const Icon(Icons.two_wheeler_rounded, size: 20),
               label: Text(
                 canReceive
-                    ? 'TOMAR Y SALIR EN RUTA 🛵'
+                    ? 'TOMAR PEDIDO E IR A COCINA 🍳'
                     : (!_isVehicleRegistered ? 'REGISTRA TU VEHÍCULO PRIMERO ⚠️' : 'BLOQUEADO PARA RECIBIR'),
                 style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
               ),
@@ -2107,10 +2603,407 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                         );
                       }
                     },
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
+      );
+  }
+
+  /// Pestaña de Historial de Entregas del Repartidor con acceso a Chats y Detalles
+  Widget _buildDeliveredOrdersHistory(bool isDark) {
+    final driverId = ref.read(authNotifierProvider).user?.id ?? 'driver_01';
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('orders')
+          .where('driverId', isEqualTo: driverId)
+          .where('status', isEqualTo: OrderStatus.delivered.name)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF2C1B14) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Center(
+              child: Text(
+                'Error al cargar entregas: ${snapshot.error}',
+                style: const TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            ),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Center(child: CircularProgressIndicator(color: Color(0xFF16A34A))),
+          );
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+        if (docs.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF2C1B14) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isDark ? AppColors.dividerDark : Colors.grey.shade200,
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.inventory_2_outlined, size: 54, color: Color(0xFF16A34A)),
+                const SizedBox(height: 12),
+                const Text(
+                  'Aún no tienes pedidos entregados',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Cuando completes y finalices una entrega, aparecerá aquí con acceso directo a su chat y datos del cliente.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? AppColors.textMutedDark : Colors.grey.shade600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Ordenar en memoria por fecha más reciente
+        final sortedDocs = List<QueryDocumentSnapshot>.from(docs);
+        sortedDocs.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>?;
+          final bData = b.data() as Map<String, dynamic>?;
+          final aTime = aData?['deliveredAt'] ?? aData?['updatedAt'] ?? aData?['createdAt'];
+          final bTime = bData?['deliveredAt'] ?? bData?['updatedAt'] ?? bData?['createdAt'];
+          DateTime aDate = DateTime(2020);
+          DateTime bDate = DateTime(2020);
+          if (aTime is Timestamp) aDate = aTime.toDate();
+          if (bTime is Timestamp) bDate = bTime.toDate();
+          return bDate.compareTo(aDate);
+        });
+
+        return Column(
+          children: sortedDocs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final orderId = doc.id;
+            final shortId = orderId.length > 6
+                ? orderId.substring(orderId.length - 6).toUpperCase()
+                : orderId.toUpperCase();
+            final customerName = data['customerName'] as String? ??
+                data['userName'] as String? ??
+                'Cliente La Diabla';
+            final customerPhone = data['customerPhone'] as String? ??
+                data['userPhone'] as String? ??
+                data['phone'] as String? ??
+                '';
+            final address = data['formattedAddress'] as String? ?? 'Dirección de entrega';
+            final fee = (data['deliveryFee'] as num?)?.toDouble() ?? 7500.0;
+            final proofUrl = data['deliveryProofUrl'] as String?;
+            final clientId = data['userId'] as String? ?? '';
+
+            // Fecha/hora de entrega formateada
+            String deliveredTimeStr = '';
+            final deliveredAtRaw = data['deliveredAt'] ?? data['updatedAt'];
+            if (deliveredAtRaw is Timestamp) {
+              deliveredTimeStr = DateFormat('dd MMM • hh:mm a').format(deliveredAtRaw.toDate());
+            }
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF2C1B14) : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isDark ? AppColors.dividerDark : Colors.grey.shade200,
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(isDark ? 30 : 10),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Encabezado del pedido entregado
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF16A34A).withAlpha(25),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFF16A34A), width: 1),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 14),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '#$shortId',
+                                  style: const TextStyle(
+                                    color: Color(0xFF16A34A),
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 12.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (deliveredTimeStr.isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            Text(
+                              deliveredTimeStr,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark ? AppColors.textMutedDark : Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF16A34A).withAlpha(20),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '+${PriceFormatter.formatSmart(fee)}',
+                          style: const TextStyle(
+                            color: Color(0xFF16A34A),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 20),
+
+                  // Cliente y foto
+                  Row(
+                    children: [
+                      // Avatar o Foto de cliente
+                      StreamBuilder<DocumentSnapshot>(
+                        stream: clientId.isNotEmpty
+                            ? FirebaseFirestore.instance.collection('users').doc(clientId).snapshots()
+                            : null,
+                        builder: (context, userSnap) {
+                          final userData = userSnap.data?.data() as Map<String, dynamic>?;
+                          final clientPhoto = userData?['photoUrl'] as String? ?? '';
+                          return GestureDetector(
+                            onTap: clientPhoto.isNotEmpty
+                                ? () => _showProfilePhotoDialog(context, clientPhoto, customerName)
+                                : null,
+                            child: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFF16A34A), width: 2),
+                                color: const Color(0xFF1E1712),
+                              ),
+                              child: ClipOval(
+                                child: clientPhoto.isNotEmpty
+                                    ? (clientPhoto.startsWith('data:image/')
+                                        ? Image.memory(
+                                            base64Decode(clientPhoto.split(',').last),
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, e, s) =>
+                                                const Center(child: Icon(Icons.person, color: Colors.white70)),
+                                          )
+                                        : Image.network(
+                                            clientPhoto,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, e, s) =>
+                                                const Center(child: Icon(Icons.person, color: Colors.white70)),
+                                          ))
+                                    : const Center(child: Icon(Icons.person, color: Colors.white70)),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              customerName,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                const Icon(Icons.location_on_rounded, size: 13, color: Color(0xFFDC2626)),
+                                const SizedBox(width: 3),
+                                Expanded(
+                                  child: Text(
+                                    address,
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      color: isDark ? AppColors.textMutedDark : Colors.grey.shade600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Si hay comprobante fotográfico, mostrar miniatura
+                  if (proofUrl != null && proofUrl.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    GestureDetector(
+                      onTap: () => _showProfilePhotoDialog(context, proofUrl, 'Comprobante Entrega #$shortId'),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E1712) : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.withAlpha(50)),
+                        ),
+                        child: Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: proofUrl.startsWith('data:image/')
+                                  ? Image.memory(
+                                      base64Decode(proofUrl.split(',').last),
+                                      width: 42,
+                                      height: 42,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Image.network(
+                                      proofUrl,
+                                      width: 42,
+                                      height: 42,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, e, s) =>
+                                          const Icon(Icons.image, color: Colors.grey),
+                                    ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '📸 Comprobante de Entrega',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                  ),
+                                  Text(
+                                    'Toca para ver foto ampliada',
+                                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.zoom_in_rounded, size: 20, color: Color(0xFF16A34A)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 14),
+
+                  // Botones de Acción: "Ver Chat con Cliente 💬" y WhatsApp
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFDC2626),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            elevation: 1,
+                          ),
+                          icon: const Icon(Icons.forum_rounded, size: 16),
+                          label: const Text(
+                            'Ver Chat con Cliente 💬',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                          onPressed: () {
+                            final myDriverId = ref.read(authNotifierProvider).user?.id ?? 'driver_01';
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => OrderChatScreen(
+                                  orderId: orderId,
+                                  currentUserId: myDriverId,
+                                  currentUserName: _driverName,
+                                  currentUserRole: 'driver',
+                                  peerName: customerName,
+                                  peerPhone: customerPhone,
+                                  peerRole: 'Cliente',
+                                  currentUserPhotoUrl: _driverPhoto,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      if (customerPhone.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        IconButton(
+                          style: IconButton.styleFrom(
+                            backgroundColor: const Color(0xFF16A34A).withAlpha(20),
+                            foregroundColor: const Color(0xFF16A34A),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: const BorderSide(color: Color(0xFF16A34A), width: 1.2),
+                            ),
+                          ),
+                          icon: const Icon(Icons.chat_bubble_rounded, size: 18),
+                          tooltip: 'WhatsApp',
+                          onPressed: () async {
+                            final cleanPhone = customerPhone.replaceAll(RegExp(r'[^0-9]'), '');
+                            final url = Uri.parse(
+                              'https://wa.me/57$cleanPhone?text=Hola,%20te%20escribe%20tu%20repartidor%20sobre%20el%20pedido%20%23$shortId%20entregado%20🔥',
+                            );
+                            try {
+                              await launchUrl(url, mode: LaunchMode.externalApplication);
+                            } catch (_) {}
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      },
     );
   }
 
@@ -2235,13 +3128,13 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           top: 14,
           left: 14,
           right: 14,
-          child: activeOrder != null && activeOrder.status == OrderStatus.onTheWay
+          child: activeOrder != null && (activeOrder.status == OrderStatus.onTheWay || _headingToKitchen)
               ? _buildInAppNavigationHud(
                   activeOrder: activeOrder,
                   distanceKm: currentDistanceKm,
                   etaText: currentEtaText,
-                  destLat: destLat,
-                  destLng: destLng,
+                  destLat: targetDestPos.latitude,
+                  destLng: targetDestPos.longitude,
                   isDark: isDark,
                 )
               : _buildTopControlHud(opState, isDark),
@@ -2475,6 +3368,55 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                       ),
                       const SizedBox(height: 12),
 
+                      // Indicaciones / Notas de Entrega del Cliente
+                      if (activeOrder.notes != null && activeOrder.notes!.trim().isNotEmpty) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF332010) : const Color(0xFFFEF3C7),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFFF59E0B) : const Color(0xFFD97706),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.edit_note_rounded, color: Color(0xFFD97706), size: 24),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'NOTAS / INDICACIONES DEL CLIENTE:',
+                                      style: TextStyle(
+                                        color: Color(0xFFD97706),
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 11,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      activeOrder.notes!,
+                                      style: TextStyle(
+                                        color: isDark ? Colors.white : const Color(0xFF78350F),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+
                       // Información y Contacto con el Cliente
                       Builder(
                         builder: (context) {
@@ -2497,10 +3439,62 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                                 ),
                                 child: Row(
                                   children: [
-                                    CircleAvatar(
-                                      radius: 16,
-                                      backgroundColor: const Color(0xFFDC2626).withAlpha(25),
-                                      child: const Icon(Icons.person_rounded, color: Color(0xFFDC2626), size: 18),
+                                    // Foto del cliente desde Firestore (toca para ver ampliada)
+                                    StreamBuilder<DocumentSnapshot>(
+                                      stream: FirebaseFirestore.instance
+                                          .collection('users')
+                                          .doc(activeOrder.userId)
+                                          .snapshots(),
+                                      builder: (context, userSnap) {
+                                        final userData = userSnap.data?.data() as Map<String, dynamic>?;
+                                        final customerPhotoUrl = userData?['photoUrl'] as String? ?? '';
+                                        return GestureDetector(
+                                          onTap: customerPhotoUrl.isNotEmpty
+                                              ? () => _showProfilePhotoDialog(context, customerPhotoUrl, clientName)
+                                              : null,
+                                          child: Stack(
+                                            children: [
+                                              CircleAvatar(
+                                                radius: 20,
+                                                backgroundColor: const Color(0xFFDC2626).withAlpha(25),
+                                                child: ClipOval(
+                                                  child: customerPhotoUrl.isNotEmpty
+                                                      ? (customerPhotoUrl.startsWith('data:image/')
+                                                          ? Image.memory(
+                                                              base64Decode(customerPhotoUrl.split(',').last),
+                                                              width: 40,
+                                                              height: 40,
+                                                              fit: BoxFit.cover,
+                                                              errorBuilder: (context, error, stackTrace) => const Icon(Icons.person_rounded, color: Color(0xFFDC2626), size: 22),
+                                                            )
+                                                          : Image.network(
+                                                              customerPhotoUrl,
+                                                              width: 40,
+                                                              height: 40,
+                                                              fit: BoxFit.cover,
+                                                              errorBuilder: (context, error, stackTrace) => const Icon(Icons.person_rounded, color: Color(0xFFDC2626), size: 22),
+                                                            ))
+                                                      : const Icon(Icons.person_rounded, color: Color(0xFFDC2626), size: 22),
+                                                ),
+                                              ),
+                                              if (customerPhotoUrl.isNotEmpty)
+                                                Positioned(
+                                                  right: 0,
+                                                  bottom: 0,
+                                                  child: Container(
+                                                    width: 14,
+                                                    height: 14,
+                                                    decoration: const BoxDecoration(
+                                                      shape: BoxShape.circle,
+                                                      color: Color(0xFFDC2626),
+                                                    ),
+                                                    child: const Icon(Icons.zoom_in_rounded, color: Colors.white, size: 9),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        );
+                                      },
                                     ),
                                     const SizedBox(width: 10),
                                     Expanded(
@@ -2586,6 +3580,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                                           peerName: clientName,
                                           peerPhone: clientPhone,
                                           peerRole: 'Cliente',
+                                          currentUserPhotoUrl: _driverPhoto,
                                         ),
                                       ),
                                     );
@@ -2598,52 +3593,81 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                       ),
                       const SizedBox(height: 10),
 
-                      // Botón dinámico según fase de entrega (Estilo Rappi):
-                      // Si va a la cocina: "PEDIDO RECLAMADO EN COCINA 📦"
-                      // Si assigned listo para salir al cliente: "INICIAR RUTA FINAL AL CLIENTE 🏍️"
-                      // Si onTheWay: "ENTREGA COMPLETADA ✅"
-                      if (_headingToKitchen)
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFD97706),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                              elevation: 4,
+                      // Botón dinámico según fase de entrega (Estilo Rappi / DiDi Food):
+                      // Fase 1: Va hacia la cocina a reclamar el pedido
+                      // Fase 2: Reclama el pedido y sale hacia el cliente
+                      // Fase 3: Llega al cliente y finaliza con foto de comprobante
+                      if (_headingToKitchen) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 4,
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0284C7),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  elevation: 2,
+                                ),
+                                icon: const Icon(Icons.navigation_rounded, size: 18),
+                                label: const Text(
+                                  'GPS COCINA 🧭',
+                                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11.5),
+                                ),
+                                onPressed: () => _startTripToKitchen(activeOrder),
+                              ),
                             ),
-                            icon: const Icon(Icons.inventory_2_rounded, size: 22),
-                            label: const Text(
-                              'LLEGUÉ / PEDIDO RECLAMADO 📦',
-                              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 6,
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFD97706),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  elevation: 4,
+                                ),
+                                icon: const Icon(Icons.inventory_2_rounded, size: 19),
+                                label: const Text(
+                                  'PEDIDO RECIBIDO 📦',
+                                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
+                                ),
+                                onPressed: () async {
+                                  setState(() {
+                                    _headingToKitchen = false;
+                                    _smartRoutePoints = [];
+                                  });
+                                  try {
+                                    await FirebaseFirestore.instance
+                                        .collection('orders')
+                                        .doc(activeOrder.id)
+                                        .update({
+                                      'driverPhase': 'heading_to_client',
+                                      'updatedAt': FieldValue.serverTimestamp(),
+                                    });
+                                  } catch (_) {}
+                                  try {
+                                    await _flutterTts.speak('¡Pedido recibido en cocina! Ahora inicia la ruta hacia el cliente.');
+                                  } catch (_) {}
+                                  await _calculateSmartRoute(activeOrder);
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('📦 Pedido recibido en cocina. Presiona "INICIAR RUTA AL CLIENTE" para salir.'),
+                                        backgroundColor: Color(0xFF16A34A),
+                                        behavior: SnackBarBehavior.floating,
+                                        duration: Duration(seconds: 4),
+                                      ),
+                                    );
+                                  }
+                                },
+                              ),
                             ),
-                            onPressed: () async {
-                              setState(() {
-                                _headingToKitchen = false;
-                                _smartRoutePoints = [];
-                              });
-                              // Informar a Firestore que el repartidor ya reclamó el pedido y va al cliente
-                              try {
-                                await FirebaseFirestore.instance
-                                    .collection('orders')
-                                    .doc(activeOrder.id)
-                                    .update({'driverPhase': 'heading_to_client', 'updatedAt': FieldValue.serverTimestamp()});
-                              } catch (_) {}
-                              await _calculateSmartRoute(activeOrder);
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('📦 Pedido reclamado. Presiona INICIAR RUTA para salir hacia el cliente.'),
-                                    backgroundColor: Color(0xFF16A34A),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              }
-                            },
-                          ),
-                        )
-                      else if (activeOrder.status == OrderStatus.assigned)
+                          ],
+                        ),
+                      ] else if (activeOrder.status == OrderStatus.assigned) ...[
                         SizedBox(
                           width: double.infinity,
                           height: 50,
@@ -2661,8 +3685,8 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                             ),
                             onPressed: () => _startTripWithGps(activeOrder),
                           ),
-                        )
-                      else
+                        ),
+                      ] else ...[
                         SizedBox(
                           width: double.infinity,
                           height: 46,
@@ -2680,6 +3704,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                             onPressed: () => _markOrderAsDelivered(activeOrder),
                           ),
                         ),
+                      ],
                     ],
                   ),
                 ),
@@ -2811,6 +3836,36 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               ),
             ],
           ),
+          if (!_headingToKitchen && activeOrder.notes != null && activeOrder.notes!.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF332010) : const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: isDark ? const Color(0xFFF59E0B) : const Color(0xFFD97706)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.edit_note_rounded, size: 16, color: Color(0xFFD97706)),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      'Nota: ${activeOrder.notes}',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.amber.shade200 : const Color(0xFF78350F),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
 
           // Métricas en vivo de conducción: Distancia restante, Tiempo estimado y Recalcular
@@ -2881,6 +3936,8 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     final deliveredOrdersAsync = ref.watch(driverDeliveredOrdersStreamProvider);
 
     return deliveredOrdersAsync.when(
+      skipLoadingOnReload: true,
+      skipLoadingOnRefresh: true,
       loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFDC2626))),
       error: (err, _) => Center(child: Text('Error cargando ganancias: $err')),
       data: (deliveredOrders) {
@@ -3431,8 +4488,20 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                         border: Border.all(color: const Color(0xFFDC2626), width: 2.5),
                         color: const Color(0xFF1E1712),
                       ),
-                      child: ClipOval(
-                        child: _buildDriverAvatarImage(_driverPhoto),
+                      child: Builder(
+                        builder: (context) {
+                          final uPhoto = user?.photoUrl;
+                          final activePhoto = (_driverPhoto.isNotEmpty && !_driverPhoto.startsWith('assets/'))
+                              ? _driverPhoto
+                              : ((uPhoto != null && uPhoto.isNotEmpty && !uPhoto.startsWith('assets/'))
+                                  ? uPhoto
+                                  : (FirebaseAuth.instance.currentUser?.photoURL?.isNotEmpty == true
+                                      ? FirebaseAuth.instance.currentUser!.photoURL!
+                                      : _driverPhoto));
+                          return ClipOval(
+                            child: _buildDriverAvatarImage(activePhoto),
+                          );
+                        },
                       ),
                     ),
                     Positioned(
@@ -3556,11 +4625,28 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                       const SizedBox(width: 8),
                       const Text('Foto de Placa:', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
                       const Spacer(),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: _vehiclePlatePhoto.startsWith('http')
-                            ? Image.network(_vehiclePlatePhoto, width: 44, height: 44, fit: BoxFit.cover)
-                            : Image.file(File(_vehiclePlatePhoto), width: 44, height: 44, fit: BoxFit.cover),
+                      GestureDetector(
+                        onTap: () => _showProfilePhotoDialog(context, _vehiclePlatePhoto, 'Placa: $_vehiclePlate'),
+                        child: Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: _buildPlateImageWidget(_vehiclePlatePhoto, width: 48, height: 48),
+                            ),
+                            Positioned(
+                              right: 2,
+                              bottom: 2,
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Color(0xFFDC2626),
+                                ),
+                                child: const Icon(Icons.zoom_in_rounded, size: 10, color: Colors.white),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -3954,7 +5040,20 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   }
 
   Widget _buildDriverAvatarImage(String path) {
-    if (path.startsWith('http')) {
+    if (path.startsWith('data:image/')) {
+      try {
+        final bytes = base64Decode(path.split(',').last);
+        return Image.memory(
+          bytes,
+          width: double.infinity,
+          height: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/diabloperfil.png', width: double.infinity, height: double.infinity, fit: BoxFit.cover),
+        );
+      } catch (_) {
+        return Image.asset('assets/images/diabloperfil.png', width: double.infinity, height: double.infinity, fit: BoxFit.cover);
+      }
+    } else if (path.startsWith('http')) {
       return Image.network(
         path,
         width: double.infinity,
@@ -3982,6 +5081,61 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       );
     }
     return Image.asset('assets/images/diabloperfil.png', width: double.infinity, height: double.infinity, fit: BoxFit.cover);
+  }
+
+  Widget _buildPlateImageWidget(String pathOrUrl, {double? width, double? height, BoxFit fit = BoxFit.cover}) {
+    if (pathOrUrl.startsWith('data:image/')) {
+      try {
+        final bytes = base64Decode(pathOrUrl.split(',').last);
+        return Image.memory(
+          bytes,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) => Container(
+            width: width,
+            height: height,
+            color: Colors.grey.shade300,
+            child: const Center(child: Icon(Icons.broken_image, size: 22, color: Colors.grey)),
+          ),
+        );
+      } catch (_) {}
+    } else if (pathOrUrl.startsWith('http')) {
+      return Image.network(
+        pathOrUrl,
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: width,
+          height: height,
+          color: Colors.grey.shade300,
+          child: const Center(child: Icon(Icons.broken_image, size: 22, color: Colors.grey)),
+        ),
+      );
+    } else if (pathOrUrl.isNotEmpty) {
+      final file = File(pathOrUrl);
+      if (file.existsSync()) {
+        return Image.file(
+          file,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) => Container(
+            width: width,
+            height: height,
+            color: Colors.grey.shade300,
+            child: const Center(child: Icon(Icons.broken_image, size: 22, color: Colors.grey)),
+          ),
+        );
+      }
+    }
+    return Container(
+      width: width,
+      height: height,
+      color: Colors.grey.shade300,
+      child: const Center(child: Icon(Icons.photo_camera_rounded, size: 22, color: Colors.grey)),
+    );
   }
 
   void _showDriverAvatarPickerSheet() {
@@ -4034,15 +5188,28 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                       label: const Text('Mi Galería 🖼️', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       onPressed: () async {
                         final picker = ImagePicker();
-                        final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85, maxWidth: 800, maxHeight: 800);
+                        final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75, maxWidth: 600, maxHeight: 600);
                         if (picked != null) {
                           if (ctx.mounted) Navigator.pop(ctx);
+                          final bytes = await File(picked.path).readAsBytes();
+                          final photoDataUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
                           final prefs = await SharedPreferences.getInstance();
-                          await prefs.setString('driver_photo', picked.path);
+                          await prefs.setString('driver_photo', photoDataUrl);
                           if (mounted) {
-                            setState(() => _driverPhoto = picked.path);
+                            setState(() => _driverPhoto = photoDataUrl);
                           }
-                          await ref.read(authNotifierProvider.notifier).updateUserProfile(photoUrl: picked.path);
+                          final user = ref.read(authNotifierProvider).user;
+                          if (user != null && user.id.isNotEmpty) {
+                            FirebaseFirestore.instance.collection('users').doc(user.id).set({
+                              'photoUrl': photoDataUrl,
+                            }, SetOptions(merge: true)).ignore();
+                          }
+                          if (_activeOrder != null) {
+                            FirebaseFirestore.instance.collection('orders').doc(_activeOrder!.id).update({
+                              'driverPhotoUrl': photoDataUrl,
+                            }).catchError((_) {});
+                          }
+                          await ref.read(authNotifierProvider.notifier).updateUserProfile(photoUrl: photoDataUrl);
                         }
                       },
                     ),
@@ -4060,15 +5227,28 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                       label: const Text('Cámara 📸', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       onPressed: () async {
                         final picker = ImagePicker();
-                        final picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 85, maxWidth: 800, maxHeight: 800);
+                        final picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 75, maxWidth: 600, maxHeight: 600);
                         if (picked != null) {
                           if (ctx.mounted) Navigator.pop(ctx);
+                          final bytes = await File(picked.path).readAsBytes();
+                          final photoDataUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
                           final prefs = await SharedPreferences.getInstance();
-                          await prefs.setString('driver_photo', picked.path);
+                          await prefs.setString('driver_photo', photoDataUrl);
                           if (mounted) {
-                            setState(() => _driverPhoto = picked.path);
+                            setState(() => _driverPhoto = photoDataUrl);
                           }
-                          await ref.read(authNotifierProvider.notifier).updateUserProfile(photoUrl: picked.path);
+                          final user = ref.read(authNotifierProvider).user;
+                          if (user != null && user.id.isNotEmpty) {
+                            FirebaseFirestore.instance.collection('users').doc(user.id).set({
+                              'photoUrl': photoDataUrl,
+                            }, SetOptions(merge: true)).ignore();
+                          }
+                          if (_activeOrder != null) {
+                            FirebaseFirestore.instance.collection('orders').doc(_activeOrder!.id).update({
+                              'driverPhotoUrl': photoDataUrl,
+                            }).catchError((_) {});
+                          }
+                          await ref.read(authNotifierProvider.notifier).updateUserProfile(photoUrl: photoDataUrl);
                         }
                       },
                     ),
@@ -4245,9 +5425,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                           else if (currentPlatePhoto.isNotEmpty)
                             ClipRRect(
                               borderRadius: BorderRadius.circular(10),
-                              child: currentPlatePhoto.startsWith('http')
-                                  ? Image.network(currentPlatePhoto, height: 110, width: double.infinity, fit: BoxFit.cover)
-                                  : Image.file(File(currentPlatePhoto), height: 110, width: double.infinity, fit: BoxFit.cover),
+                              child: _buildPlateImageWidget(currentPlatePhoto, height: 110, width: double.infinity),
                             )
                           else
                             Container(
@@ -4382,21 +5560,13 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
 
       String platePhotoPath = currentPlatePhoto;
       if (tempPlatePhotoFile != null) {
-        platePhotoPath = tempPlatePhotoFile!.path;
-        await prefs.setString('driver_vehicle_plate_photo', platePhotoPath);
-
-        // Subir a Storage en segundo plano
-        final user = ref.read(authNotifierProvider).user;
-        if (user != null) {
-          try {
-            final downloadUrl = await StorageService().uploadUserPhoto(
-              userId: '${user.id}_plate',
-              file: tempPlatePhotoFile!,
-            );
-            platePhotoPath = downloadUrl;
-            await prefs.setString('driver_vehicle_plate_photo', platePhotoPath);
-          } catch (_) {}
+        try {
+          final bytes = await tempPlatePhotoFile!.readAsBytes();
+          platePhotoPath = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        } catch (_) {
+          platePhotoPath = tempPlatePhotoFile!.path;
         }
+        await prefs.setString('driver_vehicle_plate_photo', platePhotoPath);
       }
 
       setState(() {
