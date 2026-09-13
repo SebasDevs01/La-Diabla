@@ -47,6 +47,8 @@ class OrderModel {
       'driverVehiclePlatePhotoUrl': order.driverVehiclePlatePhotoUrl,
       'driverLatitude': order.driverLatitude,
       'driverLongitude': order.driverLongitude,
+      'driverHeading': order.driverHeading,
+      'driverPhase': order.driverPhase,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -137,6 +139,8 @@ class OrderModel {
       driverVehiclePlatePhotoUrl: (data['driverVehiclePlatePhotoUrl'] ?? data['vehiclePlatePhotoUrl']) as String?,
       driverLatitude: (data['driverLatitude'] as num?)?.toDouble(),
       driverLongitude: (data['driverLongitude'] as num?)?.toDouble(),
+      driverHeading: (data['driverHeading'] as num?)?.toDouble(),
+      driverPhase: data['driverPhase'] as String?,
       deliveryProofUrl: data['deliveryProofUrl'] as String?,
       createdAt: createdAt,
       updatedAt: updatedAt,

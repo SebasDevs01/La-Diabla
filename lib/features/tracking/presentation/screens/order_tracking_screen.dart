@@ -1,4 +1,5 @@
 // lib/features/tracking/presentation/screens/order_tracking_screen.dart
+import 'dart:async';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -33,10 +34,8 @@ class OrderTrackingScreen extends ConsumerStatefulWidget {
 }
 
 class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
-  // ignore: unused_field
-  GoogleMapController? _mapController;
+  final Completer<GoogleMapController> _mapCompleter = Completer<GoogleMapController>();
   bool _notifiedArrival = false;
-  bool _promptedRating = false;
 
   BitmapDescriptor? _driverIcon;
   List<LatLng> _routePoints = [];
@@ -46,10 +45,27 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   String _etaText = '';
   String? _cachedRouteKey;
 
+  // Live animated driver marker interpolation
+  LatLng? _animatedDriverPos;
+  Timer? _lerpTimer;
+  bool _isCameraFollowing = true;
+
+  // Phase-aware route tracking (kitchen route vs client route)
+  List<LatLng> _kitchenRoutePoints = [];
+  bool _isLoadingKitchenRoute = false;
+  String? _cachedKitchenRouteKey;
+  String _kitchenEtaText = '';
+
   @override
   void initState() {
     super.initState();
     _loadDriverIcon();
+  }
+
+  @override
+  void dispose() {
+    _lerpTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadDriverIcon() async {
@@ -103,17 +119,39 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     }
   }
 
-  void _checkDeliveredRating(OrderEntity order) {
-    if (order.status == OrderStatus.delivered && !_promptedRating) {
-      _promptedRating = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        OrderRatingTipSheet.show(context, order);
-      });
-    }
+  /// Anima suavemente el icono del repartidor interpolando entre posición anterior y nueva (LERP)
+  void _smoothMoveMarker(LatLng from, LatLng to) {
+    _lerpTimer?.cancel();
+    const steps = 30;
+    int step = 0;
+    _lerpTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
+      if (!mounted) { timer.cancel(); return; }
+      step++;
+      final t = step / steps;
+      final lat = from.latitude + (to.latitude - from.latitude) * t;
+      final lng = from.longitude + (to.longitude - from.longitude) * t;
+      setState(() => _animatedDriverPos = LatLng(lat, lng));
+      if (step >= steps) {
+        timer.cancel();
+        // Camera follow: suavemente centrar en la posición del repartidor
+        if (_isCameraFollowing && _mapCompleter.isCompleted) {
+          _mapCompleter.future.then((ctrl) {
+            ctrl.animateCamera(
+              CameraUpdate.newCameraPosition(
+                CameraPosition(
+                  target: LatLng(lat, lng),
+                  zoom: 16.0,
+                  bearing: _driverBearing > 0 ? _driverBearing : 0.0,
+                ),
+              ),
+            );
+          }).catchError((_) {});
+        }
+      }
+    });
   }
 
-  /// Calcula la ruta óptima por calles reales (OSRM) para el cliente
+  /// Calcula la ruta óptima por calles reales (OSRM) para la fase actual
   Future<void> _ensureSmartRoute(LatLng driverPos, LatLng destPos) async {
     final routeKey =
         '${driverPos.latitude.toStringAsFixed(4)},${driverPos.longitude.toStringAsFixed(4)}->${destPos.latitude.toStringAsFixed(4)},${destPos.longitude.toStringAsFixed(4)}';
@@ -124,6 +162,13 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     if (_lastDriverPos != null) {
       final bearing = MapsService.calculateBearing(_lastDriverPos!, driverPos);
       if (bearing > 0) _driverBearing = bearing;
+    }
+
+    // Animate the marker smoothly from old → new position
+    if (_lastDriverPos != null && _animatedDriverPos != null) {
+      _smoothMoveMarker(_animatedDriverPos!, driverPos);
+    } else {
+      _animatedDriverPos = driverPos;
     }
     _lastDriverPos = driverPos;
 
@@ -144,6 +189,45 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         });
       }
     }
+  }
+
+  /// Calcula la ruta del repartidor a la cocina central (Fase 1)
+  Future<void> _ensureKitchenRoute(LatLng driverPos, LatLng kitchenPos) async {
+    final routeKey =
+        '${driverPos.latitude.toStringAsFixed(4)},${driverPos.longitude.toStringAsFixed(4)}->kitchen';
+    if (_cachedKitchenRouteKey == routeKey || _isLoadingKitchenRoute) return;
+    _cachedKitchenRouteKey = routeKey;
+    _isLoadingKitchenRoute = true;
+
+    try {
+      final details = await MapsService().getRouteDetails(driverPos, kitchenPos);
+      if (mounted) {
+        setState(() {
+          _kitchenRoutePoints = details.points;
+          _kitchenEtaText = '${details.durationMinutes} - ${details.durationMinutes + 5} min';
+          _isLoadingKitchenRoute = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _kitchenRoutePoints = [driverPos, kitchenPos];
+          _isLoadingKitchenRoute = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _centerOnDriver(LatLng driverPos) async {
+    if (!_mapCompleter.isCompleted) return;
+    final ctrl = await _mapCompleter.future;
+    ctrl.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: driverPos, zoom: 16.5,
+            bearing: _driverBearing > 0 ? _driverBearing : 0.0),
+      ),
+    );
+    setState(() => _isCameraFollowing = true);
   }
 
   @override
@@ -211,28 +295,60 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
 
   Widget _buildTrackingContent(OrderEntity order, bool isDark) {
     final currentStatus = order.status;
+    final kitchenPos = MapsService.defaultLocation;
 
     final destLat = order.latitude ?? order.address?.latitude ?? 7.092758;
     final destLng = order.longitude ?? order.address?.longitude ?? -73.142590;
     final destPos = LatLng(destLat, destLng);
 
-    // Posición del repartidor (si viene de Firestore o calculada en ruta)
+    // Posición del repartidor en tiempo real (viene de Firestore via watchOrder stream)
     final driverLat = order.driverLatitude ?? (destLat + 0.0035);
     final driverLng = order.driverLongitude ?? (destLng + 0.0028);
     final driverPos = LatLng(driverLat, driverLng);
 
+    // Fase del repartidor: heading_to_kitchen = yendo a cocina, heading_to_client = yendo al cliente
+    final isHeadingToKitchen = order.driverPhase == 'heading_to_kitchen';
+
+    // Si hay heading real del driver, usarlo
+    if (order.driverHeading != null && order.driverHeading! > 0) {
+      _driverBearing = order.driverHeading!;
+    }
+
+    // Trigger smooth animation when driver position changes
+    final liveDriverPos = _animatedDriverPos ?? driverPos;
+    if (_lastDriverPos == null ||
+        (_lastDriverPos!.latitude - driverPos.latitude).abs() > 0.00003 ||
+        (_lastDriverPos!.longitude - driverPos.longitude).abs() > 0.00003) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          if (_lastDriverPos != null) {
+            _smoothMoveMarker(_animatedDriverPos ?? _lastDriverPos!, driverPos);
+          } else {
+            setState(() => _animatedDriverPos = driverPos);
+          }
+          _lastDriverPos = driverPos;
+        }
+      });
+    }
+
     final distanceToDestKm = MapsService.calculateDistanceKm(driverPos, destPos);
+    final distanceToKitchenKm = MapsService.calculateDistanceKm(driverPos, kitchenPos);
     if (currentStatus == OrderStatus.onTheWay) {
       _checkProximityAlert(distanceToDestKm);
     }
-    _checkDeliveredRating(order);
 
     final bool isDelivered = currentStatus == OrderStatus.delivered;
 
-    // Cargar ruta por calles reales si el pedido está activo (no entregado)
+    // Cargar ruta por calles reales según la fase actual
     if (!isDelivered && currentStatus != OrderStatus.cancelled) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _ensureSmartRoute(driverPos, destPos);
+        if (!mounted) return;
+        if (isHeadingToKitchen) {
+          _ensureKitchenRoute(driverPos, kitchenPos);
+          _ensureSmartRoute(kitchenPos, destPos); // Pre-cargar la ruta a cliente también
+        } else {
+          _ensureSmartRoute(driverPos, destPos);
+        }
       });
     }
 
@@ -249,26 +365,29 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             ),
           }
         : <Marker>{
+            // Marcador Cocina Central (siempre visible)
             Marker(
               markerId: const MarkerId('restaurant'),
-              position: MapsService.defaultLocation,
-              infoWindow: const InfoWindow(title: 'La Diabla 🌶️', snippet: 'Cocina Central'),
+              position: kitchenPos,
+              infoWindow: const InfoWindow(title: 'La Diabla 🌶️', snippet: 'Cocina Central • Cl. 59 # 39W-24'),
               icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
             ),
+            // Marcador del repartidor con animación suave de posición
             Marker(
               markerId: const MarkerId('driver'),
-              position: driverPos,
+              position: liveDriverPos,
               rotation: _driverBearing,
               flat: true,
               anchor: const Offset(0.5, 0.5),
               infoWindow: InfoWindow(
-                title: 'Repartidor La Diabla 🛵',
-                snippet: _etaText.isNotEmpty
-                    ? 'Llegada: $_etaText (${(distanceToDestKm * 1000).toInt()}m)'
-                    : 'A ${(distanceToDestKm * 1000).toInt()}m de tu destino',
+                title: 'Tu Repartidor 🛵',
+                snippet: isHeadingToKitchen
+                    ? (_kitchenEtaText.isNotEmpty ? 'En cocina: $_kitchenEtaText (${(distanceToKitchenKm * 1000).toInt()}m)' : 'Recogiendo tu pedido...')
+                    : (_etaText.isNotEmpty ? 'Llegada: $_etaText (${(distanceToDestKm * 1000).toInt()}m)' : 'En camino a tu dirección'),
               ),
               icon: _driverIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
             ),
+            // Marcador destino del cliente
             Marker(
               markerId: const MarkerId('destination'),
               position: destPos,
@@ -280,26 +399,62 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             ),
           };
 
-    final routePoints = _routePoints.isNotEmpty ? _routePoints : [driverPos, destPos];
-
-    final polylines = isDelivered
-        ? <Polyline>{}
-        : <Polyline>{
-            // Sombra oscura para alto contraste estilo Waze
-            Polyline(
-              polylineId: const PolylineId('driver_route_shadow'),
-              points: routePoints,
-              color: const Color(0xFF7F1D1D),
-              width: 7,
-            ),
-            // Línea principal rojo fuego sobre las calles
-            Polyline(
-              polylineId: const PolylineId('driver_route'),
-              points: routePoints,
-              color: const Color(0xFFDC2626),
-              width: 4,
-            ),
-          };
+    // Rutas dinámicas según la fase:
+    // Fase 1 (heading_to_kitchen): Repartidor → Cocina (naranja) + Cocina → Cliente (rojo punteado)
+    // Fase 2 (heading_to_client): Solo Repartidor → Cliente (rojo sólido)
+    final Set<Polyline> polylines;
+    if (isDelivered) {
+      polylines = {};
+    } else if (isHeadingToKitchen) {
+      final kitchenPts = _kitchenRoutePoints.isNotEmpty ? _kitchenRoutePoints : [liveDriverPos, kitchenPos];
+      final clientPts = _routePoints.isNotEmpty ? _routePoints : [kitchenPos, destPos];
+      polylines = {
+        // Ruta repartidor → cocina (naranja fuego)
+        Polyline(
+          polylineId: const PolylineId('kitchen_route_shadow'),
+          points: kitchenPts,
+          color: const Color(0xFF78350F),
+          width: 8,
+        ),
+        Polyline(
+          polylineId: const PolylineId('kitchen_route'),
+          points: kitchenPts,
+          color: const Color(0xFFF59E0B),
+          width: 5,
+        ),
+        // Ruta cocina → cliente (rojo suave, punteado para indicar "futura")
+        Polyline(
+          polylineId: const PolylineId('client_route_preview_shadow'),
+          points: clientPts,
+          color: const Color(0xFF7F1D1D).withAlpha(120),
+          width: 6,
+          patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+        ),
+        Polyline(
+          polylineId: const PolylineId('client_route_preview'),
+          points: clientPts,
+          color: const Color(0xFFDC2626).withAlpha(160),
+          width: 4,
+          patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+        ),
+      };
+    } else {
+      final routePoints = _routePoints.isNotEmpty ? _routePoints : [liveDriverPos, destPos];
+      polylines = {
+        Polyline(
+          polylineId: const PolylineId('driver_route_shadow'),
+          points: routePoints,
+          color: const Color(0xFF7F1D1D),
+          width: 7,
+        ),
+        Polyline(
+          polylineId: const PolylineId('driver_route'),
+          points: routePoints,
+          color: const Color(0xFFDC2626),
+          width: 4,
+        ),
+      };
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -489,13 +644,13 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           ),
           const SizedBox(height: 20),
 
-          // Mapa interactivo Google Maps con Ruta en Vivo por Calles Reales (Estilo Uber)
+          // Mapa interactivo Google Maps en Vivo (Estilo Uber/InDriver)
           ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: Stack(
               children: [
                 Container(
-                  height: 280,
+                  height: 340,
                   decoration: BoxDecoration(
                     border: Border.all(
                       color: isDark ? AppColors.dividerDark : Colors.grey.shade300,
@@ -505,10 +660,17 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                   ),
                   child: GoogleMap(
                     initialCameraPosition: CameraPosition(
-                      target: isDelivered ? destPos : driverPos,
-                      zoom: 15.2,
+                      target: isDelivered ? destPos : liveDriverPos,
+                      zoom: 15.0,
                     ),
-                    onMapCreated: (ctrl) => _mapController = ctrl,
+                    onMapCreated: (ctrl) {
+                      if (!_mapCompleter.isCompleted) _mapCompleter.complete(ctrl);
+                    },
+                    onCameraMoveStarted: () {
+                      if (_isCameraFollowing) {
+                        setState(() => _isCameraFollowing = false);
+                      }
+                    },
                     markers: markers,
                     polylines: polylines,
                     myLocationButtonEnabled: false,
@@ -516,11 +678,11 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                   ),
                 ),
 
-                // Badge Flotante con ETA o Estado de Entrega
+                // Badge Flotante con ETA — compacto, parte inferior del mapa
                 Positioned(
-                  top: 12,
+                  bottom: 50,
                   left: 12,
-                  right: 12,
+                  right: 56,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
@@ -530,36 +692,24 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                         BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
                       ],
                       border: Border.all(
-                        color: isDelivered ? const Color(0xFF16A34A).withAlpha(150) : const Color(0xFFDC2626).withAlpha(120),
+                        color: isDelivered
+                            ? const Color(0xFF16A34A).withAlpha(150)
+                            : (isHeadingToKitchen
+                                ? const Color(0xFFF59E0B).withAlpha(180)
+                                : const Color(0xFFDC2626).withAlpha(120)),
                         width: 1.2,
                       ),
                     ),
                     child: isDelivered
-                        ? Row(
+                        ? const Row(
                             children: [
-                              const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 19),
-                              const SizedBox(width: 8),
-                              const Expanded(
+                              Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 19),
+                              SizedBox(width: 8),
+                              Expanded(
                                 child: Text(
                                   '¡Pedido Entregado con éxito! 🎉',
                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
                                   overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF16A34A).withAlpha(20),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: const Color(0xFF16A34A).withAlpha(80)),
-                                ),
-                                child: const Text(
-                                  'Entregado ✅',
-                                  style: TextStyle(
-                                    color: Color(0xFF16A34A),
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 11,
-                                  ),
                                 ),
                               ),
                             ],
@@ -572,28 +722,102 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                                   Container(
                                     width: 8,
                                     height: 8,
-                                    decoration: const BoxDecoration(
+                                    decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: Color(0xFF16A34A),
+                                      color: isHeadingToKitchen
+                                          ? const Color(0xFFF59E0B)
+                                          : const Color(0xFF16A34A),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    _etaText.isNotEmpty ? 'Llegada: $_etaText' : 'Calculando ruta...',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                                    isHeadingToKitchen
+                                        ? (_kitchenEtaText.isNotEmpty ? '📦 Cocina: $_kitchenEtaText' : '📦 Recogiendo pedido...')
+                                        : (_etaText.isNotEmpty ? '🛵 Llegada: $_etaText' : '🛵 Calculando ruta...'),
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                                   ),
                                 ],
                               ),
                               Text(
-                                '${distanceToDestKm.toStringAsFixed(1)} km',
-                                style: const TextStyle(
-                                  color: Color(0xFFDC2626),
+                                isHeadingToKitchen
+                                    ? '${distanceToKitchenKm.toStringAsFixed(1)} km'
+                                    : '${distanceToDestKm.toStringAsFixed(1)} km',
+                                style: TextStyle(
+                                  color: isHeadingToKitchen
+                                      ? const Color(0xFFF59E0B)
+                                      : const Color(0xFFDC2626),
                                   fontWeight: FontWeight.w900,
                                   fontSize: 12.5,
                                 ),
                               ),
                             ],
                           ),
+                  ),
+                ),
+
+                // Botón de centrar mapa en el repartidor
+                Positioned(
+                  right: 12,
+                  bottom: 12,
+                  child: GestureDetector(
+                    onTap: () => _centerOnDriver(liveDriverPos),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: _isCameraFollowing
+                            ? const Color(0xFFDC2626)
+                            : (isDark ? const Color(0xFF2C1B14) : Colors.white),
+                        shape: BoxShape.circle,
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 2)),
+                        ],
+                      ),
+                      child: Icon(
+                        _isCameraFollowing ? Icons.navigation_rounded : Icons.my_location_rounded,
+                        color: _isCameraFollowing
+                            ? Colors.white
+                            : const Color(0xFFDC2626),
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Badge de fase (Recogiendo/En Camino) — esquina superior izquierda
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: isHeadingToKitchen
+                          ? const Color(0xFFF59E0B).withAlpha(220)
+                          : const Color(0xFFDC2626).withAlpha(220),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black38, blurRadius: 4, offset: Offset(0, 2)),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isHeadingToKitchen ? Icons.storefront_rounded : Icons.navigation_rounded,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          isHeadingToKitchen ? 'Recogiendo pedido' : 'En camino a ti',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

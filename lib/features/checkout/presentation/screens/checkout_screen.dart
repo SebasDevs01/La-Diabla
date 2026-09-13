@@ -185,17 +185,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     String? mpTransactionRef;
     bool isPaid = false;
 
-    // Métodos que usan Checkout Pro de Mercado Pago (PSE en línea o nueva pasarela externa)
-    final hasSavedCard = _selectedPaymentMethod == PaymentMethod.card && walletState.selectedCard != null;
-    final isMercadoPagoMethod = _selectedPaymentMethod == PaymentMethod.transfer ||
-        (_selectedPaymentMethod == PaymentMethod.card && !hasSavedCard);
+    // Métodos que procesan cobro en línea a través de pasarela segura Mercado Pago (Tarjetas Débito/Crédito y PSE / Bancolombia)
+    final isMercadoPagoMethod = _selectedPaymentMethod == PaymentMethod.card ||
+        _selectedPaymentMethod == PaymentMethod.transfer;
 
-    // Métodos manuales / directos (Efectivo, Datáfono, Nequi, Daviplata, o Tarjeta vinculada)
+    // Métodos directos / manuales (Efectivo, Datáfono, Transferencia Nequi directa, Transferencia Daviplata directa)
     final isManualPayment = _selectedPaymentMethod == PaymentMethod.nequi ||
         _selectedPaymentMethod == PaymentMethod.daviplata ||
         _selectedPaymentMethod == PaymentMethod.cash ||
-        _selectedPaymentMethod == PaymentMethod.pos ||
-        hasSavedCard;
+        _selectedPaymentMethod == PaymentMethod.pos;
 
     if (isMercadoPagoMethod) {
       final methodTitle = MercadoPagoService.methodDisplayName(_selectedPaymentMethod!);
@@ -339,9 +337,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       transactionReference: mpTransactionRef ??
           (_selectedPaymentMethod == PaymentMethod.card
               ? '${savedCard?.brand.toUpperCase() ?? "CARD"} *${savedCard?.lastFourDigits ?? "2151"}'
-              : ((_selectedPaymentMethod == PaymentMethod.nequi || _selectedPaymentMethod == PaymentMethod.daviplata)
+              : (_selectedPaymentMethod == PaymentMethod.nequi
                   ? '3171166497'
-                  : null)),
+                  : (_selectedPaymentMethod == PaymentMethod.daviplata
+                      ? '3138432479'
+                      : null))),
       notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
       customerName: user?.name ?? 'Cliente La Diabla',
       customerPhone: user?.phone ?? '',
@@ -565,14 +565,37 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     children: [
                       // 💳 SECCIÓN DE TARJETAS VINCULADAS (ESTILO RAPPI)
                       ...ref.watch(walletProvider).cards.map((card) {
-                        final isSelected = _selectedPaymentMethod == PaymentMethod.card &&
+                        final isNequi = card.methodType == 'nequi' || card.brand.toLowerCase() == 'nequi';
+                        final isBancolombia = card.methodType == 'bancolombia' || card.brand.toLowerCase() == 'bancolombia';
+                        final targetMethod = isNequi
+                            ? PaymentMethod.nequi
+                            : (isBancolombia ? PaymentMethod.transfer : PaymentMethod.card);
+                        final isSelected = _selectedPaymentMethod == targetMethod &&
                             ref.watch(walletProvider).selectedCard?.id == card.id;
+
+                        Color badgeBg;
+                        Color badgeText = Colors.white;
+                        String badgeLabel = card.brand.toUpperCase();
+
+                        if (isNequi) {
+                          badgeBg = const Color(0xFF7800FF);
+                          badgeLabel = 'NEQUI';
+                        } else if (isBancolombia) {
+                          badgeBg = const Color(0xFFFDDA24);
+                          badgeText = Colors.black;
+                          badgeLabel = 'BANCOLOMBIA';
+                        } else if (card.brand.toLowerCase() == 'visa') {
+                          badgeBg = const Color(0xFF1A1F71);
+                        } else {
+                          badgeBg = const Color(0xFFEB001B);
+                        }
+
                         return Column(
                           children: [
                             InkWell(
                               onTap: () {
                                 ref.read(walletProvider.notifier).selectCard(card);
-                                setState(() => _selectedPaymentMethod = PaymentMethod.card);
+                                setState(() => _selectedPaymentMethod = targetMethod);
                               },
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -581,13 +604,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                       decoration: BoxDecoration(
-                                        color: card.brand == 'visa' ? const Color(0xFF1A1F71) : const Color(0xFFEB001B),
+                                        color: badgeBg,
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
-                                        card.brand.toUpperCase(),
-                                        style: const TextStyle(
-                                          color: Colors.white,
+                                        badgeLabel,
+                                        style: TextStyle(
+                                          color: badgeText,
                                           fontSize: 9.5,
                                           fontWeight: FontWeight.w900,
                                           letterSpacing: 0.5,
@@ -708,7 +731,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         isDark: isDark,
                       ),
                       if (_selectedPaymentMethod == PaymentMethod.daviplata)
-                        _buildDirectTransferBanner('Daviplata', '3171166497', const Color(0xFFE50914), isDark),
+                        _buildDirectTransferBanner('Daviplata', '3138432479', const Color(0xFFE50914), isDark),
                       const Divider(height: 1),
 
                       // 🏦 PSE / BANCOLOMBIA

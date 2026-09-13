@@ -76,16 +76,21 @@ final allPendingOrdersStreamProvider = StreamProvider<List<OrderEntity>>((ref) a
 
         if (!activeStatus) return false;
 
-        // Métodos que NO requieren verificación previa de pago online
-        final noPreVerification =
+        // Métodos que no requieren pasarela online previa:
+        // Efectivo, Datáfono, Transferencia Nequi directa y Transferencia Daviplata directa
+        final isDirectOrCash =
             o.paymentMethod == PaymentMethod.cash ||
-            o.paymentMethod == PaymentMethod.pos;
+            o.paymentMethod == PaymentMethod.pos ||
+            o.paymentMethod == PaymentMethod.nequi ||
+            o.paymentMethod == PaymentMethod.daviplata;
 
-        // Para pagos digitales: SOLO mostrar si el pago fue aprobado
-        final digitalPaid = !noPreVerification &&
-            o.paymentStatus == PaymentStatus.paid;
+        // Para pagos con tarjeta o PSE: mostrar si el pago fue aprobado
+        final isOnlineApproved = o.paymentStatus == PaymentStatus.paid;
 
-        return noPreVerification || digitalPaid;
+        // Si fue cancelado, nunca mostrar al repartidor
+        if (o.status == OrderStatus.cancelled) return false;
+
+        return isDirectOrCash || isOnlineApproved;
       }).toList();
     });
   } catch (_) {

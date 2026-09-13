@@ -2,6 +2,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -94,6 +96,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   /// Determina si el repartidor tiene su perfil y vehículo en regla
   bool get _isVehicleRegistered =>
       _vehicleModel.trim().isNotEmpty && _vehiclePlate.trim().isNotEmpty && _vehicleColor.trim().isNotEmpty;
+
+  /// Teléfono válido: necesario para que el cliente pueda contactarlo
+  bool get _isDriverPhoneValid =>
+      _driverPhone.trim().isNotEmpty &&
+      _driverPhone.trim() != '3000000000' &&
+      _driverPhone.trim().length >= 7;
 
   @override
   void initState() {
@@ -1035,6 +1043,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
 
       await FirebaseFirestore.instance.collection('orders').doc(order.id).update({
         'status': OrderStatus.onTheWay.firestoreValue, // 'on_the_way'
+        'driverPhase': 'heading_to_client',
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -2359,7 +2368,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       hasActiveDelivery: opState.hasActiveDelivery,
     );
 
-    final canReceive = opState.canReceiveOrders && _isVehicleRegistered;
+    final canReceive = opState.canReceiveOrders && _isVehicleRegistered && _isDriverPhoneValid;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -2582,7 +2591,11 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               label: Text(
                 canReceive
                     ? 'TOMAR PEDIDO E IR A COCINA 🍳'
-                    : (!_isVehicleRegistered ? 'REGISTRA TU VEHÍCULO PRIMERO ⚠️' : 'BLOQUEADO PARA RECIBIR'),
+                    : (!_isVehicleRegistered
+                        ? 'REGISTRA TU VEHÍCULO PRIMERO ⚠️'
+                        : (!_isDriverPhoneValid
+                            ? 'AGREGA TU TELÉFONO PRIMERO 📱'
+                            : 'BLOQUEADO PARA RECIBIR')),
                 style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
               ),
               onPressed: canReceive
@@ -2590,6 +2603,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                   : () {
                       if (!_isVehicleRegistered) {
                         _showEditVehicleDialog();
+                        return;
+                      }
+                      if (!_isDriverPhoneValid) {
+                        _showRequireDriverPhoneDialog();
                         return;
                       }
                       final op = ref.read(driverOperationalProvider);
@@ -2825,19 +2842,13 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                               ),
                               child: ClipOval(
                                 child: clientPhoto.isNotEmpty
-                                    ? (clientPhoto.startsWith('data:image/')
-                                        ? Image.memory(
-                                            base64Decode(clientPhoto.split(',').last),
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, e, s) =>
-                                                const Center(child: Icon(Icons.person, color: Colors.white70)),
-                                          )
-                                        : Image.network(
-                                            clientPhoto,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, e, s) =>
-                                                const Center(child: Icon(Icons.person, color: Colors.white70)),
-                                          ))
+                                    ? _buildSafeImage(
+                                        clientPhoto,
+                                        width: 44,
+                                        height: 44,
+                                        fit: BoxFit.cover,
+                                        errorWidget: const Center(child: Icon(Icons.person, color: Colors.white70)),
+                                      )
                                     : const Center(child: Icon(Icons.person, color: Colors.white70)),
                               ),
                             ),
@@ -2894,21 +2905,13 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: proofUrl.startsWith('data:image/')
-                                  ? Image.memory(
-                                      base64Decode(proofUrl.split(',').last),
-                                      width: 42,
-                                      height: 42,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : Image.network(
-                                      proofUrl,
-                                      width: 42,
-                                      height: 42,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, e, s) =>
-                                          const Icon(Icons.image, color: Colors.grey),
-                                    ),
+                              child: _buildSafeImage(
+                                proofUrl,
+                                width: 42,
+                                height: 42,
+                                fit: BoxFit.cover,
+                                errorWidget: const Icon(Icons.image, color: Colors.grey),
+                              ),
                             ),
                             const SizedBox(width: 10),
                             const Expanded(
@@ -5083,58 +5086,102 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     return Image.asset('assets/images/diabloperfil.png', width: double.infinity, height: double.infinity, fit: BoxFit.cover);
   }
 
-  Widget _buildPlateImageWidget(String pathOrUrl, {double? width, double? height, BoxFit fit = BoxFit.cover}) {
-    if (pathOrUrl.startsWith('data:image/')) {
-      try {
-        final bytes = base64Decode(pathOrUrl.split(',').last);
-        return Image.memory(
-          bytes,
-          width: width,
-          height: height,
-          fit: fit,
-          errorBuilder: (context, error, stackTrace) => Container(
-            width: width,
-            height: height,
-            color: Colors.grey.shade300,
-            child: const Center(child: Icon(Icons.broken_image, size: 22, color: Colors.grey)),
-          ),
-        );
-      } catch (_) {}
-    } else if (pathOrUrl.startsWith('http')) {
-      return Image.network(
-        pathOrUrl,
-        width: width,
-        height: height,
-        fit: fit,
-        errorBuilder: (context, error, stackTrace) => Container(
+  /// Caché en memoria para bytes Base64 decodificados que erradica el parpadeo
+  /// de las imágenes ante cada emisión periódica del GPS del repartidor.
+  static final Map<String, Uint8List> _base64MemoryCache = {};
+
+  static Uint8List? _getCachedBase64Bytes(String dataUri) {
+    if (_base64MemoryCache.containsKey(dataUri)) {
+      return _base64MemoryCache[dataUri];
+    }
+    try {
+      final clean = dataUri.contains(',') ? dataUri.split(',').last : dataUri;
+      final bytes = base64Decode(clean.trim());
+      if (_base64MemoryCache.length > 100) {
+        _base64MemoryCache.clear();
+      }
+      _base64MemoryCache[dataUri] = bytes;
+      return bytes;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Renderizador seguro y anti-parpadeo para imágenes en base64, URLs remotas y archivos locales
+  Widget _buildSafeImage(
+    String pathOrUrl, {
+    double? width,
+    double? height,
+    BoxFit fit = BoxFit.cover,
+    Widget? placeholder,
+    Widget? errorWidget,
+  }) {
+    final fallbackError = errorWidget ??
+        Container(
           width: width,
           height: height,
           color: Colors.grey.shade300,
           child: const Center(child: Icon(Icons.broken_image, size: 22, color: Colors.grey)),
-        ),
+        );
+
+    if (pathOrUrl.startsWith('data:image/')) {
+      final bytes = _getCachedBase64Bytes(pathOrUrl);
+      if (bytes != null) {
+        return Image.memory(
+          bytes,
+          key: ValueKey('b64_${pathOrUrl.hashCode}'),
+          width: width,
+          height: height,
+          fit: fit,
+          gaplessPlayback: true,
+          errorBuilder: (ctx, err, stack) => fallbackError,
+        );
+      }
+      return fallbackError;
+    } else if (pathOrUrl.startsWith('http')) {
+      return CachedNetworkImage(
+        imageUrl: pathOrUrl,
+        width: width,
+        height: height,
+        fit: fit,
+        placeholder: (ctx, url) =>
+            placeholder ??
+            Container(
+              width: width,
+              height: height,
+              color: Colors.grey.shade200,
+            ),
+        errorWidget: (ctx, url, err) => fallbackError,
       );
     } else if (pathOrUrl.isNotEmpty) {
       final file = File(pathOrUrl);
       if (file.existsSync()) {
         return Image.file(
           file,
+          key: ValueKey('file_${pathOrUrl.hashCode}'),
           width: width,
           height: height,
           fit: fit,
-          errorBuilder: (context, error, stackTrace) => Container(
-            width: width,
-            height: height,
-            color: Colors.grey.shade300,
-            child: const Center(child: Icon(Icons.broken_image, size: 22, color: Colors.grey)),
-          ),
+          gaplessPlayback: true,
+          errorBuilder: (ctx, err, stack) => fallbackError,
         );
       }
     }
-    return Container(
+    return fallbackError;
+  }
+
+  Widget _buildPlateImageWidget(String pathOrUrl, {double? width, double? height, BoxFit fit = BoxFit.cover}) {
+    return _buildSafeImage(
+      pathOrUrl,
       width: width,
       height: height,
-      color: Colors.grey.shade300,
-      child: const Center(child: Icon(Icons.photo_camera_rounded, size: 22, color: Colors.grey)),
+      fit: fit,
+      errorWidget: Container(
+        width: width,
+        height: height,
+        color: Colors.grey.shade300,
+        child: const Center(child: Icon(Icons.photo_camera_rounded, size: 22, color: Colors.grey)),
+      ),
     );
   }
 
@@ -5601,6 +5648,129 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           ),
         );
       }
+    }
+  }
+
+  /// Muestra un diálogo obligatorio para que el repartidor registre su teléfono
+  /// antes de poder recibir pedidos (el cliente necesita poder contactarlo).
+  Future<void> _showRequireDriverPhoneDialog() async {
+    final phoneCtrl = TextEditingController(text: _driverPhone);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final enteredPhone = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E1712) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.phone_android_rounded, color: Color(0xFFDC2626)),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Teléfono Obligatorio 📱',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDC2626).withAlpha(15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFDC2626).withAlpha(60)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_rounded, color: Color(0xFFDC2626), size: 18),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'El cliente necesita tu número para contactarte por WhatsApp o llamada al momento de la entrega.',
+                      style: TextStyle(fontSize: 12.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Tu número de celular o WhatsApp *',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: phoneCtrl,
+              keyboardType: TextInputType.phone,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Ej: 3201234567',
+                prefixIcon: const Icon(Icons.phone_rounded, size: 20),
+                filled: true,
+                fillColor: isDark ? Colors.black26 : Colors.grey.shade100,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            icon: const Icon(Icons.save_rounded, size: 18),
+            label: const Text('Guardar y Continuar'),
+            onPressed: () => Navigator.pop(ctx, phoneCtrl.text.trim()),
+          ),
+        ],
+      ),
+    );
+
+    if (enteredPhone == null || enteredPhone.length < 7) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⚠️ Debes registrar un teléfono válido para recibir pedidos.'),
+            backgroundColor: Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _driverPhone = enteredPhone);
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .set({'phone': enteredPhone}, SetOptions(merge: true));
+      } catch (_) {}
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Teléfono guardado. ¡Ahora puedes recibir pedidos!'),
+          backgroundColor: Color(0xFF16A34A),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 

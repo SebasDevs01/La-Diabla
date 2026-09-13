@@ -14,6 +14,20 @@ final List<ExtraEntity> mockExtras = [
 ];
 
 final List<ProductEntity> mockProducts = [
+  // ─── TEST / PRUEBAS DE PAGO ──────────────────────────────────────────────────
+  ProductEntity(
+    id: 'test_tarjeta_50',
+    name: 'Taco de Prueba 🧪 (Test Tarjeta)',
+    description:
+        'Producto especial para probar cobro y pasarela de tarjetas sin gastar dinero. Valor simbólico de \$50 pesos COP.',
+    price: 50.0,
+    imageUrl: 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600',
+    categoryId: 'tacos',
+    spicyLevel: 1,
+    ingredients: const ['Prueba de tarjeta', 'Cobro \$50 COP', 'Verificación pasarela'],
+    extras: const [],
+  ),
+
   // ─── TACOS ───────────────────────────────────────────────────────────────────
   ProductEntity(
     id: 'tacos_pastor',

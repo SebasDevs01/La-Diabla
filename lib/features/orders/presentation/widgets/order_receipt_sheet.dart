@@ -42,7 +42,7 @@ class OrderReceiptSheet extends StatelessWidget {
     final paymentText = switch (order.paymentMethod) {
       PaymentMethod.cash => '💵 Efectivo contra entrega (Paga con ${PriceFormatter.formatSmart(order.cashPaymentAmount ?? order.total)}, Cambio: ${PriceFormatter.formatSmart(order.cashChangeAmount ?? 0)})',
       PaymentMethod.nequi => '🟣 Nequi (#3171166497)',
-      PaymentMethod.daviplata => '🔴 Daviplata (#3171166497)',
+      PaymentMethod.daviplata => '🔴 Daviplata (#3138432479)',
       PaymentMethod.card => '💳 Tarjeta Débito/Crédito (Aprobado)',
       PaymentMethod.transfer => '🏦 Transferencia / PSE',
       PaymentMethod.pos => '📟 Datáfono (Pago con tarjeta en la puerta)',

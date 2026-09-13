@@ -15,7 +15,18 @@ class ProductRepositoryImpl implements ProductRepository {
   Future<List<ProductEntity>> getProducts() async {
     try {
       final remoteProducts = await _remoteDataSource.getProducts();
-      if (remoteProducts.isNotEmpty) return remoteProducts;
+      if (remoteProducts.isNotEmpty) {
+        // Garantizar que el producto de prueba de $50 COP esté siempre disponible para pruebas de pago con tarjeta
+        final hasTest = remoteProducts.any((p) => p.id == 'test_tarjeta_50');
+        if (!hasTest) {
+          final testProduct = _mockProducts.firstWhere(
+            (p) => p.id == 'test_tarjeta_50',
+            orElse: () => mockProducts.first,
+          );
+          return [testProduct, ...remoteProducts];
+        }
+        return remoteProducts;
+      }
     } catch (_) {}
     return _mockProducts.where((p) => p.available).toList();
   }
