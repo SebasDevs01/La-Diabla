@@ -10,9 +10,47 @@ import '../../app/router/app_router.dart';
 import '../../features/orders/presentation/screens/order_chat_screen.dart';
 
 /// Manejador de mensajes en background (debe ser top-level).
+/// Se ejecuta cuando la app está en background pero sigue viva en memoria.
+/// Para app completamente cerrada, FCM muestra la notificación del sistema
+/// automáticamente gracias a la Cloud Function onChatMessageNotification.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('📬 Mensaje en background: ${message.messageId}');
+
+  // Mostrar banner local si la notificación no viene con payload de sistema
+  // (esto cubre el caso background-but-alive, ej. app minimizada)
+  final notification = message.notification;
+  if (notification != null) {
+    final localPlugin = FlutterLocalNotificationsPlugin();
+    const initSettings = InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      iOS: DarwinInitializationSettings(),
+    );
+    await localPlugin.initialize(initSettings);
+    await localPlugin.show(
+      notification.hashCode,
+      notification.title,
+      notification.body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'la_diabla_orders',
+          'Pedidos La Diabla',
+          channelDescription: 'Notificaciones de La Diabla',
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+          playSound: true,
+          enableVibration: true,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+      payload: jsonEncode(message.data),
+    );
+  }
 }
 
 /// Servicio de notificaciones push — wrapper de Firebase Cloud Messaging

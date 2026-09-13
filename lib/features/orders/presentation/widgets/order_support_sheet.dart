@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
+import '../../../../core/services/ai_assistant_service.dart';
+import '../../../../domain/entities/order_entity.dart';
 
 class OrderSupportSheet extends StatefulWidget {
-  const OrderSupportSheet({super.key, this.orderId});
+  const OrderSupportSheet({super.key, this.orderId, this.order});
 
   final String? orderId;
+  final OrderEntity? order;
 
   @override
   State<OrderSupportSheet> createState() => _OrderSupportSheetState();
@@ -72,7 +75,7 @@ class _OrderSupportSheetState extends State<OrderSupportSheet> {
     });
   }
 
-  void _sendMessage(String text) {
+  Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
     setState(() {
       _messages.add(_SupportMessage(isUser: true, text: text.trim()));
@@ -81,98 +84,33 @@ class _OrderSupportSheetState extends State<OrderSupportSheet> {
     _textController.clear();
     _scrollToBottom();
 
-    Future.delayed(const Duration(milliseconds: 700), () {
-      if (!mounted) return;
-      final botResponse = _generateSupportResponse(text.trim().toLowerCase());
-      setState(() {
-        _isTyping = false;
-        _messages.add(botResponse);
-      });
-      _scrollToBottom();
-    });
-  }
-
-  _SupportMessage _generateSupportResponse(String query) {
-    final q = query.toLowerCase();
-
-    // 1. Demora / Retraso
-    if (q.contains('demor') || q.contains('tard') || q.contains('esperando') || q.contains('cuanto falta') || q.contains('cuánto') || q.contains('donde viene') || q.contains('dónde')) {
-      return const _SupportMessage(
-        isUser: false,
-        text: '🛵 **Estado del Repartidor en Tiempo Real:**\n\n'
-            'Tu pedido se encuentra actualmente asignado y en ruta con nuestro repartidor a unas pocas cuadras de tu dirección.\n\n'
-            '⏱️ **Tiempo estimado de llegada:** 5 a 10 minutos.\n\n'
-            '🔥 ¡La comida va en empaque térmico para llegar caliente y crujiente! Si requieres contacto directo con el repartidor o la cocina, presiona el botón abajo.',
-        showEscalateButton: true,
-      );
-    }
-
-    // 2. Cobro doble / Tarjeta / Fallo de pago
-    if (q.contains('doble') || q.contains('cobro') || q.contains('tarjeta') || q.contains('banco') || q.contains('duplicado') || q.contains('plata') || q.contains('dinero') || q.contains('pago')) {
-      return const _SupportMessage(
-        isUser: false,
-        text: '💳 **Verificación de Facturación y Pagos:**\n\n'
-            'A veces las aplicaciones bancarias muestran una **retención temporal** además del cobro real.\n\n'
-            '✅ Ya validamos en el sistema de La Diabla y se procesó **1 único cobro exitoso**.\n\n'
-            'Si tu extracto aún refleja dos movimientos, la retención temporal se libera automáticamente en **24 a 48 horas hábiles**. Si deseas asistencia con tu comprobante, escríbenos directamente a WhatsApp.',
-        showEscalateButton: true,
-      );
-    }
-
-    // 3. Pedido equivocado / Incompleto / Faltaron cosas
-    if (q.contains('incompleto') || q.contains('equivocado') || q.contains('falto') || q.contains('faltó') || q.contains('mal') || q.contains('falta') || q.contains('dañado') || q.contains('frio') || q.contains('frío')) {
-      return const _SupportMessage(
-        isUser: false,
-        text: '📦 **¡Lamentamos mucho lo ocurrido!**\n\n'
-            'En **La Diabla** tu satisfacción es lo primero. Podemos solucionarlo de inmediato de dos formas:\n\n'
-            '1️⃣ **Reenvío express prioritario** del platillo faltante o correcto sin costo alguno.\n'
-            '2️⃣ **Reembolso inmediato** o saldo a favor por el valor correspondiente.\n\n'
-            'Toca el botón abajo para comunicarte con nuestro asesor por WhatsApp y enviarnos una foto para solucionarlo en minutos.',
-        showEscalateButton: true,
-      );
-    }
-
-    // 4. Pedido no llegó
-    if (q.contains('no llego') || q.contains('no llegó') || q.contains('nunca') || q.contains('aparece') || q.contains('no me llega')) {
-      return const _SupportMessage(
-        isUser: false,
-        text: '❓ **Localización Inmediata del Pedido:**\n\n'
-            'Estamos verificando la geolocalización de la moto de despacho para asegurarnos de que esté en la puerta correcta.\n\n'
-            'Por favor verifica que la dirección registrada tenga torre/apartamento claro y mantén tu celular atento.',
-        showEscalateButton: true,
-      );
-    }
-
-    // 5. Cancelación / Reembolso
-    if (q.contains('cancel') || q.contains('reembolso') || q.contains('devolucion') || q.contains('devolución')) {
-      return const _SupportMessage(
-        isUser: false,
-        text: '🚫 **Política y Proceso de Reembolso:**\n\n'
-            'Si tu pedido requiere cancelación o reajuste, nuestro equipo lo gestiona al instante.\n\n'
-            'Los reembolsos por Mercado Pago, Nequi o tarjeta se reflejan según los tiempos de tu entidad financiera. Toca el botón para coordinar tu caso.',
-        showEscalateButton: true,
-      );
-    }
-
-    // 6. Contactar agente / Teléfono / Asesor humano
-    if (q.contains('humano') || q.contains('asesor') || q.contains('persona') || q.contains('telefono') || q.contains('teléfono') || q.contains('numero') || q.contains('número') || q.contains('whatsapp')) {
-      return const _SupportMessage(
-        isUser: false,
-        text: '👨‍💼 **Atención Humana Directa:**\n\n'
-            'Nuestra línea oficial y temporal de atención personalizada en WhatsApp es:\n'
-            '📱 **+57 320 221 2856**\n\n'
-            'Toca el botón abajo para abrir el chat de WhatsApp con tu mensaje listo.',
-        showEscalateButton: true,
-      );
-    }
-
-    // Respuesta general de soporte expresiva
-    return const _SupportMessage(
-      isUser: false,
-      text: 'Entendido. Nuestro equipo de soporte de **La Diabla** está disponible 24/7 para ayudarte con cualquier inquietud de cocina, ingredientes, repartidores o facturación.\n\n'
-          '¿Deseas que un asesor humano te atienda de inmediato por WhatsApp (+57 320 221 2856)?',
-      showEscalateButton: true,
+    // Delay mínimo para sensación de respuesta real (700ms)
+    final start = DateTime.now();
+    final responseText = AiAssistantService.instance.getSupportResponse(
+      query: text.trim(),
+      orderId: widget.orderId,
+      order: widget.order,
     );
+    final elapsed = DateTime.now().difference(start).inMilliseconds;
+    if (elapsed < 700) {
+      await Future.delayed(Duration(milliseconds: 700 - elapsed));
+    }
+
+    if (!mounted) return;
+    // Determinar si la respuesta debe mostrar el botón de escalar a WhatsApp
+    final shouldEscalate = !responseText.contains('soy tu asistente') ||
+        responseText.contains('WhatsApp') ||
+        responseText.contains('asesor');
+
+    setState(() {
+      _isTyping = false;
+      _messages.add(_SupportMessage(
+        isUser: false,
+        text: responseText,
+        showEscalateButton: shouldEscalate,
+      ));
+    });
+    _scrollToBottom();
   }
 
   Future<void> _launchWhatsApp() async {

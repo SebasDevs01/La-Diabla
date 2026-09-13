@@ -147,7 +147,66 @@ exports.onNewOrderCreated = onDocumentCreated("orders/{orderId}", async (event) 
   return null;
 });
 
-// ─── 3. Acumular ganancias del repartidor al entregar ───────────────────────
+// ─── 3. Push al destinatario cuando llega un mensaje de chat ────────────────
+// Se dispara al crear un doc en users/{userId}/notifications con type='chat_message'
+exports.onChatMessageNotification = onDocumentCreated(
+  "users/{userId}/notifications/{notifId}",
+  async (event) => {
+    const notif = event.data.data();
+    if (!notif) return null;
+
+    // Solo procesar mensajes de chat
+    if (notif.type !== "chat_message") return null;
+
+    const recipientId = event.params.userId;
+    const orderId     = notif.orderId  || "";
+    const title       = notif.title    || "💬 Nuevo mensaje";
+    const body        = notif.body     || "";
+
+    // Obtener el FCM token del destinatario
+    const userDoc  = await db.collection("users").doc(recipientId).get();
+    const fcmToken = userDoc.data()?.fcmToken;
+
+    if (!fcmToken) {
+      console.log(`[onChatMessageNotification] Sin FCM token para usuario ${recipientId}`);
+      return null;
+    }
+
+    const message = {
+      token: fcmToken,
+      notification: { title, body },
+      android: {
+        notification: {
+          channelId: "la_diabla_orders",
+          priority: "high",
+          defaultSound: true,
+          defaultVibrateTimings: true,
+        },
+      },
+      apns: {
+        payload: {
+          aps: { alert: { title, body }, sound: "default", badge: 1 },
+        },
+      },
+      data: {
+        orderId,
+        type: "chat_message",
+        click_action: "FLUTTER_NOTIFICATION_CLICK",
+      },
+    };
+
+    try {
+      await messaging.send(message);
+      console.log(`[onChatMessageNotification] Push de chat enviado a ${recipientId} para orden ${orderId}`);
+    } catch (err) {
+      console.error(`[onChatMessageNotification] Error enviando push: ${err}`);
+    }
+
+    return null;
+  }
+);
+
+// ─── 4. Acumular ganancias del repartidor al entregar ───────────────────────
 exports.onOrderDelivered = onDocumentUpdated("orders/{orderId}", async (event) => {
   const before = event.data.before.data();
   const after  = event.data.after.data();
