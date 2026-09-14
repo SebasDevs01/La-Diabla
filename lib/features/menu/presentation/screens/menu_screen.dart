@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_responsive.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../domain/entities/category_entity.dart';
 import '../../../../mock/mock_categories.dart';
@@ -149,10 +150,10 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
             else ...[
             // ─── CATEGORÍAS HORIZONTALES CON IMÁGENES ─────────────────────────
             SizedBox(
-              height: 82,
+              height: AppResponsive.dp(context, 82),
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: EdgeInsets.symmetric(horizontal: AppResponsive.screenPaddingH(context)),
                 itemCount: allCategories.length,
                 separatorBuilder: (context, index) => const SizedBox(width: 10),
                 itemBuilder: (ctx, index) {
@@ -162,7 +163,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                     onTap: () => setState(() => _selectedCategoryId = cat.id),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      width: 78,
+                      width: AppResponsive.dp(context, 78),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? const Color(0xFFDC2626)
@@ -190,18 +191,18 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                           if (cat.localImage != null)
                             Image.asset(
                               cat.localImage!,
-                              width: 40,
-                              height: 40,
+                              width: AppResponsive.dp(context, 40),
+                              height: AppResponsive.dp(context, 40),
                               fit: BoxFit.contain,
                             )
                           else
-                            Text(cat.iconEmoji, style: const TextStyle(fontSize: 26)),
+                            Text(cat.iconEmoji, style: TextStyle(fontSize: AppResponsive.sp(context, 26))),
                           const SizedBox(height: 4),
                           Text(
                             cat.name,
                             style: TextStyle(
                               fontFamily: AppTypography.bodyFamily,
-                              fontSize: 11,
+                              fontSize: AppResponsive.sp(context, 11),
                               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                               color: isSelected
                                   ? Colors.white
@@ -222,13 +223,13 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
 
             // ─── SUBTÍTULO DE CATEGORÍA ────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: EdgeInsets.symmetric(horizontal: AppResponsive.screenPaddingH(context)),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
-                      const Text('🔥', style: TextStyle(fontSize: 20)),
+                      Text('🔥', style: TextStyle(fontSize: AppResponsive.sp(context, 20))),
                       const SizedBox(width: 6),
                       Text(
                         _selectedCategoryId == 'all'
@@ -240,7 +241,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                                 .toUpperCase(),
                         style: TextStyle(
                           fontFamily: AppTypography.displayFamily,
-                          fontSize: 22,
+                          fontSize: AppResponsive.sp(context, 22),
                           color: textColor,
                           letterSpacing: 0.5,
                         ),
@@ -251,7 +252,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                     'Los clásicos que nunca fallan',
                     style: TextStyle(
                       fontFamily: AppTypography.bodyFamily,
-                      fontSize: 12,
+                      fontSize: AppResponsive.sp(context, 12),
                       color: subtitleColor,
                       fontStyle: FontStyle.italic,
                     ),
@@ -282,7 +283,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                       ),
                     )
                   : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                      padding: EdgeInsets.fromLTRB(AppResponsive.screenPaddingH(context), 0, AppResponsive.screenPaddingH(context), 0),
                       itemCount: filteredProducts.length + 1, // +1 para banner al final
                       itemBuilder: (context, index) {
                         // Último ítem → banner ¿ANTOJO DIABÓLICO?

@@ -1,6 +1,7 @@
 // lib/core/widgets/diabla_button.dart
 import 'package:flutter/material.dart';
 import 'package:la_diabla/app/theme/app_colors.dart';
+import 'package:la_diabla/app/theme/app_responsive.dart';
 import 'package:la_diabla/app/theme/app_spacing.dart';
 
 /// Botón principal con diseño audaz de La Diabla.
@@ -13,7 +14,7 @@ class DiablaButton extends StatelessWidget {
     this.icon,
     this.backgroundColor = AppColors.primary,
     this.foregroundColor = AppColors.white,
-    this.height = AppSpacing.buttonHeight,
+    this.height,
     this.width,
   });
 
@@ -23,14 +24,18 @@ class DiablaButton extends StatelessWidget {
   final IconData? icon;
   final Color backgroundColor;
   final Color foregroundColor;
-  final double height;
+  final double? height;
   final double? width;
 
   @override
   Widget build(BuildContext context) {
+    final effectiveHeight = height ?? AppResponsive.buttonHeight(context);
+    final iconSize = AppResponsive.dp(context, 20);
+    final fontSize = AppResponsive.sp(context, 16);
+
     return SizedBox(
       width: width ?? double.infinity,
-      height: height,
+      height: effectiveHeight,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: backgroundColor,
@@ -43,8 +48,8 @@ class DiablaButton extends StatelessWidget {
         onPressed: isLoading ? null : onPressed,
         child: isLoading
             ? SizedBox(
-                height: 20,
-                width: 20,
+                height: iconSize,
+                width: iconSize,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
                   valueColor: AlwaysStoppedAnimation<Color>(foregroundColor),
@@ -55,13 +60,13 @@ class DiablaButton extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (icon != null) ...[
-                    Icon(icon, size: 20),
-                    const SizedBox(width: AppSpacing.sm),
+                    Icon(icon, size: iconSize),
+                    SizedBox(width: AppResponsive.dp(context, AppSpacing.sm)),
                   ],
                   Text(
                     text,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: fontSize,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.5,
                       color: foregroundColor,

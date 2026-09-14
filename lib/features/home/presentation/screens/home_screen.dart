@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_responsive.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../auth/providers/auth_notifier.dart';
 import '../../../../domain/entities/product_entity.dart';
@@ -519,6 +520,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final user = ref.watch(authNotifierProvider).user;
     final userId = user?.id ?? '';
 
+    // Responsive values
+    final hPad = AppResponsive.screenPaddingH(context);
+    final catRowH = AppResponsive.dp(context, 104);
+    final catCardW = AppResponsive.dp(context, 82);
+    final catImgSize = AppResponsive.dp(context, 52);
+    final catFontSize = AppResponsive.sp(context, 11);
+    final prodListH = AppResponsive.dp(context, 230);
+    final prodCardW = AppResponsive.dp(context, 165);
+    final prodImgH = AppResponsive.dp(context, 115);
+    final headerTitleSize = AppResponsive.sp(context, 34);
+    final headerSubtitleSize = AppResponsive.sp(context, 15);
+    final logoHeight = AppResponsive.dp(context, 180);
+    final sectionTitleSize = AppResponsive.sp(context, 22);
+
     return Scaffold(
       backgroundColor: homeBg,
       body: Stack(
@@ -533,7 +548,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 children: [
                   // ─── 1. HEADER ────────────────────────────────────────────────────
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: EdgeInsets.symmetric(horizontal: hPad),
                     child: Column(
                       children: [
                         Row(
@@ -620,7 +635,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     '¡BIENVENIDO\nA LA DIABLA!',
                                     style: TextStyle(
                                       fontFamily: AppTypography.displayFamily,
-                                      fontSize: 34,
+                                      fontSize: headerTitleSize,
                                       fontWeight: FontWeight.w400,
                                       color: isDark ? const Color(0xFFFF5252) : const Color(0xFFC62828),
                                       height: 1.05,
@@ -632,7 +647,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     'El sabor que\nte acompaña 🌶️',
                                     style: TextStyle(
                                       fontFamily: AppTypography.bodyFamily,
-                                      fontSize: 15,
+                                      fontSize: headerSubtitleSize,
                                       fontWeight: FontWeight.bold,
                                       color: subtitleColor,
                                       height: 1.2,
@@ -643,7 +658,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                             Image.asset(
                               'assets/images/logo.png',
-                              height: 180,
+                              height: logoHeight,
                               fit: BoxFit.contain,
                             ),
                           ],
@@ -666,7 +681,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                   // ─── 2. BARRA DE BÚSQUEDA ─────────────────────────────────────────
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: EdgeInsets.symmetric(horizontal: hPad),
                     child: Container(
                       decoration: BoxDecoration(
                         color: searchBgColor,
@@ -744,10 +759,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                   // ─── 3. CATEGORÍAS ────────────────────────────────────────────────
                   SizedBox(
-                    height: 104,
+                    height: catRowH,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      padding: EdgeInsets.symmetric(horizontal: hPad),
                       itemCount: mockCategories.length,
                       separatorBuilder: (context, index) =>
                           const SizedBox(width: 12),
@@ -764,7 +779,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
-                            width: 82,
+                            width: catCardW,
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? const Color(0xFFFFECEE)
@@ -795,19 +810,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   borderRadius: BorderRadius.circular(12),
                                   child: cat.localImage != null
                                       ? Image.asset(cat.localImage!,
-                                          width: 52,
-                                          height: 52,
+                                          width: catImgSize,
+                                          height: catImgSize,
                                           fit: BoxFit.contain)
                                       : Text(cat.iconEmoji,
-                                          style:
-                                              const TextStyle(fontSize: 30)),
+                                          style: TextStyle(fontSize: AppResponsive.sp(context, 30))),
                                 ),
                                 const SizedBox(height: 5),
                                 Text(
                                   cat.name,
                                   style: TextStyle(
                                     fontFamily: AppTypography.bodyFamily,
-                                    fontSize: 11,
+                                    fontSize: catFontSize,
                                     fontWeight: isSelected
                                         ? FontWeight.w700
                                         : FontWeight.w600,
@@ -833,7 +847,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                   // ─── 4. BANNER CAROUSEL (Rotación cada 10 seg) ────────────────────
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: EdgeInsets.symmetric(horizontal: hPad),
                     child: Column(
                       children: [
                         AspectRatio(
@@ -904,7 +918,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                   // ─── 5. POPULARES / FILTRADOS ─────────────────────────────────────
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: EdgeInsets.symmetric(horizontal: hPad),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -916,7 +930,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   : 'POPULARES 🔥',
                               style: TextStyle(
                                 fontFamily: AppTypography.displayFamily,
-                                fontSize: 22,
+                                fontSize: sectionTitleSize,
                                 fontWeight: FontWeight.w400,
                                 color: textColor,
                                 letterSpacing: 0.5,
@@ -937,18 +951,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     border: Border.all(
                                         color: const Color(0xFFDC2626)),
                                   ),
-                                  child: const Row(
+                                  child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.close_rounded,
+                                      const Icon(Icons.close_rounded,
                                           size: 12,
                                           color: Color(0xFFDC2626)),
-                                      SizedBox(width: 3),
+                                      const SizedBox(width: 3),
                                       Text(
                                         'Limpiar',
                                         style: TextStyle(
                                           fontFamily: AppTypography.bodyFamily,
-                                          fontSize: 11,
+                                          fontSize: catFontSize,
                                           color: Color(0xFFDC2626),
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -1026,21 +1040,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     )
                   else
                     SizedBox(
-                      height: 230,
+                      height: prodListH,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 20),
+                        padding: EdgeInsets.symmetric(horizontal: hPad),
                         itemCount: products.length,
                         separatorBuilder: (context, index) =>
-                            const SizedBox(width: 14),
+                            SizedBox(width: AppResponsive.dp(context, 14)),
                         itemBuilder: (context, index) {
                           final product = products[index];
                           return GestureDetector(
                             onTap: () =>
                                 context.push('/product/${product.id}'),
                             child: Container(
-                              width: 165,
+                              width: prodCardW,
                               decoration: BoxDecoration(
                                 color: cardColor,
                                 borderRadius: BorderRadius.circular(18),
@@ -1063,7 +1076,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                             top: Radius.circular(18)),
                                         child: CachedNetworkImage(
                                           imageUrl: product.imageUrl,
-                                          height: 115,
+                                          height: prodImgH,
                                           width: double.infinity,
                                           fit: BoxFit.cover,
                                           placeholder: (context, url) => Container(

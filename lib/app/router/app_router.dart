@@ -39,13 +39,10 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const LoginScreen(),
     ),
 
-    // Stateful ShellRoute con BottomNavigationBar permanente
+    // Stateful ShellRoute con Scaffold Adaptativo (BottomBar en phones, NavigationRail en tablets)
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
-        return Scaffold(
-          body: navigationShell,
-          bottomNavigationBar: DiablaBottomNav(navigationShell: navigationShell),
-        );
+        return DiablaAdaptiveScaffold(navigationShell: navigationShell);
       },
       branches: [
         // Rama 0: Home

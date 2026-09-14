@@ -19,6 +19,20 @@ class LaDiablaApp extends ConsumerWidget {
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
       routerConfig: appRouter,
+      // Limitar la escala de texto del sistema a 1.2× para evitar
+      // que layouts se rompan con accesibilidad de fuente muy grande.
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        return MediaQuery(
+          data: mq.copyWith(
+            textScaler: mq.textScaler.clamp(
+              minScaleFactor: 0.85,
+              maxScaleFactor: 1.2,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
   }
 }

@@ -2,6 +2,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:la_diabla/app/theme/app_colors.dart';
+import 'package:la_diabla/app/theme/app_responsive.dart';
 import 'package:la_diabla/core/utils/price_formatter.dart';
 import 'package:la_diabla/domain/entities/product_entity.dart';
 import 'diabla_card.dart';
@@ -20,7 +21,7 @@ class DiablaProductCard extends StatelessWidget {
   final VoidCallback? onAddToCart;
   final double width;
 
-  Widget _buildSpicyBadge() {
+  Widget _buildSpicyBadge(BuildContext context) {
     if (product.spicyLevel == 0) return const SizedBox.shrink();
 
     final spicyIcons = switch (product.spicyLevel) {
@@ -38,16 +39,19 @@ class DiablaProductCard extends StatelessWidget {
     };
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppResponsive.dp(context, 6),
+        vertical: AppResponsive.dp(context, 2),
+      ),
       decoration: BoxDecoration(
         color: badgeColor,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
         spicyIcons,
-        style: const TextStyle(
+        style: TextStyle(
           color: Colors.white,
-          fontSize: 9,
+          fontSize: AppResponsive.sp(context, 9),
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -56,6 +60,13 @@ class DiablaProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final padH = AppResponsive.dp(context, 10);
+    final padV = AppResponsive.dp(context, 8);
+    final titleSize = AppResponsive.sp(context, 14);
+    final descSize = AppResponsive.sp(context, 11);
+    final priceSize = AppResponsive.sp(context, 15);
+    final addIconSize = AppResponsive.dp(context, 16);
+
     return SizedBox(
       width: width,
       child: DiablaCard(
@@ -88,12 +99,12 @@ class DiablaProductCard extends StatelessWidget {
                   Positioned(
                     top: 6,
                     left: 6,
-                    child: _buildSpicyBadge(),
+                    child: _buildSpicyBadge(context),
                   ),
               ],
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -104,7 +115,7 @@ class DiablaProductCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                          fontSize: titleSize,
                         ),
                   ),
                   const SizedBox(height: 2),
@@ -114,17 +125,17 @@ class DiablaProductCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontSize: 11,
+                          fontSize: descSize,
                         ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: AppResponsive.dp(context, 8)),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         PriceFormatter.formatSmart(product.price),
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: priceSize,
                           fontWeight: FontWeight.w900,
                           color: Theme.of(context).colorScheme.primary,
                         ),
@@ -133,15 +144,15 @@ class DiablaProductCard extends StatelessWidget {
                         onTap: onAddToCart,
                         borderRadius: BorderRadius.circular(16),
                         child: Container(
-                          padding: const EdgeInsets.all(6),
+                          padding: EdgeInsets.all(AppResponsive.dp(context, 6)),
                           decoration: const BoxDecoration(
                             color: AppColors.primary,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.add,
                             color: Colors.white,
-                            size: 16,
+                            size: addIconSize,
                           ),
                         ),
                       ),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:la_diabla/features/cart/providers/cart_notifier.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_responsive.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/utils/price_formatter.dart';
@@ -166,7 +167,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           ),
         ],
       ),
-      body: ListView(
+      body: AppResponsive.constrained(
+        context,
+        ListView(
         padding: const EdgeInsets.all(AppSpacing.screenHorizontal),
         children: [
           // ─── BARRA DE PROGRESO ENVÍO GRATIS ─────────────────────────────
@@ -608,6 +611,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           ),
           const SizedBox(height: 20),
         ],
+        ),
       ),
     );
   }

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_responsive.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/widgets/diabla_text_field.dart';
 import '../../providers/auth_notifier.dart';
@@ -762,14 +763,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           // ─── CONTENIDO QUE RESPONDE AL TECLADO (BLOQUEADO SI NO HAY TECLADO) ───
           Positioned.fill(
             child: SafeArea(
-              child: SingleChildScrollView(
-                physics: bottomInset > 0
-                    ? const ClampingScrollPhysics()
-                    : const NeverScrollableScrollPhysics(),
-                padding: EdgeInsets.fromLTRB(28, 28, 28, bottomInset > 0 ? bottomInset + 20 : 36),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: AppResponsive.maxContentWidth),
+                  child: SingleChildScrollView(
+                    physics: bottomInset > 0
+                        ? const ClampingScrollPhysics()
+                        : const NeverScrollableScrollPhysics(),
+                    padding: EdgeInsets.fromLTRB(
+                      AppResponsive.screenPaddingH(context),
+                      28,
+                      AppResponsive.screenPaddingH(context),
+                      bottomInset > 0 ? bottomInset + 20 : 36,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
                     const SizedBox(height: 14),
 
                     // Logo grande y bien distribuido
@@ -1082,8 +1091,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
           ),
-        ],
-      ),
-    );
+          ),
+        ),
+      ],
+    ),
+  );
   }
 }

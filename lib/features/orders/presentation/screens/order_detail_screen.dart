@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_responsive.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/utils/price_formatter.dart';
@@ -39,7 +40,9 @@ class OrderDetailScreen extends ConsumerWidget {
           final lng = order.longitude ?? addr?.longitude ?? -73.142590;
           final formattedAddr = addr?.formattedAddress ?? 'Dirección registrada en el pedido';
 
-          return ListView(
+          return AppResponsive.constrained(
+            context,
+            ListView(
             padding: const EdgeInsets.all(AppSpacing.screenHorizontal),
             children: [
               // 1. Header de Estado
@@ -194,6 +197,7 @@ class OrderDetailScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 20),
             ],
+          ),
           );
         },
       ),

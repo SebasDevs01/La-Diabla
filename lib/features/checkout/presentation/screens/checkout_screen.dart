@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_responsive.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/services/maps_service.dart';
@@ -437,7 +438,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       ),
       body: SafeArea(
         top: false,
-        child: cartState.items.isEmpty
+        child: AppResponsive.constrained(
+          context,
+          cartState.items.isEmpty
             ? Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1038,6 +1041,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 const SizedBox(height: 30),
               ],
             ),
+        ),
         ),
     );
   }
