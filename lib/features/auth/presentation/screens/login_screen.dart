@@ -75,9 +75,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   // ─── GOOGLE AUTH ───────────────────────────────────────────────────────────
   Future<void> _handleGoogleAuth() async {
+    _hasNavigated = false;
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
     final notifier = ref.read(authNotifierProvider.notifier);
+
     final success = await notifier.signInWithGoogle(
       isDeliveryMode: _isDeliveryMode,
     );
@@ -95,6 +97,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             content: Text(err),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -103,6 +106,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   // ─── DIRECT EMAIL LOGIN & FORGOT PASSWORD ──────────────────────────────────
   Future<void> _handleDirectEmailLogin() async {
+    _hasNavigated = false;
     final email = _loginEmailController.text.trim();
     final password = _loginPasswordController.text.trim();
     final messenger = ScaffoldMessenger.of(context);
@@ -110,10 +114,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (email.isEmpty || password.isEmpty) {
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Por favor completa todos los campos'),
+        SnackBar(
+          content: const Text('Por favor completa tu correo y contraseña'),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       return;
@@ -134,6 +139,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           content: Text(err ?? 'Error al iniciar sesión'),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }
@@ -734,12 +740,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final authState = ref.watch(authNotifierProvider);
     final themeTextColor = isDark ? Colors.white70 : Colors.black87;
-
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isCompact = screenHeight < 750;
+    final logoHeight = isCompact ? 120.0 : 160.0;
+    final gapSmall = isCompact ? 8.0 : 12.0;
+    final gapMedium = isCompact ? 14.0 : 20.0;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF1E1712) : const Color(0xFFFAF7F2),
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -760,42 +769,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
 
-          // ─── CONTENIDO QUE RESPONDE AL TECLADO (BLOQUEADO SI NO HAY TECLADO) ───
+          // ─── CONTENIDO RESPONSIVO Y SCROLLEABLE EN CUALQUIER PANTALLA ───
           Positioned.fill(
             child: SafeArea(
               child: Center(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: AppResponsive.maxContentWidth),
                   child: SingleChildScrollView(
-                    physics: bottomInset > 0
-                        ? const ClampingScrollPhysics()
-                        : const NeverScrollableScrollPhysics(),
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
                     padding: EdgeInsets.fromLTRB(
                       AppResponsive.screenPaddingH(context),
-                      28,
+                      isCompact ? 12 : 24,
                       AppResponsive.screenPaddingH(context),
-                      bottomInset > 0 ? bottomInset + 20 : 36,
+                      28,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                    const SizedBox(height: 14),
+                    SizedBox(height: isCompact ? 6 : 12),
 
-                    // Logo grande y bien distribuido
+                    // Logo adaptable según la altura de la pantalla
                     Image.asset(
                       'assets/images/logo.png',
-                      height: 165,
+                      height: logoHeight,
                       fit: BoxFit.contain,
                     ),
 
-                    const SizedBox(height: 16),
+                    SizedBox(height: gapSmall),
 
                     // TÍTULOS
                     Text(
                       '¡BIENVENIDO A LA DIABLA!',
                       style: TextStyle(
                         fontFamily: AppTypography.displayFamily,
-                        fontSize: 26,
+                        fontSize: isCompact ? 22 : 26,
                         fontWeight: FontWeight.bold,
                         color: isDark ? const Color(0xFFFF5252) : const Color(0xFFC62828),
                         letterSpacing: 1.5,
@@ -803,24 +812,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
                       'Auténtico Sabor Mexicano 🌶️🔥',
                       style: TextStyle(
                         fontFamily: AppTypography.bodyFamily,
-                        fontSize: 14,
+                        fontSize: isCompact ? 13 : 14,
                         fontWeight: FontWeight.w600,
                         color: isDark ? AppColors.textMutedDark : const Color(0xFF6D4C41),
                       ),
                       textAlign: TextAlign.center,
                     ),
 
-                    const SizedBox(height: 28),
+                    SizedBox(height: gapMedium),
 
                     // CARGANDO INDICATOR
                     if (authState.isLoading) ...[
                       const CircularProgressIndicator(color: Color(0xFFDC2626)),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
                     ],
 
                     // Campos directos de correo y contraseña
@@ -833,7 +842,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       textInputAction: TextInputAction.next,
                       prefixIcon: const Icon(Icons.alternate_email_rounded, color: Color(0xFFDC2626)),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: gapSmall),
                     DiablaTextField(
                       key: const ValueKey('screen_login_password_field'),
                       controller: _loginPasswordController,
@@ -843,7 +852,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onFieldSubmitted: (_) => _handleDirectEmailLogin(),
                       prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFFDC2626)),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
 
                     // Enlace de restablecer contraseña
                     Align(
@@ -856,14 +865,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             fontFamily: AppTypography.bodyFamily,
                             color: isDark ? const Color(0xFFFF5252) : const Color(0xFFDC2626),
                             fontWeight: FontWeight.w600,
-                            fontSize: 14,
+                            fontSize: 13.5,
                             decoration: TextDecoration.underline,
                           ),
                         ),
                       ),
                     ),
 
-                    const SizedBox(height: 22),
+                    SizedBox(height: gapSmall + 4),
 
                     // ─── SELECTOR USUARIO / REPARTIDOR ──────────────────────
                     Container(
@@ -966,7 +975,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 18),
+                    SizedBox(height: gapMedium),
 
                     // Botón Iniciar Sesión Principal
                     SizedBox(

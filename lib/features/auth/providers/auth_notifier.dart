@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../domain/entities/user_entity.dart';
+import '../../../domain/entities/address_entity.dart';
+import '../../addresses/providers/addresses_provider.dart';
 import 'auth_provider.dart';
 
 /// Estado de la autenticacion.
@@ -54,9 +56,35 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (user.isGuest) {
-        // Invitados NUNCA deben quedar guardados como usuarios con sesión activa
+        // Invitados: guardar en SharedPreferences como sesión temporal
         await prefs.setBool('is_logged_in', false);
         await prefs.setBool('is_guest_user', true);
+        await prefs.setString('guest_name', user.name);
+        if (user.phone != null) await prefs.setString('guest_phone', user.phone!);
+        if (user.guestAddress != null) await prefs.setString('guest_address', user.guestAddress!);
+
+        // Si el invitado tiene UID real de Firebase (anónimo), persistir en Firestore
+        // para que pueda recibir notificaciones como cualquier usuario registrado
+        final isRealFirebaseUid = !user.id.startsWith('guest_') && user.id.length > 10;
+        if (isRealFirebaseUid) {
+          try {
+            await FirebaseFirestore.instance.collection('users').doc(user.id).set({
+              'name': user.name,
+              'phone': user.phone ?? '',
+              'email': user.email,
+              'role': 'customer',
+              'isGuest': true,
+              'guestAddress': user.guestAddress ?? '',
+              'updatedAt': FieldValue.serverTimestamp(),
+              'createdAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          } catch (_) {}
+          // Sincronizar token FCM para que reciba notificaciones de sus pedidos
+          NotificationService()
+              .syncUserFcmToken(user.id, role: 'customer')
+              .timeout(const Duration(seconds: 4), onTimeout: () {})
+              .ignore();
+        }
         return;
       }
       await prefs.setBool('is_logged_in', true);
@@ -81,6 +109,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           .ignore();
     } catch (_) {}
   }
+
 
   Future<void> _clearUserSession() async {
     try {
@@ -228,7 +257,26 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
 
       state = state.copyWith(user: guestUser, isLoading: false);
-      _saveUserSession(guestUser).ignore();
+      await _saveUserSession(guestUser);
+
+      // Guardar la dirección en addressesProvider y Firestore para que esté disponible en Checkout y toda la app
+      if (address.trim().isNotEmpty) {
+        final initialAddress = AddressEntity(
+          id: 'addr_${DateTime.now().millisecondsSinceEpoch}',
+          userId: guestUid,
+          label: AddressLabel.home,
+          formattedAddress: address.trim(),
+          latitude: 7.092758,
+          longitude: -73.142590,
+          isDefault: true,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+        try {
+          await _ref.read(addressesProvider.notifier).addAddress(initialAddress);
+        } catch (_) {}
+      }
+
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -353,20 +401,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
       _saveUserSession(user).ignore();
       return true;
     } catch (e) {
+      final msg = e.toString().replaceAll('Exception: ', '').replaceAll('AuthException: ', '');
       state = state.copyWith(
         isLoading: false,
-        errorMessage: e.toString().replaceAll('Exception: ', '').replaceAll('AuthException: ', ''),
+        errorMessage: msg,
       );
       return false;
     }
   }
 
   /// Registra una nueva cuenta con correo y contrasena.
-  Future<bool> signUpWithEmail(String email, String password, {bool isDeliveryMode = false}) async {
+  Future<bool> signUpWithEmail(
+    String email,
+    String password, {
+    String? name,
+    bool isDeliveryMode = false,
+  }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final repo = _ref.read(authRepositoryProvider);
-      var user = await repo.signUpWithEmail(email, password);
+      final role = isDeliveryMode ? UserRole.driver : UserRole.customer;
+      var user = await repo.signUpWithEmail(email, password, name: name, role: role);
       if (isDeliveryMode && user.role != UserRole.driver) {
         user = user.copyWith(role: UserRole.driver);
         FirebaseFirestore.instance
@@ -383,9 +438,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       _saveUserSession(user).ignore();
       return true;
     } catch (e) {
+      final msg = e.toString().replaceAll('Exception: ', '').replaceAll('AuthException: ', '');
       state = state.copyWith(
         isLoading: false,
-        errorMessage: e.toString().replaceAll('Exception: ', '').replaceAll('AuthException: ', ''),
+        errorMessage: msg,
       );
       return false;
     }

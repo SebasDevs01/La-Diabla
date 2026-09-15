@@ -72,6 +72,25 @@ class AddressesNotifier extends StateNotifier<AddressesState> {
         } catch (_) {}
       }
 
+      if (localList.isEmpty) {
+        final guestAddr = prefs.getString('guest_address');
+        if (guestAddr != null && guestAddr.trim().isNotEmpty) {
+          final initialGuestAddress = AddressEntity(
+            id: 'addr_guest_cached',
+            userId: uid ?? 'guest',
+            label: AddressLabel.home,
+            formattedAddress: guestAddr.trim(),
+            latitude: 7.092758,
+            longitude: -73.142590,
+            isDefault: true,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+          localList = [initialGuestAddress];
+          await _persistLocal(localList);
+        }
+      }
+
       state = state.copyWith(addresses: localList, isLoading: false);
     } catch (_) {
       state = state.copyWith(isLoading: false);

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -84,6 +85,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
   StreamSubscription? _posSub;
   StreamSubscription? _durSub;
   StreamSubscription? _stateSub;
+  int _previousMessageCount = 0;
 
   CollectionReference get _chatCol => FirebaseFirestore.instance
       .collection('orders')
@@ -562,7 +564,22 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     }
   }
 
-  /// Construye un widget de avatar seguro para cualquier tipo de URL o formato Base64
+  // Caché en memoria para evitar redecodificar Base64 en cada frame de la lista
+  static final Map<String, Uint8List> _chatBase64Cache = {};
+
+  Uint8List? _getCachedBytes(String source) {
+    if (_chatBase64Cache.containsKey(source)) return _chatBase64Cache[source];
+    try {
+      final clean = source.contains(',') ? source.split(',').last : source;
+      final bytes = base64Decode(clean);
+      _chatBase64Cache[source] = bytes;
+      return bytes;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Construye un widget de avatar seguro para cualquier tipo de URL o formato Base64 sin parpadeos
   Widget _buildAvatarImageWidget(
     String? photoUrl, {
     double radius = 18,
@@ -573,30 +590,36 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
     if (photoUrl != null && photoUrl.isNotEmpty) {
       if (photoUrl.startsWith('data:image/')) {
-        try {
-          final bytes = base64Decode(photoUrl.split(',').last);
+        final bytes = _getCachedBytes(photoUrl);
+        if (bytes != null) {
           avatarContent = Image.memory(
             bytes,
+            key: ValueKey('b64_${photoUrl.hashCode}'),
             fit: BoxFit.cover,
             width: radius * 2,
             height: radius * 2,
+            gaplessPlayback: true,
             errorBuilder: (context, error, stackTrace) => _buildFallbackInitial(radius, fallbackChar),
           );
-        } catch (_) {
+        } else {
           avatarContent = _buildFallbackInitial(radius, fallbackChar);
         }
       } else if (photoUrl.startsWith('http')) {
         avatarContent = CachedNetworkImage(
+          key: ValueKey('net_$photoUrl'),
           imageUrl: photoUrl,
           fit: BoxFit.cover,
           width: radius * 2,
           height: radius * 2,
+          fadeInDuration: Duration.zero,
+          fadeOutDuration: Duration.zero,
+          useOldImageOnUrlChange: true,
           placeholder: (context, url) => Container(
             color: Colors.black12,
             child: const Center(
               child: SizedBox(
-                width: 12,
-                height: 12,
+                width: 10,
+                height: 10,
                 child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFFDC2626)),
               ),
             ),
@@ -609,6 +632,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
           fit: BoxFit.cover,
           width: radius * 2,
           height: radius * 2,
+          gaplessPlayback: true,
           errorBuilder: (context, error, stackTrace) => _buildFallbackInitial(radius, fallbackChar),
         );
       } else {
@@ -667,27 +691,31 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
   Widget _buildChatImageWidget(String url, {double? height, BoxFit fit = BoxFit.cover}) {
     if (url.startsWith('data:image/')) {
-      try {
-        final base64String = url.split(',').last;
-        final bytes = base64Decode(base64String);
+      final bytes = _getCachedBytes(url);
+      if (bytes != null) {
         return Image.memory(
           bytes,
+          key: ValueKey('msg_b64_${url.hashCode}'),
           height: height,
           width: double.infinity,
           fit: fit,
+          gaplessPlayback: true,
           errorBuilder: (context, error, stackTrace) => const Center(
             child: Icon(Icons.broken_image, color: Colors.grey),
           ),
         );
-      } catch (_) {
-        return const Center(child: Icon(Icons.broken_image, color: Colors.grey));
       }
+      return const Center(child: Icon(Icons.broken_image, color: Colors.grey));
     }
     return CachedNetworkImage(
+      key: ValueKey('msg_net_$url'),
       imageUrl: url,
       height: height,
       width: double.infinity,
       fit: fit,
+      fadeInDuration: Duration.zero,
+      fadeOutDuration: Duration.zero,
+      useOldImageOnUrlChange: true,
       placeholder: (context, url) => Container(
         height: height ?? 170,
         color: Colors.black12,
@@ -965,14 +993,18 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                     );
                   }
 
-                  WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+                  if (docs.length > _previousMessageCount) {
+                    _previousMessageCount = docs.length;
+                    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+                  }
 
                   return ListView.builder(
                     controller: _scrollCtrl,
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                     itemCount: docs.length,
                     itemBuilder: (context, index) {
-                      final data = docs[index].data() as Map<String, dynamic>;
+                      final doc = docs[index];
+                      final data = doc.data() as Map<String, dynamic>;
                       final senderId = data['senderId'] as String? ?? '';
                       final isMe = senderId == _currentUserId;
                       final type = data['type'] as String? ?? 'text';
@@ -982,6 +1014,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                       final timeStr = timestamp != null ? DateFormat('hh:mm a').format(timestamp) : '';
 
                       return Padding(
+                        key: ValueKey('msg_${doc.id}'),
                         padding: const EdgeInsets.only(bottom: 10),
                         child: Row(
                           mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,

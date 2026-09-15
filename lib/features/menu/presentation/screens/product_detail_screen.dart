@@ -13,6 +13,7 @@ import '../../../../core/widgets/diabla_button.dart';
 import '../../../../mock/mock_products.dart';
 import '../../../cart/providers/cart_notifier.dart';
 import '../../../favorites/providers/favorites_provider.dart';
+import '../../../home/providers/home_provider.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   const ProductDetailScreen({super.key, required this.productId});
@@ -28,7 +29,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   final Set<String> _selectedExtraIds = {};
   final Set<String> _removedIngredients = {};
   final Map<String, String> _selectedOptions = {};
-  final _notesController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
 
   @override
   void initState() {
@@ -70,9 +71,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final product = mockProducts.firstWhere(
+    final allProducts = ref.watch(productsProvider).value ?? mockProducts;
+    final product = allProducts.firstWhere(
       (p) => p.id == widget.productId,
-      orElse: () => mockProducts.first,
+      orElse: () => allProducts.isNotEmpty ? allProducts.first : mockProducts.first,
     );
 
     final selectedExtrasList = product.extras

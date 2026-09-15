@@ -11,6 +11,7 @@ import '../../../../mock/mock_categories.dart';
 import '../../../../mock/mock_products.dart';
 import '../../../cart/providers/cart_notifier.dart';
 import '../../../favorites/providers/favorites_provider.dart';
+import '../../../home/providers/home_provider.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/widgets/cart_popup_helper.dart';
@@ -62,12 +63,16 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
       ...mockCategories,
     ];
 
-    final filteredProducts = mockProducts.where((p) {
+    final productsAsync = ref.watch(productsProvider);
+    final allProductsList = productsAsync.value ?? mockProducts;
+
+    final filteredProducts = allProductsList.where((p) {
       final matchesCategory =
           _selectedCategoryId == 'all' || p.categoryId == _selectedCategoryId;
       final matchesSearch = _searchQuery.isEmpty ||
           p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          p.description.toLowerCase().contains(_searchQuery.toLowerCase());
+          p.description.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          p.ingredients.any((ing) => ing.toLowerCase().contains(_searchQuery.toLowerCase()));
       return matchesCategory && matchesSearch;
     }).toList();
 

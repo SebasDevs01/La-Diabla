@@ -13,14 +13,20 @@ import '../../features/orders/presentation/screens/order_chat_screen.dart';
 /// Se ejecuta cuando la app está en background pero sigue viva en memoria.
 /// Para app completamente cerrada, FCM muestra la notificación del sistema
 /// automáticamente gracias a la Cloud Function onChatMessageNotification.
+/// Manejador de mensajes en background (debe ser top-level).
+/// Solo muestra notificación local manual si el mensaje es DATA-ONLY (sin payload de sistema),
+/// ya que Android/iOS muestran automáticamente los mensajes con payload de notificación.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('📬 Mensaje en background: ${message.messageId}');
 
-  // Mostrar banner local si la notificación no viene con payload de sistema
-  // (esto cubre el caso background-but-alive, ej. app minimizada)
-  final notification = message.notification;
-  if (notification != null) {
+  // Si ya tiene payload de notificación, el SO (Android/iOS) ya lo muestra automáticamente.
+  // Solo mostramos banner manual si es un mensaje data-only.
+  if (message.notification == null && message.data.isNotEmpty) {
+    final title = message.data['title'] as String? ?? 'La Diabla';
+    final body = message.data['body'] as String? ?? '';
+    if (body.isEmpty) return;
+
     final localPlugin = FlutterLocalNotificationsPlugin();
     const initSettings = InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
@@ -28,16 +34,18 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     );
     await localPlugin.initialize(initSettings);
     await localPlugin.show(
-      notification.hashCode,
-      notification.title,
-      notification.body,
+      message.data.hashCode,
+      title,
+      body,
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'la_diabla_orders',
           'Pedidos La Diabla',
           channelDescription: 'Notificaciones de La Diabla',
           importance: Importance.max,
-          priority: Priority.high,
+          priority: Priority.max,
+          visibility: NotificationVisibility.public,
+          category: AndroidNotificationCategory.message,
           icon: '@mipmap/ic_launcher',
           playSound: true,
           enableVibration: true,
@@ -54,7 +62,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 /// Servicio de notificaciones push — wrapper de Firebase Cloud Messaging
-/// + flutter_local_notifications para mostrar banners en foreground.
+/// + flutter_local_notifications para mostrar banners en foreground y pantalla de bloqueo.
 class NotificationService {
   factory NotificationService() => _instance;
   NotificationService._internal({FirebaseMessaging? messaging})
@@ -67,6 +75,22 @@ class NotificationService {
   StreamSubscription<QuerySnapshot>? _realtimeNotifsSub;
   DateTime _sessionStartTime = DateTime.now();
 
+  // Caché de deduplicación de notificaciones en memoria (TTL de 20 segundos)
+  static final Map<String, DateTime> _recentlyShownNotifications = {};
+
+  /// Verifica si una notificación es duplicada para evitar múltiples sonidos/banners
+  static bool isDuplicate(String key) {
+    if (key.isEmpty) return false;
+    final now = DateTime.now();
+    // Limpieza de entradas con más de 20 segundos de antigüedad
+    _recentlyShownNotifications.removeWhere((_, time) => now.difference(time).inSeconds > 20);
+    if (_recentlyShownNotifications.containsKey(key)) {
+      return true;
+    }
+    _recentlyShownNotifications[key] = now;
+    return false;
+  }
+
   // ─── Plugin de notificaciones locales ────────────────────────────────────
   static final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
@@ -78,6 +102,7 @@ class NotificationService {
     importance: Importance.max,
     playSound: true,
     enableVibration: true,
+    showBadge: true,
   );
 
   // ─── Inicialización ───────────────────────────────────────────────────────
@@ -178,7 +203,7 @@ class NotificationService {
       }
     }
 
-    // Crear canal de alta importancia en Android
+    // Crear canal de alta importancia en Android con visibilidad pública en bloqueo
     final androidPlugin = _localNotifications
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
@@ -214,21 +239,46 @@ class NotificationService {
   /// Muestra una notificación local cuando la app está en foreground.
   Future<void> _showForegroundNotification(RemoteMessage message) async {
     final notification = message.notification;
-    if (notification == null) return;
+    final title = notification?.title ?? message.data['title'] as String? ?? '';
+    final body = notification?.body ?? message.data['body'] as String? ?? '';
+    if (title.isEmpty && body.isEmpty) return;
 
     final orderId = message.data['orderId'] as String? ?? '';
+    final type = message.data['type'] as String? ?? '';
+    final status = message.data['status'] as String? ?? '';
+
+    // Clave de deduplicación unificada: idéntica a la que genera el listener de Firestore
+    final dedupKey = (orderId.isNotEmpty && (status.isNotEmpty || type == 'order_status'))
+        ? 'order_status_${orderId}_$status'
+        : (type == 'chat_message'
+            ? 'chat_${orderId}_${title}_$body'
+            : (message.messageId ?? '${orderId}_${type}_${title}_$body'));
+
+    if (isDuplicate(dedupKey)) {
+      _logger.d('Foreground push duplicado omitido: $dedupKey');
+      return;
+    }
+
+    // Si el usuario ya está viendo activamente el chat de esta orden, no mostrar banner
+    if (type == 'chat_message' &&
+        OrderChatScreen.currentActiveOrderId != null &&
+        OrderChatScreen.currentActiveOrderId == orderId) {
+      return;
+    }
 
     const androidDetails = AndroidNotificationDetails(
       'la_diabla_orders',
       'Pedidos La Diabla',
       channelDescription: 'Notificaciones de estado de tus pedidos',
       importance: Importance.max,
-      priority: Priority.high,
+      priority: Priority.max,
       icon: '@mipmap/ic_launcher',
       largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
       styleInformation: BigTextStyleInformation(''),
       playSound: true,
       enableVibration: true,
+      visibility: NotificationVisibility.public,
+      category: AndroidNotificationCategory.message,
     );
 
     const notificationDetails = NotificationDetails(
@@ -241,33 +291,43 @@ class NotificationService {
     );
 
     await _localNotifications.show(
-      notification.hashCode,
-      notification.title,
-      notification.body,
+      notification.hashCode != 0 ? notification.hashCode : DateTime.now().millisecondsSinceEpoch.remainder(100000),
+      title,
+      body,
       notificationDetails,
       payload: jsonEncode({
-        'type': 'chat',
+        'type': type.isNotEmpty ? type : 'order_status',
         'orderId': orderId,
+        'title': title,
+        'body': body,
       }),
     );
   }
 
-  /// Muestra una notificación local manualmente (con soporte para payload y redirección).
+  /// Muestra una notificación local manualmente con visibilidad en pantalla de bloqueo y deduplicación.
   static Future<void> showLocalNotification({
     required String title,
     required String body,
     int id = 0,
     String? payload,
+    String? deduplicationKey,
   }) async {
+    final dedup = deduplicationKey ?? '$title|$body|$payload';
+    if (isDuplicate(dedup)) {
+      return;
+    }
+
     const androidDetails = AndroidNotificationDetails(
       'la_diabla_orders',
       'Pedidos La Diabla',
       channelDescription: 'Notificaciones de estado de tus pedidos',
       importance: Importance.max,
-      priority: Priority.high,
+      priority: Priority.max,
       icon: '@mipmap/ic_launcher',
       playSound: true,
       enableVibration: true,
+      visibility: NotificationVisibility.public,
+      category: AndroidNotificationCategory.message,
     );
     const details = NotificationDetails(
       android: androidDetails,
@@ -285,6 +345,8 @@ class NotificationService {
 
   /// Escucha en tiempo real nuevas notificaciones en Firestore y muestra banners con sonido y vibración
   void startRealtimeNotificationListener(String userId) {
+    // Los UIDs de Firebase anónimos son strings hexadecimales reales (ej. "abc123xyz890")
+    // Solo bloqueamos userId vacío o el string literal 'guest' (fallback sin Firebase)
     if (userId.isEmpty || userId == 'guest') return;
     _realtimeNotifsSub?.cancel();
     _sessionStartTime = DateTime.now().subtract(const Duration(seconds: 3));
@@ -307,22 +369,34 @@ class NotificationService {
           }
 
           final senderId = data['senderId'] as String? ?? '';
-          if (senderId == userId) continue;
+          if (senderId.isNotEmpty && senderId == userId) continue;
 
           final orderId = data['orderId'] as String? ?? '';
           final title = data['title'] as String? ?? 'Nuevo mensaje';
           final body = data['body'] as String? ?? '';
           final type = data['type'] as String? ?? 'chat_message';
+          final status = data['status'] as String? ?? '';
 
           // Si el usuario ya está viendo activamente el chat de esta orden, omitir banner redundante
-          if (OrderChatScreen.currentActiveOrderId != null &&
+          if (type == 'chat_message' &&
+              OrderChatScreen.currentActiveOrderId != null &&
               OrderChatScreen.currentActiveOrderId == orderId) {
             continue;
           }
 
+          // Clave de deduplicación unificada: idéntica a la del push de FCM
+          final dedupKey = (orderId.isNotEmpty && (status.isNotEmpty || type == 'order_status'))
+              ? 'order_status_${orderId}_$status'
+              : (type == 'chat_message'
+                  ? 'chat_${orderId}_${title}_$body'
+                  : (change.doc.id.isNotEmpty
+                      ? change.doc.id
+                      : '${orderId}_${type}_${status}_${title}_$body'));
+
           showLocalNotification(
             title: title,
             body: body,
+            deduplicationKey: dedupKey,
             payload: jsonEncode({
               'type': type,
               'orderId': orderId,
@@ -415,8 +489,7 @@ class NotificationService {
     }
   }
 
-  /// Registra una notificación de estado de orden en Firestore
-  /// y muestra un banner local si la app está en foreground.
+  /// Registra una notificación de estado de orden en Firestore de forma idempotente para el cliente.
   Future<void> saveOrderNotification({
     required String userId,
     required String title,
@@ -427,23 +500,33 @@ class NotificationService {
   }) async {
     if (userId.isEmpty) return;
     try {
-      // Guardar en Firestore para el historial
-      await FirebaseFirestore.instance
+      final docId = (orderId != null && status != null)
+          ? '${orderId}_$status'
+          : null;
+
+      final notifCol = FirebaseFirestore.instance
           .collection('users')
           .doc(userId)
-          .collection('notifications')
-          .add({
+          .collection('notifications');
+
+      final data = {
         'title': title,
         'body': body,
         'orderId': orderId,
         'emoji': emoji,
         'status': status,
+        'type': 'order_status',
         'createdAt': FieldValue.serverTimestamp(),
         'isRead': false,
-      });
+      };
 
-      // También mostrar banner local inmediato
-      await showLocalNotification(title: title, body: body);
+      if (docId != null) {
+        await notifCol.doc(docId).set(data, SetOptions(merge: true));
+      } else {
+        await notifCol.add(data);
+      }
+      // Nota: showLocalNotification NO se ejecuta aquí para evitar que quien cambia el estado
+      // (admin o repartidor) reciba una alerta en su propio teléfono destinada al cliente.
     } catch (e) {
       _logger.w('Error guardando notificación: $e');
     }

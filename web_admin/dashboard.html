@@ -1,30 +1,37 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard en Vivo 🌶️ | La Diabla Admin</title>
-  <meta name="description" content="Panel de administración en tiempo real de La Diabla App. Gestiona pedidos, reembolsos y estadísticas.">
+  <meta name="description"
+    content="Panel de administración en tiempo real de La Diabla App. Gestiona pedidos, reembolsos y estadísticas.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Outfit:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
   <!-- Google Material Symbols Rounded -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
   <!-- Font Awesome 6 Free (CDN) -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous">
-  <link rel="stylesheet" href="styles.css?v=3.5">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    crossorigin="anonymous">
+  <link rel="stylesheet" href="styles.css?v=6.0">
 
   <!-- Firebase App SDK (CDN) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
   <script>
-    (function() {
+    (function () {
       const savedTheme = localStorage.getItem('diabla_web_theme') || 'dark';
       document.documentElement.setAttribute('data-theme', savedTheme);
     })();
   </script>
 </head>
+
 <body>
 
   <!-- Top Navigation -->
@@ -32,10 +39,11 @@
     <div class="navbar">
       <div class="logo-container">
         <img src="../recursos/materiales/chileboton.png" alt="La Diabla"
-             style="width:42px; height:42px; border-radius:50%; object-fit:contain; box-shadow: 0 4px 14px rgba(220,38,38,0.5); flex-shrink:0;">
+          style="width:42px; height:42px; border-radius:50%; object-fit:contain; box-shadow: 0 4px 14px rgba(220,38,38,0.5); flex-shrink:0;">
         <div class="logo-text-block">
           <span class="logo-text diabla-font">LA DIABLA</span>
-          <span class="live-badge"><span class="material-symbols-rounded md-16" style="color:#22C55E;">sensors</span> EN VIVO</span>
+          <span class="live-badge"><span class="material-symbols-rounded md-16" style="color:#22C55E;">sensors</span> EN
+            VIVO</span>
         </div>
       </div>
 
@@ -66,130 +74,221 @@
   <!-- Main Content -->
   <main class="admin-container">
 
-    <!-- Metrics Banner -->
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon-wrapper" style="--si-color: #16A34A; --si-bg: rgba(22,163,74,0.15);">
-          <span class="material-symbols-rounded md-28">payments</span>
-        </div>
-        <div>
-          <div class="stat-value diabla-font" id="statTotalSales">$0</div>
-          <div class="stat-label">Ventas Totales</div>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-icon-wrapper" style="--si-color: #F59E0B; --si-bg: rgba(245,158,11,0.15);">
-          <span class="material-symbols-rounded md-28">soup_kitchen</span>
-        </div>
-        <div>
-          <div class="stat-value diabla-font" id="statActiveOrders">0</div>
-          <div class="stat-label">En Proceso</div>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-icon-wrapper" style="--si-color: #3B82F6; --si-bg: rgba(59,130,246,0.15);">
-          <span class="material-symbols-rounded md-28">two_wheeler</span>
-        </div>
-        <div>
-          <div class="stat-value diabla-font" id="statDelivered">0</div>
-          <div class="stat-label">Entregados</div>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-icon-wrapper" style="--si-color: #DC2626; --si-bg: rgba(220,38,38,0.15);">
-          <span class="material-symbols-rounded md-28">analytics</span>
-        </div>
-        <div>
-          <div class="stat-value diabla-font" id="statTotalOrders">0</div>
-          <div class="stat-label">Total Registrados</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Orders Management Section -->
-    <div class="dashboard-header">
-      <div>
-        <h1 class="diabla-font section-title">
-          <span class="material-symbols-rounded md-32" style="color: #DC2626; vertical-align: middle;">podcasts</span>
-          GESTIÓN DE PEDIDOS EN TIEMPO REAL
-        </h1>
-        <p class="section-subtitle">Monitor de operaciones activas — actualización automática</p>
-      </div>
-
-      <!-- Search Input & Clean Action -->
-      <div class="header-actions">
-        <div class="search-wrapper">
-          <span class="material-symbols-rounded md-20 search-icon">search</span>
-          <input type="text" id="searchOrderInput" class="form-input search-input"
-            placeholder="Buscar por ID, cliente, dirección..." oninput="renderOrders()">
-        </div>
-        <button onclick="clearAllTestOrders()" class="btn-clean" title="Borrar todos los pedidos">
-          <span class="material-symbols-rounded md-18">cleaning_services</span>
-          <span>Limpiar</span>
+    <!-- View Switcher Bar (Pedidos vs Menú) -->
+    <div class="view-switcher-container">
+      <div class="view-switcher-bar">
+        <button id="viewOrdersBtn" class="view-switch-btn active" onclick="switchAdminView('orders')">
+          <span class="material-symbols-rounded md-20">receipt_long</span>
+          <span>Gestión de Pedidos</span>
+        </button>
+        <button id="viewProductsBtn" class="view-switch-btn" onclick="switchAdminView('products')">
+          <span class="material-symbols-rounded md-20">restaurant_menu</span>
+          <span>Menú & Platillos</span>
+          <span id="productTotalBadge" class="product-badge-count">0</span>
         </button>
       </div>
     </div>
 
-    <!-- Filter Tabs -->
-    <div class="tab-filter" style="margin-bottom: 1.5rem;">
-      <button class="tab-btn active" data-filter="all" onclick="setFilter('all')">
-        <span class="material-symbols-rounded md-18">grid_view</span> Todos
-      </button>
-      <button class="tab-btn" data-filter="pending" onclick="setFilter('pending')">
-        <span class="material-symbols-rounded md-18">hourglass_top</span> Pendientes
-      </button>
-      <button class="tab-btn" data-filter="confirmed" onclick="setFilter('confirmed')">
-        <span class="material-symbols-rounded md-18">check_circle</span> Confirmados
-      </button>
-      <button class="tab-btn" data-filter="preparing" onclick="setFilter('preparing')">
-        <span class="material-symbols-rounded md-18">skillet</span> En Cocina
-      </button>
-      <button class="tab-btn" data-filter="ready" onclick="setFilter('ready')">
-        <span class="material-symbols-rounded md-18">inventory_2</span> Listos
-      </button>
-      <button class="tab-btn" data-filter="onTheWay" onclick="setFilter('onTheWay')">
-        <span class="material-symbols-rounded md-18">two_wheeler</span> En Ruta
-      </button>
-      <button class="tab-btn" data-filter="delivered" onclick="setFilter('delivered')">
-        <span class="material-symbols-rounded md-18">task_alt</span> Entregados
-      </button>
-      <button class="tab-btn tab-btn-evidence" data-filter="evidence" onclick="setFilter('evidence')">
-        <span class="material-symbols-rounded md-18">photo_camera</span> Evidencias
-        (<span id="evidenceCount">0</span>)
-      </button>
-      <button class="tab-btn" data-filter="cancelled" onclick="setFilter('cancelled')">
-        <span class="material-symbols-rounded md-18">cancel</span> Cancelados
-      </button>
-      <button class="tab-btn tab-btn-refunds" data-filter="refunds" onclick="setFilter('refunds')">
-        <span class="material-symbols-rounded md-18">currency_exchange</span> Reembolsos
-        (<span id="refundCount">0</span>)
-      </button>
-    </div>
+    <!-- ── 1. ORDERS VIEW SECTION ────────────────────────────────── -->
+    <div id="ordersSection">
 
-    <!-- Evidence Sub-Tab Selector (shown only when evidence filter is active) -->
-    <div id="evidenceSubTabs" style="display:none; gap:10px; margin-bottom:1.25rem; flex-wrap:wrap;">
-      <button class="evidence-sub-btn active" data-sub="proofs" onclick="setEvidenceSubFilter('proofs')">
-        <span class="material-symbols-rounded md-18">photo_camera</span>
-        <span>📸 Comprobantes de Pedidos</span>
-      </button>
-      <button class="evidence-sub-btn" data-sub="plates" onclick="setEvidenceSubFilter('plates')">
-        <span class="material-symbols-rounded md-18">directions_car</span>
-        <span>🛵 Placas de Repartidores</span>
-      </button>
-    </div>
+      <!-- Metrics Banner -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon-wrapper" style="--si-color: #16A34A; --si-bg: rgba(220,38,38,0.15);">
+            <span class="material-symbols-rounded md-28">payments</span>
+          </div>
+          <div>
+            <div class="stat-value diabla-font" id="statTotalSales">$0</div>
+            <div class="stat-label">Ventas Totales</div>
+          </div>
+        </div>
 
-    <!-- Orders Live Grid -->
-    <div id="ordersGrid" class="orders-grid">
-      <!-- Injected by JavaScript -->
-    </div>
+        <div class="stat-card">
+          <div class="stat-icon-wrapper" style="--si-color: #F59E0B; --si-bg: rgba(245,158,11,0.15);">
+            <span class="material-symbols-rounded md-28">soup_kitchen</span>
+          </div>
+          <div>
+            <div class="stat-value diabla-font" id="statActiveOrders">0</div>
+            <div class="stat-label">En Proceso</div>
+          </div>
+        </div>
 
-    <!-- Refunds Live Grid -->
-    <div id="refundsGrid" class="orders-grid" style="display: none;">
-      <!-- Injected by JavaScript -->
-    </div>
+        <div class="stat-card">
+          <div class="stat-icon-wrapper" style="--si-color: #3B82F6; --si-bg: rgba(59,130,246,0.15);">
+            <span class="material-symbols-rounded md-28">two_wheeler</span>
+          </div>
+          <div>
+            <div class="stat-value diabla-font" id="statDelivered">0</div>
+            <div class="stat-label">Entregados</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon-wrapper" style="--si-color: #DC2626; --si-bg: rgba(220,38,38,0.15);">
+            <span class="material-symbols-rounded md-28">analytics</span>
+          </div>
+          <div>
+            <div class="stat-value diabla-font" id="statTotalOrders">0</div>
+            <div class="stat-label">Total Registrados</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Orders Management Section -->
+      <div class="dashboard-header">
+        <div>
+          <h1 class="diabla-font section-title">
+            <span class="material-symbols-rounded md-32" style="color: #DC2626; vertical-align: middle;">podcasts</span>
+            GESTIÓN DE PEDIDOS EN TIEMPO REAL
+          </h1>
+          <p class="section-subtitle">Monitor de operaciones activas — actualización automática</p>
+        </div>
+
+        <!-- Search Input & Clean Action -->
+        <div class="header-actions">
+          <div class="search-wrapper">
+            <span class="material-symbols-rounded md-20 search-icon">search</span>
+            <input type="text" id="searchOrderInput" class="form-input search-input"
+              placeholder="Buscar por ID, cliente, dirección..." oninput="renderOrders()">
+          </div>
+          <button onclick="clearAllTestOrders()" class="btn-clean" title="Borrar todos los pedidos">
+            <span class="material-symbols-rounded md-18">cleaning_services</span>
+            <span>Limpiar</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter Tabs -->
+      <div class="tab-filter" style="margin-bottom: 1.5rem;">
+        <button class="tab-btn active" data-filter="all" onclick="setFilter('all')">
+          <span class="material-symbols-rounded md-18">grid_view</span> Todos
+        </button>
+        <button class="tab-btn" data-filter="pending" onclick="setFilter('pending')">
+          <span class="material-symbols-rounded md-18">hourglass_top</span> Pendientes
+        </button>
+        <button class="tab-btn" data-filter="confirmed" onclick="setFilter('confirmed')">
+          <span class="material-symbols-rounded md-18">check_circle</span> Confirmados
+        </button>
+        <button class="tab-btn" data-filter="preparing" onclick="setFilter('preparing')">
+          <span class="material-symbols-rounded md-18">skillet</span> En Cocina
+        </button>
+        <button class="tab-btn" data-filter="ready" onclick="setFilter('ready')">
+          <span class="material-symbols-rounded md-18">inventory_2</span> Listos
+        </button>
+        <button class="tab-btn" data-filter="onTheWay" onclick="setFilter('onTheWay')">
+          <span class="material-symbols-rounded md-18">two_wheeler</span> En Ruta
+        </button>
+        <button class="tab-btn" data-filter="delivered" onclick="setFilter('delivered')">
+          <span class="material-symbols-rounded md-18">task_alt</span> Entregados
+        </button>
+        <button class="tab-btn tab-btn-evidence" data-filter="evidence" onclick="setFilter('evidence')">
+          <span class="material-symbols-rounded md-18">photo_camera</span> Evidencias
+          (<span id="evidenceCount">0</span>)
+        </button>
+        <button class="tab-btn" data-filter="cancelled" onclick="setFilter('cancelled')">
+          <span class="material-symbols-rounded md-18">cancel</span> Cancelados
+        </button>
+        <button class="tab-btn tab-btn-refunds" data-filter="refunds" onclick="setFilter('refunds')">
+          <span class="material-symbols-rounded md-18">currency_exchange</span> Reembolsos
+          (<span id="refundCount">0</span>)
+        </button>
+      </div>
+
+      <!-- Evidence Sub-Tab Selector (shown only when evidence filter is active) -->
+      <div id="evidenceSubTabs" style="display:none; gap:10px; margin-bottom:1.25rem; flex-wrap:wrap;">
+        <button class="evidence-sub-btn active" data-sub="proofs" onclick="setEvidenceSubFilter('proofs')">
+          <span class="material-symbols-rounded md-18">photo_camera</span>
+          <span>📸 Comprobantes de Pedidos</span>
+        </button>
+        <button class="evidence-sub-btn" data-sub="plates" onclick="setEvidenceSubFilter('plates')">
+          <span class="material-symbols-rounded md-18">directions_car</span>
+          <span>🛵 Placas de Repartidores</span>
+        </button>
+      </div>
+
+      <!-- Orders Live Grid -->
+      <div id="ordersGrid" class="orders-grid">
+        <!-- Injected by JavaScript -->
+      </div>
+
+      <!-- Refunds Live Grid -->
+      <div id="refundsGrid" class="orders-grid" style="display: none;">
+        <!-- Injected by JavaScript -->
+      </div>
+
+    </div><!-- /#ordersSection -->
+
+    <!-- ── 2. PRODUCTS / MENU VIEW SECTION ──────────────────────── -->
+    <div id="productsSection" style="display: none;">
+
+      <div class="dashboard-header">
+        <div>
+          <h1 class="diabla-font section-title">
+            <span class="material-symbols-rounded md-32"
+              style="color: #DC2626; vertical-align: middle;">restaurant_menu</span>
+            GESTIÓN DE PLATILLOS & MENÚ
+          </h1>
+          <p class="section-subtitle">Crea, edita ingredientes, precios, fotos y disponibilidad sincronizados en tiempo
+            real con la App Móvil</p>
+        </div>
+
+        <div class="header-actions">
+          <div class="search-wrapper">
+            <span class="material-symbols-rounded md-20 search-icon">search</span>
+            <input type="text" id="productSearchInput" class="form-input search-input"
+              placeholder="Buscar platillo por nombre o ingrediente..." oninput="onProductSearchChange(this.value)">
+          </div>
+          <button onclick="openProductModal()" class="action-btn"
+            style="background: linear-gradient(135deg, #DC2626, #991B1B); color:white; font-weight:700; padding: 10px 18px; border-radius:12px; display:inline-flex; align-items:center; gap:8px; border:none; cursor:pointer; box-shadow: 0 4px 14px rgba(220,38,38,0.4);"
+            title="Añadir nuevo platillo">
+            <span class="material-symbols-rounded md-20">add_circle</span>
+            <span>Nuevo Platillo</span>
+          </button>
+          <button onclick="seedBaseProducts(true)" class="action-btn"
+            style="background: linear-gradient(135deg, #059669, #047857); color:white; font-weight:700; padding: 10px 18px; border-radius:12px; display:inline-flex; align-items:center; gap:8px; border:none; cursor:pointer; box-shadow: 0 4px 14px rgba(5,150,105,0.35);"
+            title="Sincronizar y abastecer el catálogo completo de platillos y bebidas desde la App">
+            <span class="material-symbols-rounded md-20">cloud_sync</span>
+            <span>Abastecer Menú de la App (Platillos & Bebidas)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Category Filter Tabs -->
+      <div class="tab-filter" style="margin-bottom: 1.5rem;">
+        <button class="tab-btn active product-cat-btn" data-cat="all" onclick="setProductCategoryFilter('all')">
+          <span class="material-symbols-rounded md-18">grid_view</span> Todos
+        </button>
+        <button class="tab-btn product-cat-btn" data-cat="tacos" onclick="setProductCategoryFilter('tacos')">
+          🌮 Tacos
+        </button>
+        <button class="tab-btn product-cat-btn" data-cat="burritos" onclick="setProductCategoryFilter('burritos')">
+          🌯 Burritos
+        </button>
+        <button class="tab-btn product-cat-btn" data-cat="quesadillas"
+          onclick="setProductCategoryFilter('quesadillas')">
+          🧀 Quesadillas
+        </button>
+        <button class="tab-btn product-cat-btn" data-cat="mariscos" onclick="setProductCategoryFilter('mariscos')">
+          🦐 Mariscos
+        </button>
+        <button class="tab-btn product-cat-btn" data-cat="ensaladas" onclick="setProductCategoryFilter('ensaladas')">
+          🥗 Ensaladas
+        </button>
+        <button class="tab-btn product-cat-btn" data-cat="bebidas" onclick="setProductCategoryFilter('bebidas')">
+          🥤 Bebidas
+        </button>
+        <button class="tab-btn product-cat-btn" data-cat="especiales" onclick="setProductCategoryFilter('especiales')">
+          ⭐ Especiales
+        </button>
+      </div>
+
+      <!-- Products Live Grid -->
+      <div id="productsGrid" class="products-grid">
+        <!-- Injected by JavaScript -->
+      </div>
+
+    </div><!-- /#productsSection -->
 
   </main>
 
@@ -199,7 +298,8 @@
       <div class="proof-modal-header">
         <div style="display:flex; align-items:center; gap:8px;">
           <span class="material-symbols-rounded" style="color:#10B981;">verified</span>
-          <span id="proofModalTitle" class="diabla-font" style="font-size:1.1rem; color:var(--text-main);">Evidencia de Entrega</span>
+          <span id="proofModalTitle" class="diabla-font" style="font-size:1.1rem; color:var(--text-main);">Evidencia de
+            Entrega</span>
         </div>
         <button class="proof-modal-close" onclick="closeProofModal()">&times;</button>
       </div>
@@ -213,10 +313,139 @@
         </div>
       </div>
       <div class="proof-modal-footer">
-        <button class="action-btn" style="background:var(--card-bg); border:1px solid var(--border-color); color:var(--text-main); padding:8px 16px; border-radius:10px; cursor:pointer;" onclick="closeProofModal()">Cerrar</button>
-        <a id="proofModalDownload" href="#" target="_blank" class="action-btn" style="background:#10B981; color:white; padding:8px 18px; border-radius:10px; text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-weight:600;">
+        <button class="action-btn"
+          style="background:var(--card-bg); border:1px solid var(--border-color); color:var(--text-main); padding:8px 16px; border-radius:10px; cursor:pointer;"
+          onclick="closeProofModal()">Cerrar</button>
+        <a id="proofModalDownload" href="#" target="_blank" class="action-btn"
+          style="background:#10B981; color:white; padding:8px 18px; border-radius:10px; text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-weight:600;">
           <span class="material-symbols-rounded md-16">open_in_new</span> Abrir Original
         </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Product Modal (Crear / Editar Platillo) ── -->
+  <div id="productModal" class="product-modal-backdrop" style="display: none;"
+    onclick="closeProductModalBackdrop(event)">
+    <div class="product-modal-card" onclick="event.stopPropagation()">
+      <div class="product-modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="material-symbols-rounded" style="color:var(--primary); font-size: 26px;"
+            id="productModalIcon">restaurant</span>
+          <span id="productModalTitle" class="diabla-font" style="font-size:1.25rem; color:var(--text-main);">Nuevo
+            Platillo</span>
+        </div>
+        <button class="proof-modal-close" onclick="closeProductModal()">&times;</button>
+      </div>
+
+      <div class="product-modal-body">
+        <input type="hidden" id="pmId" value="">
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="pmName">Nombre del Platillo *</label>
+            <input type="text" id="pmName" class="form-input" placeholder="Ej: Tacos al Pastor Especial" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="pmPrice">Precio en Pesos COP *</label>
+            <input type="number" id="pmPrice" class="form-input" placeholder="Ej: 18000" min="0" step="500" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="pmCategory">Categoría *</label>
+            <select id="pmCategory" class="form-input" style="cursor:pointer;">
+              <option value="tacos">🌮 Tacos</option>
+              <option value="burritos">🌯 Burritos</option>
+              <option value="quesadillas">🧀 Quesadillas</option>
+              <option value="mariscos">🦐 Mariscos & Cocina de Mar</option>
+              <option value="ensaladas">🥗 Ensaladas</option>
+              <option value="bebidas">🥤 Bebidas & Coctelería</option>
+              <option value="especiales">⭐ Especiales</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nivel de Picante 🌶️</label>
+            <div class="spicy-selector-wrap">
+              <button type="button" class="spicy-option-btn active" data-spicy="0" onclick="selectSpicyLevel(0)">Sin
+                picante</button>
+              <button type="button" class="spicy-option-btn" data-spicy="1" onclick="selectSpicyLevel(1)">Suave
+                🌶️</button>
+              <button type="button" class="spicy-option-btn" data-spicy="2" onclick="selectSpicyLevel(2)">Medio
+                🌶️🌶️</button>
+              <button type="button" class="spicy-option-btn" data-spicy="3" onclick="selectSpicyLevel(3)">Diabla
+                🔥</button>
+            </div>
+            <input type="hidden" id="pmSpicy" value="0">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="pmDesc">Descripción detallada</label>
+          <textarea id="pmDesc" class="form-input" rows="2"
+            placeholder="Describe los ingredientes especiales, porciones, preparación..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Ingredientes</label>
+          <div class="ingredients-input-row">
+            <input type="text" id="pmIngredientInput" class="form-input"
+              placeholder="Escribe un ingrediente y presiona Enter o Añadir..." onkeydown="handleIngredientKey(event)">
+            <button type="button" class="action-btn"
+              style="background:rgba(255,255,255,0.08); color:var(--text-main); border:1px solid rgba(255,255,255,0.15); padding:0 16px; border-radius:10px; cursor:pointer;"
+              onclick="addIngredientFromInput()">
+              Añadir
+            </button>
+          </div>
+          <div id="pmIngredientsChips" class="ingredients-chips-container" style="margin-top:6px;"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Foto del Platillo</label>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div style="display:flex; gap:8px;">
+              <input type="file" id="pmImageFile" accept="image/*" class="form-input" style="padding:6px;"
+                onchange="handleProductFileSelect(event)">
+            </div>
+            <div style="font-size:0.75rem; color:var(--text-muted); text-align:center;">— O ingresa URL directa de la
+              imagen —</div>
+            <input type="url" id="pmImageUrl" class="form-input" placeholder="https://images.unsplash.com/photo-..."
+              oninput="handleProductUrlInput(this.value)">
+          </div>
+
+          <div class="img-preview-box" id="pmImagePreviewBox" style="margin-top:8px;">
+            <span id="pmPreviewPlaceholder"
+              style="color:var(--text-muted); font-size:0.85rem; display:flex; align-items:center; gap:6px;">
+              <span class="material-symbols-rounded">image</span> Vista previa de la foto
+            </span>
+            <img id="pmImagePreview" src="" alt="Preview" style="display:none;" />
+          </div>
+        </div>
+
+        <div class="form-group"
+          style="flex-direction:row; align-items:center; justify-content:space-between; padding:12px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px;">
+          <div>
+            <div style="font-weight:700; color:var(--text-main); font-size:0.95rem;">Disponible para pedidos</div>
+            <div style="font-size:0.8rem; color:var(--text-muted);">Si está desmarcado, se mostrará como agotado en la
+              App Móvil</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="pmAvailable" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="product-modal-footer">
+        <button type="button" class="btn-clean" onclick="closeProductModal()"
+          style="padding:10px 20px;">Cancelar</button>
+        <button type="button" id="btnSaveProduct" class="action-btn"
+          style="background:linear-gradient(135deg, #DC2626, #991B1B); color:white; font-weight:800; padding:10px 24px; border-radius:12px; display:inline-flex; align-items:center; gap:8px; border:none; cursor:pointer; box-shadow:0 4px 14px rgba(220,38,38,0.4);"
+          onclick="saveProduct()">
+          <span class="material-symbols-rounded md-20" id="btnSaveProductIcon">check</span>
+          <span id="btnSaveProductText">Guardar Platillo</span>
+        </button>
       </div>
     </div>
   </div>
@@ -224,16 +453,17 @@
   <!-- Toast Container -->
   <div id="toastContainer" class="toast-container"></div>
 
-  <script src="app.js?v=3.5"></script>
+  <script src="app.js?v=6.0"></script>
   <script>
     function logoutAdmin() {
       sessionStorage.removeItem('diabla_admin_auth');
       if (typeof firebase !== 'undefined' && firebase.auth) {
-        firebase.auth().signOut().catch(() => {});
+        firebase.auth().signOut().catch(() => { });
       }
       window.location.href = 'login.html';
     }
   </script>
 
 </body>
+
 </html>

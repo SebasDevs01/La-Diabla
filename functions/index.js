@@ -73,15 +73,16 @@ exports.onOrderStatusChanged = onDocumentUpdated("orders/{orderId}", async (even
     await messaging.send(message);
     console.log(`[onOrderStatusChanged] Push enviado a ${userId}: ${after.status}`);
 
-    // Guardar en el historial de notificaciones del usuario
-    await db.collection("users").doc(userId).collection("notifications").add({
+    // Guardar en el historial de notificaciones del usuario de manera idempotente (evita duplicados)
+    await db.collection("users").doc(userId).collection("notifications").doc(`${event.params.orderId}_${after.status}`).set({
       title: msg.title,
       body: msg.body,
       orderId: event.params.orderId,
       status: after.status,
+      type: "order_status",
       createdAt: FieldValue.serverTimestamp(),
       isRead: false,
-    });
+    }, { merge: true });
   } catch (err) {
     console.error(`[onOrderStatusChanged] Error enviando push: ${err}`);
   }
@@ -97,7 +98,7 @@ exports.onNewOrderCreated = onDocumentCreated("orders/{orderId}", async (event) 
   if (order.status !== "pending") return null;
   if (order.paymentStatus === "failed") return null;
 
-  // Obtener todos los usuarios con rol repartidor
+  // Obtener todos los usuarios con rol repartidor que tengan FCM token
   const driversSnap = await db.collection("users")
     .where("role", "==", "driver")
     .where("fcmToken", "!=", null)
@@ -108,9 +109,10 @@ exports.onNewOrderCreated = onDocumentCreated("orders/{orderId}", async (event) 
     return null;
   }
 
+  // Filtrar repartidores: solo notificar a los que estén DISPONIBLES (estilo Rappi)
   const tokens = driversSnap.docs
-    .map(doc => doc.data().fcmToken)
-    .filter(Boolean);
+    .filter(doc => doc.data().isAvailable !== false && doc.data().fcmToken)
+    .map(doc => doc.data().fcmToken);
 
   const shortId = event.params.orderId.substring(0, 6).toUpperCase();
   const address = order.formattedAddress || "Dirección del cliente";

@@ -27,7 +27,12 @@ abstract interface class AuthRepository {
   Future<UserEntity> signInWithEmail(String email, String password);
 
   /// Registra una nueva cuenta con correo y contraseña.
-  Future<UserEntity> signUpWithEmail(String email, String password);
+  Future<UserEntity> signUpWithEmail(
+    String email,
+    String password, {
+    String? name,
+    UserRole role = UserRole.customer,
+  });
 
   /// Cierra la sesión del usuario actual.
   Future<void> signOut();

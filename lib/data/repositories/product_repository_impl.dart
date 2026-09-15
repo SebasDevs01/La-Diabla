@@ -4,6 +4,8 @@ import '../../domain/repositories/product_repository.dart';
 import '../../mock/mock_products.dart';
 import '../datasources/remote/product_remote_datasource.dart';
 
+import '../models/product_model.dart';
+
 class ProductRepositoryImpl implements ProductRepository {
   ProductRepositoryImpl({ProductRemoteDataSource? remoteDataSource})
       : _remoteDataSource = remoteDataSource ?? ProductRemoteDataSource();
@@ -29,6 +31,88 @@ class ProductRepositoryImpl implements ProductRepository {
       }
     } catch (_) {}
     return _mockProducts.where((p) => p.available).toList();
+  }
+
+  @override
+  Stream<List<ProductEntity>> watchAllProducts({bool availableOnly = true}) {
+    return _remoteDataSource
+        .watchAllProducts(availableOnly: availableOnly)
+        .map((products) {
+      if (products.isEmpty) {
+        // Fallback al mock si la colección en Firestore está vacía aún
+        return availableOnly
+            ? _mockProducts.where((p) => p.available).toList()
+            : _mockProducts;
+      }
+      return products;
+    });
+  }
+
+  @override
+  Future<void> createProduct(ProductEntity product) async {
+    final model = ProductModel(
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      imageUrl: product.imageUrl,
+      categoryId: product.categoryId,
+      spicyLevel: product.spicyLevel,
+      available: product.available,
+      ingredients: product.ingredients,
+      extras: product.extras,
+      createdAt: product.createdAt ?? DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    await _remoteDataSource.createProduct(model);
+  }
+
+  @override
+  Future<void> updateProduct(ProductEntity product) async {
+    final model = ProductModel(
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      imageUrl: product.imageUrl,
+      categoryId: product.categoryId,
+      spicyLevel: product.spicyLevel,
+      available: product.available,
+      ingredients: product.ingredients,
+      extras: product.extras,
+      createdAt: product.createdAt,
+      updatedAt: DateTime.now(),
+    );
+    await _remoteDataSource.updateProduct(model);
+  }
+
+  @override
+  Future<void> deleteProduct(String productId) async {
+    await _remoteDataSource.deleteProduct(productId);
+  }
+
+  @override
+  Future<void> toggleProductAvailability(String productId, bool available) async {
+    await _remoteDataSource.toggleProductAvailability(productId, available);
+  }
+
+  @override
+  Future<int> seedInitialCatalog(List<ProductEntity> initialProducts) async {
+    final models = initialProducts.map((p) => ProductModel(
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      price: p.price,
+      imageUrl: p.imageUrl,
+      categoryId: p.categoryId,
+      spicyLevel: p.spicyLevel,
+      available: p.available,
+      ingredients: p.ingredients,
+      extras: p.extras,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    )).toList();
+    return await _remoteDataSource.seedInitialCatalog(models);
   }
 
   @override

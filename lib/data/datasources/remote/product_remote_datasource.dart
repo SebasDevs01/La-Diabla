@@ -54,14 +54,85 @@ class ProductRemoteDataSource {
     }
   }
 
-  /// Stream en tiempo real de productos por categoría.
-  Stream<List<ProductModel>> watchProductsByCategory(String categoryId) {
-    return _productsRef
-        .where('categoryId', isEqualTo: categoryId)
-        .where('available', isEqualTo: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => ProductModel.fromMap(doc.data(), id: doc.id))
-            .toList());
+  /// Stream en tiempo real de todos los productos (opcionalmente filtrado por disponibilidad).
+  Stream<List<ProductModel>> watchAllProducts({bool availableOnly = true}) {
+    Query<Map<String, dynamic>> query = _productsRef;
+    if (availableOnly) {
+      query = query.where('available', isEqualTo: true);
+    }
+    return query.snapshots().map((snapshot) => snapshot.docs
+        .map((doc) => ProductModel.fromMap(doc.data(), id: doc.id))
+        .toList());
+  }
+
+  /// Crea un nuevo producto en Firestore.
+  Future<void> createProduct(ProductModel product) async {
+    try {
+      final docRef = product.id.isNotEmpty ? _productsRef.doc(product.id) : _productsRef.doc();
+      final data = product.toMap();
+      data['id'] = docRef.id;
+      data['createdAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FieldValue.serverTimestamp();
+      await docRef.set(data, SetOptions(merge: true));
+    } on FirebaseException catch (e) {
+      _logger.e('Error creando producto en Firestore', error: e);
+      throw DataException('Error al crear producto: ${e.message}', code: e.code);
+    }
+  }
+
+  /// Actualiza un producto existente en Firestore.
+  Future<void> updateProduct(ProductModel product) async {
+    try {
+      final data = product.toMap();
+      data['updatedAt'] = FieldValue.serverTimestamp();
+      await _productsRef.doc(product.id).set(data, SetOptions(merge: true));
+    } on FirebaseException catch (e) {
+      _logger.e('Error actualizando producto en Firestore', error: e);
+      throw DataException('Error al actualizar producto: ${e.message}', code: e.code);
+    }
+  }
+
+  /// Elimina un producto de Firestore.
+  Future<void> deleteProduct(String productId) async {
+    try {
+      await _productsRef.doc(productId).delete();
+    } on FirebaseException catch (e) {
+      _logger.e('Error eliminando producto de Firestore', error: e);
+      throw DataException('Error al eliminar producto: ${e.message}', code: e.code);
+    }
+  }
+
+  /// Cambia el estado de disponibilidad de un producto.
+  Future<void> toggleProductAvailability(String productId, bool available) async {
+    try {
+      await _productsRef.doc(productId).update({
+        'available': available,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (e) {
+      _logger.e('Error cambiando disponibilidad de producto', error: e);
+      throw DataException('Error al cambiar disponibilidad: ${e.message}', code: e.code);
+    }
+  }
+
+  /// Siembra el catálogo inicial en Firestore en lote.
+  Future<int> seedInitialCatalog(List<ProductModel> initialProducts) async {
+    try {
+      final batch = _firestore.batch();
+      int count = 0;
+      for (final prod in initialProducts) {
+        final docRef = _productsRef.doc(prod.id);
+        final data = prod.toMap();
+        data['createdAt'] = FieldValue.serverTimestamp();
+        data['updatedAt'] = FieldValue.serverTimestamp();
+        batch.set(docRef, data, SetOptions(merge: true));
+        count++;
+      }
+      await batch.commit();
+      return count;
+    } on FirebaseException catch (e) {
+      _logger.e('Error sembrando catálogo en Firestore', error: e);
+      throw DataException('Error al sembrar catálogo: ${e.message}', code: e.code);
+    }
   }
 }

@@ -57,6 +57,32 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   int _ordersSubTabIndex = 0; // 0: Disponibles, 1: Mis Entregas (Historial)
   bool _isAvailable = true;
 
+  // Caché de fotos de clientes para evitar parpadeos en historial de entregas
+  final Map<String, String> _clientPhotoCache = {};
+
+  // Rastreo de pedidos disponibles para alertar oportunamente al repartidor
+  final Set<String> _knownAvailableOrderIds = {};
+  bool _hasInitializedOrdersList = false;
+
+  /// Actualiza la disponibilidad del repartidor de forma reactiva y persistente (estilo Rappi)
+  Future<void> _updateAvailability(bool val) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('driver_is_available', val);
+    if (mounted) setState(() => _isAvailable = val);
+
+    ref.read(driverOperationalProvider.notifier).setManualAvailability(val);
+    ref.read(driverOperationalProvider.notifier).toggleConnection(val);
+
+    final user = ref.read(authNotifierProvider).user;
+    if (user != null && user.id.isNotEmpty) {
+      await FirebaseFirestore.instance.collection('users').doc(user.id).set({
+        'isAvailable': val,
+        'isConnected': val,
+        'operationalStatus': val ? 'AVAILABLE' : 'DISCONNECTED',
+      }, SetOptions(merge: true));
+    }
+  }
+
   // GPS real — stream de posición del repartidor
   StreamSubscription<Position>? _gpsStreamSubscription;
   bool _gpsActive = false;
@@ -291,7 +317,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         effectiveDriverPhoto = 'assets/images/diabloperfil.png';
       }
 
+      final savedIsAvailable = prefs.getBool('driver_is_available') ?? true;
+      ref.read(driverOperationalProvider.notifier).setManualAvailability(savedIsAvailable);
+      ref.read(driverOperationalProvider.notifier).toggleConnection(savedIsAvailable);
+
       setState(() {
+        _isAvailable = savedIsAvailable;
         _vehicleModel = effectiveVehicleModel;
         _vehiclePlate = effectiveVehiclePlate;
         _vehicleColor = savedVehicleColor;
@@ -1658,18 +1689,20 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               ],
             ),
           ),
-          // Badge Estado Operativo
+          // Badge Estado Operativo — refleja disponibilidad en tiempo real (estilo Rappi)
           Container(
             margin: const EdgeInsets.only(right: 12),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: opState.isBatteryLow
                   ? const Color(0xFFDC2626)
-                  : (_gpsActive
-                      ? const Color(0xFF0EA5E9)
-                      : (opState.canReceiveOrders
-                          ? const Color(0xFF16A34A)
-                          : Colors.grey.shade700)),
+                  : (!_isAvailable || !opState.preferences.isConnected
+                      ? Colors.grey.shade600
+                      : (_gpsActive
+                          ? const Color(0xFF0EA5E9)
+                          : (opState.canReceiveOrders
+                              ? const Color(0xFF16A34A)
+                              : Colors.grey.shade600))),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -1678,11 +1711,13 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                 Icon(
                   opState.isBatteryLow
                       ? Icons.battery_alert_rounded
-                      : (_gpsActive
-                          ? Icons.gps_fixed_rounded
-                          : (opState.canReceiveOrders
-                              ? Icons.check_circle_rounded
-                              : Icons.pause_circle_filled_rounded)),
+                      : (!_isAvailable || !opState.preferences.isConnected
+                          ? Icons.cloud_off_rounded
+                          : (_gpsActive
+                              ? Icons.gps_fixed_rounded
+                              : (opState.canReceiveOrders
+                                  ? Icons.check_circle_rounded
+                                  : Icons.pause_circle_filled_rounded))),
                   color: Colors.white,
                   size: 14,
                 ),
@@ -1690,11 +1725,13 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                 Text(
                   opState.isBatteryLow
                       ? 'BATERÍA BAJA'
-                      : (_gpsActive
-                          ? 'GPS ACTIVO'
-                          : (opState.canReceiveOrders
-                              ? 'DISPONIBLE'
-                              : 'NO DISPONIBLE')),
+                      : (!_isAvailable || !opState.preferences.isConnected
+                          ? 'NO DISPONIBLE'
+                          : (_gpsActive
+                              ? 'GPS ACTIVO'
+                              : (opState.canReceiveOrders
+                                  ? 'DISPONIBLE'
+                                  : 'NO DISPONIBLE'))),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 10.5,
@@ -1939,6 +1976,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         // 🤖 Reactor de Autoaceptación Inteligente por Proximidad
         if (opState.preferences.isAutoAcceptEnabled &&
             opState.canReceiveOrders &&
+            _isAvailable &&
             _isVehicleRegistered &&
             availableOrders.isNotEmpty) {
           final kitchenPos = MapsService.defaultLocation;
@@ -1969,6 +2007,37 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                 break;
               }
             }
+          }
+        }
+
+        // 🔔 Alerta de nuevo pedido disponible — solo cuando el repartidor está DISPONIBLE
+        if (_isAvailable && opState.canReceiveOrders) {
+          final currentIds = availableOrders.map((o) => o.id).toSet();
+          if (_hasInitializedOrdersList) {
+            final newIds = currentIds.difference(_knownAvailableOrderIds);
+            if (newIds.isNotEmpty) {
+              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                final order = availableOrders.firstWhere((o) => newIds.contains(o.id));
+                final shortId = order.id.length > 6 ? order.id.substring(order.id.length - 6).toUpperCase() : order.id;
+                // Alerta de voz TTS
+                try {
+                  await _flutterTts.speak('¡Nuevo pedido disponible en La Diabla!');
+                } catch (_) {}
+                // Notificación local con sonido y vibración
+                await NotificationService.showLocalNotification(
+                  title: '🔥 ¡Nuevo pedido disponible! #$shortId',
+                  body: 'Hay un pedido listo para recoger en La Diabla. ¡Toca para ver los detalles!',
+                  deduplicationKey: 'new_order_${order.id}',
+                );
+              });
+            }
+          }
+          _knownAvailableOrderIds.clear();
+          _knownAvailableOrderIds.addAll(currentIds);
+          if (!_hasInitializedOrdersList) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() => _hasInitializedOrdersList = true);
+            });
           }
         }
 
@@ -2817,46 +2886,55 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                   ),
                   const Divider(height: 20),
 
-                  // Cliente y foto
-                  Row(
-                    children: [
-                      // Avatar o Foto de cliente
-                      StreamBuilder<DocumentSnapshot>(
-                        stream: clientId.isNotEmpty
-                            ? FirebaseFirestore.instance.collection('users').doc(clientId).snapshots()
-                            : null,
-                        builder: (context, userSnap) {
-                          final userData = userSnap.data?.data() as Map<String, dynamic>?;
-                          final clientPhoto = userData?['photoUrl'] as String? ?? '';
-                          return GestureDetector(
-                            onTap: clientPhoto.isNotEmpty
-                                ? () => _showProfilePhotoDialog(context, clientPhoto, customerName)
-                                : null,
-                            child: Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: const Color(0xFF16A34A), width: 2),
-                                color: const Color(0xFF1E1712),
-                              ),
-                              child: ClipOval(
-                                child: clientPhoto.isNotEmpty
-                                    ? _buildSafeImage(
-                                        clientPhoto,
-                                        width: 44,
-                                        height: 44,
-                                        fit: BoxFit.cover,
-                                        errorWidget: const Center(child: Icon(Icons.person, color: Colors.white70)),
-                                      )
-                                    : const Center(child: Icon(Icons.person, color: Colors.white70)),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
+                   // Cliente y foto — sin StreamBuilder para evitar parpadeos (caché en memoria)
+                   Row(
+                     children: [
+                       // Avatar del cliente usando caché en memoria
+                       Builder(
+                         builder: (context) {
+                           final clientPhoto = _clientPhotoCache[clientId] ?? '';
+                           // Prefetch asíncrono si aún no está en caché
+                           if (clientId.isNotEmpty && !_clientPhotoCache.containsKey(clientId)) {
+                             FirebaseFirestore.instance.collection('users').doc(clientId).get().then((snap) {
+                               if (snap.exists && mounted) {
+                                 final photo = (snap.data()?['photoUrl'] as String?) ?? '';
+                                 if (photo.isNotEmpty && _clientPhotoCache[clientId] != photo) {
+                                   setState(() => _clientPhotoCache[clientId] = photo);
+                                 } else {
+                                   _clientPhotoCache[clientId] = photo;
+                                 }
+                               }
+                             }).catchError((_) {});
+                           }
+                           return GestureDetector(
+                             onTap: clientPhoto.isNotEmpty
+                                 ? () => _showProfilePhotoDialog(context, clientPhoto, customerName)
+                                 : null,
+                             child: Container(
+                               width: 44,
+                               height: 44,
+                               decoration: BoxDecoration(
+                                 shape: BoxShape.circle,
+                                 border: Border.all(color: const Color(0xFF16A34A), width: 2),
+                                 color: const Color(0xFF1E1712),
+                               ),
+                               child: ClipOval(
+                                 child: clientPhoto.isNotEmpty
+                                     ? _buildSafeImage(
+                                         clientPhoto,
+                                         width: 44,
+                                         height: 44,
+                                         fit: BoxFit.cover,
+                                         errorWidget: const Center(child: Icon(Icons.person, color: Colors.white70)),
+                                       )
+                                     : const Center(child: Icon(Icons.person, color: Colors.white70)),
+                               ),
+                             ),
+                           );
+                         },
+                       ),
+                       const SizedBox(width: 12),
+                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -4540,21 +4618,45 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               ),
               const SizedBox(height: 14),
 
-              // Switch de Disponibilidad
+              // Switch de Disponibilidad (estilo Rappi) — sincronizado con AppBar badge y Firestore
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.black26 : const Color(0xFFFAF7F2),
+                  color: _isAvailable
+                      ? (isDark ? const Color(0xFF16A34A).withAlpha(30) : const Color(0xFFF0FDF4))
+                      : (isDark ? Colors.black26 : const Color(0xFFF9F9F9)),
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: _isAvailable
+                        ? const Color(0xFF16A34A).withAlpha(80)
+                        : Colors.grey.withAlpha(60),
+                    width: 1.2,
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Disponible para recibir pedidos', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Disponible para recibir pedidos', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        Text(
+                          _isAvailable ? 'Recibirás pedidos de clientes 🛵' : 'No recibirás nuevos pedidos',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: _isAvailable ? const Color(0xFF16A34A) : Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
                     Switch(
                       value: _isAvailable,
-                      activeThumbColor: const Color(0xFFDC2626),
-                      onChanged: (val) => setState(() => _isAvailable = val),
+                      activeTrackColor: const Color(0xFF16A34A),
+                      activeThumbColor: Colors.white,
+                      inactiveThumbColor: Colors.grey.shade400,
+                      inactiveTrackColor: Colors.grey.shade300,
+                      onChanged: (val) => _updateAvailability(val),
                     ),
                   ],
                 ),

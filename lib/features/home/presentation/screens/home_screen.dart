@@ -15,6 +15,7 @@ import '../../../../mock/mock_categories.dart';
 import '../../../../mock/mock_products.dart';
 import '../../../cart/providers/cart_notifier.dart';
 import '../../../favorites/providers/favorites_provider.dart';
+import '../../providers/home_provider.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/widgets/cart_popup_helper.dart';
@@ -110,12 +111,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   List<ProductEntity> get _filteredProducts {
     final query = _searchController.text.trim().toLowerCase();
-    var list = mockProducts.where((p) {
+    final allProducts = ref.watch(productsProvider).value ?? mockProducts;
+    var list = allProducts.where((p) {
       final matchesCategory =
           _selectedCategoryId == null || p.categoryId == _selectedCategoryId;
       final matchesQuery = query.isEmpty ||
           p.name.toLowerCase().contains(query) ||
-          p.description.toLowerCase().contains(query);
+          p.description.toLowerCase().contains(query) ||
+          p.ingredients.any((ing) => ing.toLowerCase().contains(query));
       final matchesPrice = p.price >= _minPrice && p.price <= _maxPrice;
       return matchesCategory && matchesQuery && matchesPrice;
     }).toList();
@@ -126,7 +129,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       list.sort((a, b) => b.price.compareTo(a.price));
     } else {
       list.sort(
-          (a, b) => mockProducts.indexOf(a).compareTo(mockProducts.indexOf(b)));
+          (a, b) => allProducts.indexOf(a).compareTo(allProducts.indexOf(b)));
     }
     return list;
   }

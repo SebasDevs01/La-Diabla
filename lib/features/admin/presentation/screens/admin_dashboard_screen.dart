@@ -11,6 +11,11 @@ import '../../../../core/utils/price_formatter.dart';
 import '../../../../domain/entities/user_entity.dart';
 import '../../../auth/providers/auth_notifier.dart';
 import '../../../checkout/providers/coupon_provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../domain/entities/product_entity.dart';
+import '../../../../mock/mock_products.dart';
+import '../../../home/providers/home_provider.dart';
+import '../widgets/product_form_modal.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -23,11 +28,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _filterStatus = 'all';
+  String _productCategoryFilter = 'all';
+  String _productSearchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -209,6 +216,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
           unselectedLabelColor: Colors.white60,
           tabs: const [
             Tab(icon: Icon(Icons.receipt_long_rounded), text: 'Pedidos'),
+            Tab(icon: Icon(Icons.restaurant_menu_rounded), text: 'Menú'),
             Tab(icon: Icon(Icons.bar_chart_rounded), text: 'Stats'),
             Tab(icon: Icon(Icons.local_offer_rounded), text: 'Cupones'),
           ],
@@ -218,6 +226,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
         controller: _tabController,
         children: [
           _buildOrdersTab(isDark),
+          _buildProductsTab(isDark),
           _buildStatsTab(isDark),
           _buildCouponsTab(isDark),
         ],
@@ -563,6 +572,405 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
       ),
     );
   }
+
+  // ─── Tab 4: Gestión Dinámica de Productos / Menú ───────────────────────────
+  Widget _buildProductsTab(bool isDark) {
+    final productsAsync = ref.watch(adminProductsStreamProvider);
+
+    return Column(
+      children: [
+        // Barra superior: Botón crear + Botón sembrar catálogo
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          color: isDark ? const Color(0xFF1E1712) : Colors.white,
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () => ProductFormModal.show(context),
+                      icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
+                      label: const Text('Nuevo Producto', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF16A34A),
+                      side: const BorderSide(color: Color(0xFF16A34A), width: 1.2),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                    ),
+                    onPressed: _showSeedCatalogDialog,
+                    icon: const Icon(Icons.cloud_upload_rounded, size: 18),
+                    label: const Text('Sembrar Menú', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              // Campo de búsqueda
+              TextField(
+                decoration: InputDecoration(
+                  hintText: 'Buscar por nombre o ingrediente...',
+                  prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                  filled: true,
+                  fillColor: isDark ? Colors.black26 : const Color(0xFFFAF7F2),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+                onChanged: (val) => setState(() => _productSearchQuery = val.trim().toLowerCase()),
+              ),
+              const SizedBox(height: 8),
+              // Categorías
+              SizedBox(
+                height: 38,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    _FilterChip(
+                      label: 'Todos',
+                      value: 'all',
+                      selected: _productCategoryFilter == 'all',
+                      onTap: () => setState(() => _productCategoryFilter = 'all'),
+                    ),
+                    _FilterChip(
+                      label: '🌮 Tacos',
+                      value: 'tacos',
+                      selected: _productCategoryFilter == 'tacos',
+                      onTap: () => setState(() => _productCategoryFilter = 'tacos'),
+                    ),
+                    _FilterChip(
+                      label: '🌯 Burritos',
+                      value: 'burritos',
+                      selected: _productCategoryFilter == 'burritos',
+                      onTap: () => setState(() => _productCategoryFilter = 'burritos'),
+                    ),
+                    _FilterChip(
+                      label: '🧀 Quesadillas',
+                      value: 'quesadillas',
+                      selected: _productCategoryFilter == 'quesadillas',
+                      onTap: () => setState(() => _productCategoryFilter = 'quesadillas'),
+                    ),
+                    _FilterChip(
+                      label: '🥤 Bebidas',
+                      value: 'bebidas',
+                      selected: _productCategoryFilter == 'bebidas',
+                      onTap: () => setState(() => _productCategoryFilter = 'bebidas'),
+                    ),
+                    _FilterChip(
+                      label: '⭐ Especiales',
+                      value: 'especiales',
+                      selected: _productCategoryFilter == 'especiales',
+                      onTap: () => setState(() => _productCategoryFilter = 'especiales'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+
+        // Lista de productos en tiempo real
+        Expanded(
+          child: productsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Center(child: Text('Error cargando productos: $err')),
+            data: (products) {
+              final filtered = products.where((p) {
+                final matchCat = _productCategoryFilter == 'all' || p.categoryId == _productCategoryFilter;
+                final matchSearch = _productSearchQuery.isEmpty ||
+                    p.name.toLowerCase().contains(_productSearchQuery) ||
+                    p.ingredients.any((ing) => ing.toLowerCase().contains(_productSearchQuery));
+                return matchCat && matchSearch;
+              }).toList();
+
+              if (filtered.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.fastfood_outlined, size: 64, color: Colors.grey),
+                      const SizedBox(height: 12),
+                      const Text('No se encontraron platillos', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Crea un nuevo producto o pulsa "Sembrar Menú" para cargar el catálogo base.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                itemCount: filtered.length,
+                itemBuilder: (context, index) {
+                  final p = filtered[index];
+                  return _buildProductAdminCard(p, isDark);
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProductAdminCard(ProductEntity product, bool isDark) {
+    final isSpicy = product.spicyLevel > 0;
+    String spicyEmoji = '';
+    if (product.spicyLevel == 1) spicyEmoji = '🌶️';
+    if (product.spicyLevel == 2) spicyEmoji = '🌶️🌶️';
+    if (product.spicyLevel == 3) spicyEmoji = '🔥🌶️';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1712) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: product.available
+              ? (isDark ? Colors.white10 : Colors.grey.shade200)
+              : Colors.red.withAlpha(60),
+          width: product.available ? 1 : 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(isDark ? 30 : 10),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Imagen
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: 72,
+                  height: 72,
+                  child: CachedNetworkImage(
+                    imageUrl: product.imageUrl,
+                    fit: BoxFit.cover,
+                    errorWidget: (context, url, error) => Container(
+                      color: Colors.grey.shade200,
+                      child: const Icon(Icons.fastfood_rounded, color: Colors.grey),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            product.name,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isSpicy) ...[
+                          const SizedBox(width: 4),
+                          Text(spicyEmoji, style: const TextStyle(fontSize: 12)),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      PriceFormatter.formatSmart(product.price),
+                      style: const TextStyle(
+                        color: Color(0xFF16A34A),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDC2626).withAlpha(20),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        product.categoryId.toUpperCase(),
+                        style: const TextStyle(
+                          color: Color(0xFFDC2626),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Acciones: Editar y Borrar
+              Column(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit_rounded, size: 20, color: Color(0xFF3B82F6)),
+                    tooltip: 'Editar',
+                    onPressed: () => ProductFormModal.show(context, productToEdit: product),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
+                    tooltip: 'Eliminar',
+                    onPressed: () => _confirmDeleteProduct(product),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Ingredientes
+          if (product.ingredients.isNotEmpty) ...[
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: product.ingredients.map((ing) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.black26 : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(ing, style: const TextStyle(fontSize: 10.5, color: Colors.grey)),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 8),
+          ],
+
+          // Barra de disponibilidad
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.black12 : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      product.available ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                      size: 14,
+                      color: product.available ? const Color(0xFF16A34A) : Colors.red,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      product.available ? 'En venta (Disponible)' : 'Agotado (Oculto)',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: product.available ? const Color(0xFF16A34A) : Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+                Switch(
+                  value: product.available,
+                  activeTrackColor: const Color(0xFF16A34A),
+                  activeThumbColor: Colors.white,
+                  onChanged: (val) {
+                    ref.read(productRepositoryProvider).toggleProductAvailability(product.id, val);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteProduct(ProductEntity product) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Eliminar platillo?'),
+        content: Text('¿Estás seguro de eliminar "${product.name}" del catálogo? Esta acción lo removerá de la app.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(productRepositoryProvider).deleteProduct(product.id);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('🗑️ "${product.name}" eliminado del catálogo'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSeedCatalogDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Text('⚡ ', style: TextStyle(fontSize: 22)),
+            Text('Sembrar Menú Base'),
+          ],
+        ),
+        content: const Text(
+          'Esto cargará todos los productos del menú predeterminado (tacos, burritos, bebidas y especiales) directamente en Firestore para que puedas gestionarlos y editarlos sin depender de código.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF16A34A), foregroundColor: Colors.white),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final count = await ref.read(productRepositoryProvider).seedInitialCatalog(mockProducts);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('🎉 ¡Se subieron $count platillos a Firestore exitosamente!'),
+                    backgroundColor: const Color(0xFF16A34A),
+                  ),
+                );
+              }
+            },
+            child: const Text('Subir Catálogo a Firestore'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ─── Sub-widgets ──────────────────────────────────────────────────────────────
@@ -884,6 +1292,7 @@ class _OrderCard extends StatelessWidget {
     }
   }
 }
+
 
 class _StatCard extends StatelessWidget {
   const _StatCard({required this.label, required this.value, required this.icon, required this.color, required this.isDark});

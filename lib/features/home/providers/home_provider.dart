@@ -20,12 +20,22 @@ final categoriesProvider = FutureProvider<List<CategoryEntity>>((ref) async {
   return repository.getCategories();
 });
 
-final productsProvider = FutureProvider<List<ProductEntity>>((ref) async {
+final productsProvider = StreamProvider<List<ProductEntity>>((ref) {
   final repository = ref.watch(productRepositoryProvider);
-  return repository.getProducts();
+  return repository.watchAllProducts(availableOnly: true);
 });
 
-final productsByCategoryProvider = FutureProvider.family<List<ProductEntity>, String>((ref, categoryId) async {
+final adminProductsStreamProvider = StreamProvider<List<ProductEntity>>((ref) {
   final repository = ref.watch(productRepositoryProvider);
-  return repository.getProductsByCategory(categoryId);
+  return repository.watchAllProducts(availableOnly: false);
+});
+
+final productsByCategoryProvider = StreamProvider.family<List<ProductEntity>, String>((ref, categoryId) {
+  final repository = ref.watch(productRepositoryProvider);
+  if (categoryId == 'all' || categoryId.isEmpty) {
+    return repository.watchAllProducts(availableOnly: true);
+  }
+  return repository.watchAllProducts(availableOnly: true).map(
+        (list) => list.where((p) => p.categoryId == categoryId).toList(),
+      );
 });

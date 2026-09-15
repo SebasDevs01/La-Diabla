@@ -147,7 +147,8 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<UserEntity> signInWithEmail(String email, String password) async {
     final cleanEmail = email.trim().toLowerCase();
-    final isAdmin = cleanEmail == 'appladiabla@gmail.com' && password.trim() == 'diablaadmin1';
+    final cleanPassword = password.trim();
+    final isAdmin = cleanEmail == 'appladiabla@gmail.com' && cleanPassword == 'diablaadmin1';
 
     try {
       final credential = await _authService.signInWithEmail(cleanEmail, password);
@@ -162,13 +163,18 @@ class AuthRepositoryImpl implements AuthRepository {
         existingUser = null;
       }
 
+      final effectiveRole = existingUser?.role ??
+          (isAdmin ? UserRole.admin : UserRole.customer);
+
       final userEntity = UserEntity(
         id: user.uid,
         name: (existingUser != null && existingUser.name.isNotEmpty && existingUser.name != 'Usuario La Diabla')
             ? existingUser.name
-            : (isAdmin ? 'Administrador La Diabla' : (user.displayName ?? email.split('@').first)),
+            : (isAdmin
+                ? 'Administrador La Diabla'
+                : (user.displayName ?? email.split('@').first)),
         email: user.email ?? email,
-        role: existingUser?.role ?? (isAdmin ? UserRole.admin : UserRole.customer),
+        role: effectiveRole,
         phone: existingUser?.phone ?? user.phoneNumber,
         photoUrl: existingUser?.photoUrl ?? user.photoURL,
         createdAt: existingUser?.createdAt ?? DateTime.now(),
@@ -218,15 +224,28 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<UserEntity> signUpWithEmail(String email, String password) async {
+  Future<UserEntity> signUpWithEmail(
+    String email,
+    String password, {
+    String? name,
+    UserRole role = UserRole.customer,
+  }) async {
     final credential = await _authService.signUpWithEmail(email, password);
     final user = credential.user!;
 
+    final effectiveName = (name != null && name.trim().isNotEmpty)
+        ? name.trim()
+        : email.split('@').first;
+
+    try {
+      await user.updateDisplayName(effectiveName);
+    } catch (_) {}
+
     final userEntity = UserEntity(
       id: user.uid,
-      name: email.split('@').first,
+      name: effectiveName,
       email: user.email ?? email,
-      role: UserRole.customer,
+      role: role,
       phone: user.phoneNumber,
       photoUrl: user.photoURL,
       createdAt: DateTime.now(),

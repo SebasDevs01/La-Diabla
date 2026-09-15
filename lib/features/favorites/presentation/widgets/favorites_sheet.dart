@@ -11,6 +11,7 @@ import '../../../../core/widgets/cart_popup_helper.dart';
 import '../../../../core/widgets/diabla_offline_view.dart';
 import '../../../../mock/mock_products.dart';
 import '../../../cart/providers/cart_notifier.dart';
+import '../../../home/providers/home_provider.dart';
 import '../../providers/favorites_provider.dart';
 
 class FavoritesSheet extends ConsumerWidget {
@@ -29,7 +30,8 @@ class FavoritesSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final favState = ref.watch(favoritesProvider);
-    final favProducts = mockProducts.where((p) => favState.isFavorite(p.id)).toList();
+    final allProducts = ref.watch(productsProvider).value ?? mockProducts;
+    final favProducts = allProducts.where((p) => favState.isFavorite(p.id)).toList();
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.78,
