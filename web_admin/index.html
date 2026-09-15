@@ -1,82 +1,310 @@
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>La Diabla App 🌶️ | Delivery de Comida Mexicana en Bucaramanga</title>
-  <meta name="description" content="Pide los mejores tacos al pastor, burritos diabólicos, quesadillas y birria artesanal en Bucaramanga con rastreo GPS en tiempo real.">
-  
+  <meta name="description"
+    content="Pide los mejores tacos al pastor, burritos diabólicos, quesadillas fundidas y birria artesanal en Bucaramanga con rastreo GPS en tiempo real.">
+  <meta name="theme-color" content="#DC2626">
+
+  <!-- Open Graph / Social Sharing Meta Tags -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="La Diabla App 🌶️ | Comida Mexicana en Bucaramanga">
+  <meta property="og:description"
+    content="Tacos al pastor, burritos gigantes, quesadillas y rastreo GPS en vivo hasta tu puerta.">
+  <meta property="og:image" content="assets/recursos/materiales/deliverylogo.png">
+  <meta property="og:url" content="https://ladiabla-11718.web.app/">
+
+  <!-- Favicon: Logo Oficial de La Diabla -->
+  <link rel="icon" type="image/png" href="assets/logo/LaDiabla.png">
+  <link rel="shortcut icon" type="image/png" href="assets/logo/LaDiabla.png">
+  <link rel="apple-touch-icon" href="assets/logo/LaDiabla.png">
+
+  <!-- Schema.org JSON-LD Structured Data for Google Rich Snippets -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FastFoodRestaurant",
+    "name": "La Diabla App",
+    "image": "https://ladiabla-11718.web.app/assets/recursos/materiales/deliverylogo.png",
+    "url": "https://ladiabla-11718.web.app/",
+    "telephone": "+573171166497",
+    "servesCuisine": "Mexican",
+    "priceRange": "$$",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Cl. 59 # 39W-24, Estoraques 1",
+      "addressLocality": "Bucaramanga",
+      "addressRegion": "Santander",
+      "postalCode": "680005",
+      "addressCountry": "CO"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": 7.1065,
+      "longitude": -73.1362
+    },
+    "openingHoursSpecification": [
+      {
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
+        "opens": "11:30",
+        "closes": "23:00"
+      }
+    ]
+  }
+  </script>
+
   <!-- Google Fonts: Bangers & Outfit -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Bangers&family=Outfit:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+
   <!-- Google Material Symbols Rounded -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
-  
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
+
   <link rel="stylesheet" href="styles.css">
 
   <script>
-    (function() {
+    (function () {
       const savedTheme = localStorage.getItem('diabla_web_theme') || 'dark';
       document.documentElement.setAttribute('data-theme', savedTheme);
     })();
   </script>
 
   <style>
-    /* ── INDEX-SPECIFIC HERO & SHOWCASE STYLES ──────────────── */
+    /* ============================================================
+       INDEX-SPECIFIC HIGH-IMPACT UI / UX (PERFECT CONTRAST & HARMONY)
+       ============================================================ */
 
-    /* Subtle background grid & glowing flares */
+    /* ── NO PRELOADER ───────────────────────────────────────── */
+
+    /* ── BASE & TYPOGRAPHY HELPERS ──────────────────────────── */
+    .diabla-font {
+      font-family: 'Bangers', cursive, sans-serif;
+      letter-spacing: 1.5px;
+    }
+
+    /* ── NAVBAR GLASSMORPHISM & MOBILE DRAWER ───────────────── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: var(--header-bg);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-bottom: 1px solid var(--header-border);
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    .navbar {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0.85rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.2rem;
+    }
+
+    .brand-logo-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .brand-logo-img {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      object-fit: cover;
+      box-shadow: 0 4px 18px rgba(220, 38, 38, 0.5);
+      border: 2px solid rgba(220, 38, 38, 0.6);
+      background: #180905;
+      transition: transform 0.3s ease;
+    }
+
+    .brand-logo-link:hover .brand-logo-img {
+      transform: rotate(10deg) scale(1.08);
+    }
+
+    .brand-logo-title {
+      font-size: 1.95rem;
+      line-height: 1;
+      color: #FFFFFF;
+      letter-spacing: 2px;
+    }
+
+    .nav-desktop-links {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .nav-link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 18px;
+      border-radius: 12px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #FFFFFF !important;
+      text-decoration: none;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: all 0.25s ease;
+    }
+
+    .nav-link-btn:hover {
+      color: #FFFFFF !important;
+      background: rgba(220, 38, 38, 0.35);
+      border-color: rgba(255, 255, 255, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+    }
+
+    .nav-link-btn.active {
+      color: #FFFFFF !important;
+      background: #DC2626;
+      border-color: #EF4444;
+      box-shadow: 0 4px 16px rgba(220, 38, 38, 0.5);
+    }
+
+    .hamburger-btn {
+      display: none;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #FFFFFF;
+      border-radius: 12px;
+      padding: 8px;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    .hamburger-btn:hover {
+      background: rgba(255, 255, 255, 0.22);
+    }
+
+    /* Mobile Nav Drawer */
+    .mobile-drawer {
+      display: none;
+      position: fixed;
+      top: 68px;
+      left: 0;
+      width: 100%;
+      background: var(--header-bg);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border-bottom: 1px solid var(--header-border);
+      padding: 1.5rem 1.25rem;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+      z-index: 999;
+      flex-direction: column;
+      gap: 0.85rem;
+      animation: slideDown 0.3s ease-out forwards;
+    }
+
+    .mobile-drawer.open {
+      display: flex;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-15px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .mobile-drawer .nav-link-btn {
+      width: 100%;
+      justify-content: flex-start;
+      padding: 12px 18px;
+      font-size: 1rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* ── HERO SECTION ───────────────────────────────────────── */
     .hero-wrapper {
       position: relative;
       overflow: hidden;
-      background: radial-gradient(circle at 50% 10%, rgba(220, 38, 38, 0.22) 0%, transparent 55%),
-                  radial-gradient(circle at 85% 60%, rgba(245, 158, 11, 0.1) 0%, transparent 40%);
+      background: transparent;
     }
 
     .hero {
       display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 3.5rem;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 4rem;
       align-items: center;
       max-width: 1400px;
       margin: 0 auto;
-      padding: 4.5rem 2rem 5rem;
+      padding: 4.5rem 1.5rem 5rem;
       min-height: calc(100vh - 76px);
       position: relative;
       z-index: 2;
     }
 
-    /* Hero Badge */
     .hero-badge {
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      background: rgba(220, 38, 38, 0.15);
+      background: rgba(220, 38, 38, 0.14);
       border: 1px solid rgba(220, 38, 38, 0.35);
       backdrop-filter: blur(12px);
-      color: #FCA5A5;
+      color: #DC2626;
       padding: 8px 18px;
       border-radius: 999px;
-      font-size: 0.88rem;
-      font-weight: 700;
-      letter-spacing: 0.3px;
+      font-size: 0.92rem;
+      font-weight: 800;
+      letter-spacing: 0.4px;
       margin-bottom: 1.5rem;
-      box-shadow: 0 4px 15px rgba(220, 38, 38, 0.15);
+      box-shadow: 0 4px 18px rgba(220, 38, 38, 0.18);
+    }
+
+    [data-theme="dark"] .hero-badge {
+      color: #FEE2E2;
     }
 
     .hero-badge .flame-icon {
-      width: 20px;
-      height: 20px;
+      width: 22px;
+      height: 22px;
       object-fit: contain;
-      filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.8));
+      filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.9));
       animation: flamePulse 2s infinite ease-in-out;
     }
 
-    /* Hero Title */
+    @keyframes flamePulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.7));
+      }
+
+      50% {
+        transform: scale(1.15);
+        filter: drop-shadow(0 0 14px rgba(245, 158, 11, 0.95));
+      }
+    }
+
     .hero-title {
-      font-size: clamp(3rem, 5.5vw, 5rem);
-      line-height: 1.02;
+      font-size: clamp(3.2rem, 5.5vw, 5.4rem);
+      line-height: 0.98;
       margin-bottom: 1.5rem;
       letter-spacing: 2px;
       color: var(--text-main);
@@ -85,53 +313,112 @@
     .hero-title-highlight {
       background: linear-gradient(135deg, #EF4444 0%, #F59E0B 50%, #DC2626 100%);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
-      filter: drop-shadow(0 2px 20px rgba(220, 38, 38, 0.4));
+      filter: drop-shadow(0 4px 25px rgba(220, 38, 38, 0.45));
+      display: inline-block;
     }
 
     .hero-desc {
-      font-size: 1.12rem;
+      font-size: 1.15rem;
       color: var(--text-muted);
       line-height: 1.7;
-      margin-bottom: 2.2rem;
+      margin-bottom: 2rem;
       max-width: 580px;
     }
 
-    /* Hero Actions */
+    /* Rappi-style Hero Search Bar */
+    .hero-search-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 8px 12px 8px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: var(--card-shadow);
+      margin-bottom: 2.2rem;
+      max-width: 540px;
+      transition: border-color 0.25s, box-shadow 0.25s;
+    }
+
+    .hero-search-box:focus-within {
+      border-color: #EF4444;
+      box-shadow: 0 14px 40px rgba(220, 38, 38, 0.25);
+    }
+
+    .hero-search-input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      font-size: 1rem;
+      font-family: inherit;
+      width: 100%;
+    }
+
+    .hero-search-input::placeholder {
+      color: var(--text-dim);
+      font-size: 0.95rem;
+    }
+
+    .hero-search-btn {
+      background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+      color: #FFFFFF;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 14px;
+      font-weight: 800;
+      font-size: 0.92rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(220, 38, 38, 0.45);
+      transition: transform 0.2s, box-shadow 0.2s;
+      flex-shrink: 0;
+    }
+
+    .hero-search-btn:hover {
+      transform: scale(1.04);
+      box-shadow: 0 6px 20px rgba(220, 38, 38, 0.65);
+    }
+
+    /* Hero Action Buttons */
     .hero-actions {
       display: flex;
       gap: 1.2rem;
       flex-wrap: wrap;
       align-items: center;
-      margin-bottom: 3rem;
+      margin-bottom: 2.5rem;
     }
 
     .btn-hero-primary {
       background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
       color: #FFFFFF !important;
-      padding: 0.95rem 2rem;
-      border-radius: 16px;
+      padding: 1.05rem 2.2rem;
+      border-radius: 18px;
       font-weight: 800;
       font-size: 1.05rem;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
       gap: 12px;
-      box-shadow: 0 8px 25px rgba(220, 38, 38, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      box-shadow: 0 10px 30px rgba(220, 38, 38, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.25);
       transition: transform 0.25s, box-shadow 0.25s;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.25);
     }
 
     .btn-hero-primary:hover {
       transform: translateY(-3px) scale(1.02);
-      box-shadow: 0 12px 35px rgba(220, 38, 38, 0.7);
+      box-shadow: 0 14px 40px rgba(220, 38, 38, 0.75);
     }
 
     .btn-hero-secondary {
-      background: rgba(255, 255, 255, 0.08);
+      background: var(--card-bg);
       color: var(--text-main) !important;
-      padding: 0.95rem 1.8rem;
-      border-radius: 16px;
+      padding: 1.05rem 1.8rem;
+      border-radius: 18px;
       font-weight: 700;
       font-size: 1.05rem;
       text-decoration: none;
@@ -140,16 +427,53 @@
       gap: 10px;
       border: 1px solid var(--card-border);
       backdrop-filter: blur(12px);
+      box-shadow: var(--card-shadow);
       transition: background 0.25s, transform 0.25s, border-color 0.25s;
     }
 
     .btn-hero-secondary:hover {
-      background: rgba(255, 255, 255, 0.15);
-      border-color: rgba(220, 38, 38, 0.4);
+      border-color: rgba(220, 38, 38, 0.5);
       transform: translateY(-2px);
     }
 
-    /* Hero Visual Side */
+    /* Hero Stats Bar */
+    .hero-stats {
+      display: flex;
+      gap: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--divider);
+      flex-wrap: wrap;
+    }
+
+    .stat-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stat-pill .material-symbols-rounded {
+      color: #EF4444;
+      background: rgba(220, 38, 38, 0.16);
+      padding: 10px;
+      border-radius: 14px;
+    }
+
+    .stat-pill-num {
+      font-family: 'Bangers', cursive;
+      font-size: 1.8rem;
+      color: var(--text-main);
+      line-height: 1;
+      letter-spacing: 1px;
+    }
+
+    .stat-pill-label {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    /* Hero Visual Floating Mascot */
     .hero-visual-wrapper {
       position: relative;
       display: flex;
@@ -158,27 +482,27 @@
     }
 
     .hero-flare {
-      position: absolute;
-      width: 440px;
-      height: 440px;
-      background: radial-gradient(circle, rgba(220, 38, 38, 0.35) 0%, rgba(245, 158, 11, 0.15) 45%, transparent 70%);
-      border-radius: 50%;
-      z-index: 0;
-      filter: blur(25px);
-      animation: flamePulse 4s infinite ease-in-out;
+      display: none;
     }
 
     .hero-mascot-img {
-      width: min(440px, 92vw);
+      width: min(460px, 92vw);
       position: relative;
       z-index: 2;
-      filter: drop-shadow(0 25px 40px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 35px rgba(220, 38, 38, 0.45));
+      filter: drop-shadow(0 25px 45px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 40px rgba(220, 38, 38, 0.45));
       animation: floatMascot 4.5s infinite ease-in-out;
     }
 
     @keyframes floatMascot {
-      0%, 100% { transform: translateY(0) rotate(0deg); }
-      50%      { transform: translateY(-16px) rotate(1deg); }
+
+      0%,
+      100% {
+        transform: translateY(0) rotate(0deg);
+      }
+
+      50% {
+        transform: translateY(-16px) rotate(1.5deg);
+      }
     }
 
     /* Floating Badges */
@@ -194,8 +518,8 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
-      transition: transform 0.3s;
+      box-shadow: var(--card-shadow);
+      transition: transform 0.3s ease;
     }
 
     .float-chip:hover {
@@ -203,40 +527,63 @@
     }
 
     .float-chip-top {
-      top: 10%;
-      right: -5%;
+      top: 8%;
+      right: -4%;
       animation: floatChip1 5s infinite ease-in-out;
     }
 
     .float-chip-bottom-left {
-      bottom: 12%;
-      left: -8%;
+      bottom: 10%;
+      left: -6%;
       animation: floatChip2 6s infinite ease-in-out;
     }
 
     .float-chip-bottom-right {
-      bottom: 2%;
-      right: 5%;
+      bottom: 0%;
+      right: 4%;
       animation: floatChip3 5.5s infinite ease-in-out;
     }
 
     @keyframes floatChip1 {
-      0%, 100% { transform: translateY(0); }
-      50%      { transform: translateY(-10px); }
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-12px);
+      }
     }
+
     @keyframes floatChip2 {
-      0%, 100% { transform: translateY(0); }
-      50%      { transform: translateY(10px); }
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(12px);
+      }
     }
+
     @keyframes floatChip3 {
-      0%, 100% { transform: translateY(0); }
-      50%      { transform: translateY(-8px); }
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-10px);
+      }
     }
 
     .chip-icon-box {
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -244,65 +591,123 @@
     }
 
     .chip-title {
-      font-size: 0.92rem;
+      font-size: 0.94rem;
       font-weight: 800;
       color: var(--text-main);
       line-height: 1.2;
     }
+
     .chip-sub {
-      font-size: 0.75rem;
+      font-size: 0.76rem;
       color: var(--text-muted);
       font-weight: 500;
     }
 
-    /* Stats bar */
-    .hero-stats {
-      display: flex;
-      gap: 1.5rem;
-      padding-top: 1.5rem;
+    /* ── ENHANCED CATEGORIES BAR WITH REAL PRODUCT IMAGES ───── */
+    .categories-section {
+      background: var(--dark-bg);
       border-top: 1px solid var(--divider);
-      flex-wrap: wrap;
+      border-bottom: 1px solid var(--divider);
+      padding: 1rem 0;
+      position: sticky;
+      top: 68px;
+      z-index: 900;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
     }
 
-    .stat-pill {
+    .categories-container-main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .categories-scroll-wrapper {
       display: flex;
       align-items: center;
       gap: 12px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      padding: 4px 8px;
+      width: 100%;
+      justify-content: center;
+      flex-wrap: wrap;
     }
 
-    .stat-pill .material-symbols-rounded {
-      color: #DC2626;
-      background: rgba(220, 38, 38, 0.15);
-      padding: 10px;
-      border-radius: 14px;
+    .categories-scroll-wrapper::-webkit-scrollbar {
+      display: none;
     }
 
-    .stat-pill-num {
-      font-family: 'Bangers', cursive;
-      font-size: 1.7rem;
+    .cat-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 18px 8px 10px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 999px;
       color: var(--text-main);
-      line-height: 1;
-      letter-spacing: 1px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+      cursor: pointer;
+      box-shadow: var(--card-shadow);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      flex-shrink: 0;
     }
 
-    .stat-pill-label {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      font-weight: 600;
-      text-transform: uppercase;
+    .cat-chip-thumb {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+      border-radius: 50%;
+      background: rgba(220, 38, 38, 0.08);
+      padding: 2px;
+      flex-shrink: 0;
+      filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.2));
+      transition: transform 0.25s ease;
+    }
+
+    .cat-chip:hover {
+      color: var(--text-main);
+      border-color: #DC2626;
+      background: rgba(220, 38, 38, 0.08);
+      transform: translateY(-2px);
+    }
+
+    .cat-chip:hover .cat-chip-thumb {
+      transform: scale(1.15) rotate(5deg);
+    }
+
+    .cat-chip.active {
+      background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+      color: #FFFFFF !important;
+      border-color: #DC2626;
+      box-shadow: 0 4px 18px rgba(220, 38, 38, 0.45);
+    }
+
+    .cat-chip.active .cat-chip-thumb {
+      background: rgba(255, 255, 255, 0.25);
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
     }
 
     /* ── SECTION COMMONS ────────────────────────────────────── */
     .section-container {
       max-width: 1400px;
       margin: 0 auto;
-      padding: 6rem 2rem;
+      padding: 5.5rem 1.5rem;
     }
 
     .section-header-center {
       text-align: center;
-      max-width: 700px;
-      margin: 0 auto 4rem;
+      max-width: 760px;
+      margin: 0 auto 3.5rem;
     }
 
     .section-tag {
@@ -310,127 +715,118 @@
       align-items: center;
       gap: 8px;
       background: rgba(220, 38, 38, 0.14);
-      border: 1px solid rgba(220, 38, 38, 0.28);
+      border: 1px solid rgba(220, 38, 38, 0.35);
       color: #EF4444;
-      padding: 6px 16px;
+      padding: 6px 18px;
       border-radius: 999px;
-      font-size: 0.82rem;
+      font-size: 0.85rem;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 1px;
-      margin-bottom: 1rem;
+      margin-bottom: 1.2rem;
     }
 
     .section-title {
-      font-size: clamp(2.4rem, 4vw, 3.5rem);
+      font-size: clamp(2.4rem, 4.2vw, 3.8rem);
       letter-spacing: 2px;
       color: var(--text-main);
       margin-bottom: 1rem;
-      line-height: 1.1;
+      line-height: 1.05;
     }
 
     .section-subtitle {
-      font-size: 1.05rem;
+      font-size: 1.1rem;
       color: var(--text-muted);
-      line-height: 1.6;
+      line-height: 1.65;
     }
 
-    /* ── MENU CATEGORIES GRID ───────────────────────────────── */
+    /* ── FOOD MENU SHOWCASE GRID (ESTILO RAPPI / PRODUCTOS CARGADOS) ── */
     .menu-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 2rem;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 2.2rem;
     }
 
     .menu-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 24px;
-      padding: 2rem;
+      border-radius: 22px;
+      padding: 0;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      text-align: center;
       position: relative;
       overflow: hidden;
       box-shadow: var(--card-shadow);
-      transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
-    }
-
-    .menu-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 140px;
-      height: 140px;
-      background: radial-gradient(circle, rgba(220, 38, 38, 0.2) 0%, transparent 70%);
-      border-radius: 50%;
-      pointer-events: none;
-      transition: transform 0.3s, opacity 0.3s;
+      cursor: pointer;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s, box-shadow 0.3s;
     }
 
     .menu-card:hover {
       transform: translateY(-8px);
-      border-color: rgba(220, 38, 38, 0.4);
-      box-shadow: 0 20px 45px rgba(220, 38, 38, 0.18);
+      border-color: rgba(220, 38, 38, 0.5);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18);
     }
 
-    .menu-card:hover::before {
-      transform: translateX(-50%) scale(1.4);
-      opacity: 0.9;
+    .menu-img-wrap {
+      width: 100%;
+      height: 200px;
+      position: relative;
+      overflow: hidden;
+      background: #180C0A;
+      margin: 0;
+    }
+
+    .menu-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .menu-card:hover .menu-img {
+      transform: scale(1.08);
     }
 
     .menu-badge {
       position: absolute;
-      top: 16px;
-      right: 16px;
-      background: rgba(245, 158, 11, 0.15);
-      border: 1px solid rgba(245, 158, 11, 0.35);
-      color: #F59E0B;
-      padding: 4px 12px;
+      top: 14px;
+      left: 14px;
+      background: rgba(15, 7, 5, 0.85);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      color: #FBBF24;
+      padding: 5px 12px;
       border-radius: 12px;
-      font-size: 0.75rem;
+      font-size: 0.76rem;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      z-index: 2;
     }
 
-    .menu-img-wrap {
-      width: 150px;
-      height: 150px;
+    .menu-card-content {
+      padding: 1.4rem 1.6rem 1.6rem;
       display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 1rem 0 1.5rem;
-      position: relative;
-    }
-
-    .menu-img {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-      filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.35));
-      transition: transform 0.3s ease;
-    }
-
-    .menu-card:hover .menu-img {
-      transform: scale(1.1) rotate(2deg);
+      flex-direction: column;
+      flex-grow: 1;
+      text-align: left;
     }
 
     .menu-name {
-      font-size: 1.6rem;
-      letter-spacing: 1.5px;
+      font-size: 1.55rem;
+      letter-spacing: 1px;
       color: var(--text-main);
       margin-bottom: 0.5rem;
+      line-height: 1.2;
     }
 
     .menu-desc {
       font-size: 0.92rem;
       color: var(--text-muted);
       line-height: 1.55;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.4rem;
       flex-grow: 1;
     }
 
@@ -439,48 +835,59 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding-top: 1.2rem;
+      padding-top: 1.1rem;
       border-top: 1px solid var(--divider);
+      gap: 12px;
     }
 
     .menu-price {
       text-align: left;
     }
+
     .menu-price-label {
-      font-size: 0.72rem;
-      color: var(--text-muted);
+      font-size: 0.76rem;
+      color: var(--text-dim);
       text-transform: uppercase;
       font-weight: 700;
     }
+
     .menu-price-val {
-      font-size: 1.2rem;
-      font-weight: 800;
+      font-size: 1.4rem;
+      font-weight: 900;
       color: #EF4444;
+      font-family: 'Outfit', sans-serif;
     }
 
     .btn-order-card {
-      background: rgba(220, 38, 38, 0.12);
-      border: 1px solid rgba(220, 38, 38, 0.3);
-      color: #EF4444;
-      padding: 8px 16px;
-      border-radius: 12px;
-      font-weight: 700;
-      font-size: 0.85rem;
+      background: linear-gradient(135deg, rgba(220, 38, 38, 0.15) 0%, rgba(220, 38, 38, 0.28) 100%);
+      border: 1px solid rgba(220, 38, 38, 0.45);
+      color: #DC2626;
+      padding: 10px 20px;
+      border-radius: 14px;
+      font-weight: 800;
+      font-size: 0.9rem;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       text-decoration: none;
       cursor: pointer;
-      transition: background 0.2s, color 0.2s, transform 0.2s;
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 14px rgba(220, 38, 38, 0.15);
+    }
+
+    [data-theme="dark"] .btn-order-card {
+      color: #FFFFFF;
     }
 
     .btn-order-card:hover {
-      background: #DC2626;
-      color: white;
+      background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+      color: #FFFFFF !important;
+      border-color: #DC2626;
       transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(220, 38, 38, 0.55);
     }
 
-    /* ── TRACKING STEPPER SHOWCASE ─────────────────────────── */
+    /* ── LIVE GPS TRACKING STEPPER SHOWCASE ─────────────────── */
     .tracking-section {
       background: var(--card-bg);
       border-top: 1px solid var(--card-border);
@@ -493,15 +900,14 @@
       grid-template-columns: repeat(5, 1fr);
       gap: 1.5rem;
       position: relative;
-      margin: 3rem 0 2rem;
+      margin: 3.5rem 0 2rem;
     }
 
-    /* Animated connecting track line */
     .stepper-track {
       position: absolute;
       top: 55px;
-      left: 10%;
-      right: 10%;
+      left: 8%;
+      right: 8%;
       height: 4px;
       background: var(--divider);
       z-index: 1;
@@ -515,13 +921,21 @@
       height: 100%;
       background: linear-gradient(90deg, #DC2626, #F59E0B);
       border-radius: 4px;
-      box-shadow: 0 0 12px rgba(220, 38, 38, 0.8);
+      box-shadow: 0 0 16px rgba(220, 38, 38, 0.85);
       animation: pulseTrack 2.5s infinite ease-in-out;
     }
 
     @keyframes pulseTrack {
-      0%, 100% { opacity: 0.9; }
-      50%      { opacity: 1; filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.8)); }
+
+      0%,
+      100% {
+        opacity: 0.9;
+      }
+
+      50% {
+        opacity: 1;
+        filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.9));
+      }
     }
 
     .step-item {
@@ -534,182 +948,346 @@
     }
 
     .step-icon-bubble {
-      width: 90px;
-      height: 90px;
+      width: 96px;
+      height: 96px;
       border-radius: 50%;
       background: var(--dark-bg);
       border: 3px solid var(--divider);
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 1rem;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+      margin-bottom: 1.2rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
       transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
     }
 
     .step-item.active .step-icon-bubble {
       border-color: #DC2626;
-      box-shadow: 0 0 25px rgba(220, 38, 38, 0.5);
+      box-shadow: 0 0 28px rgba(220, 38, 38, 0.45);
       transform: scale(1.08);
     }
 
+    .step-item.live-step .step-icon-bubble {
+      border-color: #F59E0B;
+      box-shadow: 0 0 30px rgba(245, 158, 11, 0.55);
+      animation: liveStepPulse 2s infinite ease-in-out;
+    }
+
+    @keyframes liveStepPulse {
+
+      0%,
+      100% {
+        transform: scale(1.08);
+      }
+
+      50% {
+        transform: scale(1.14);
+      }
+    }
+
     .step-img {
-      width: 54px;
-      height: 54px;
+      width: 56px;
+      height: 56px;
       object-fit: contain;
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
     }
 
     .step-title {
-      font-size: 1.05rem;
+      font-size: 1.15rem;
       font-weight: 800;
       color: var(--text-main);
       margin-bottom: 4px;
     }
 
     .step-desc {
-      font-size: 0.8rem;
+      font-size: 0.86rem;
       color: var(--text-muted);
-      line-height: 1.4;
-      max-width: 170px;
+      line-height: 1.45;
+      max-width: 180px;
     }
 
     .step-live-pill {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      background: rgba(220, 38, 38, 0.15);
-      border: 1px solid rgba(220, 38, 38, 0.4);
-      color: #EF4444;
-      padding: 3px 10px;
+      gap: 6px;
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.45);
+      color: #D97706;
+      padding: 4px 12px;
       border-radius: 20px;
-      font-size: 0.72rem;
+      font-size: 0.74rem;
       font-weight: 800;
-      margin-top: 6px;
+      margin-top: 8px;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    [data-theme="dark"] .step-live-pill {
+      color: #FBBF24;
     }
 
     /* ── PROMOTIONS & CUPONES SECTION ──────────────────────── */
     .promos-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 2rem;
+      gap: 2.5rem;
       align-items: stretch;
     }
 
     .promo-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 24px;
-      padding: 2.2rem;
+      border-radius: 28px;
+      padding: 2.5rem;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       position: relative;
       overflow: hidden;
       box-shadow: var(--card-shadow);
-      transition: transform 0.25s, border-color 0.25s;
+      transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
     }
 
     .promo-card:hover {
-      transform: translateY(-5px);
-      border-color: rgba(245, 158, 11, 0.4);
+      transform: translateY(-6px);
+      border-color: rgba(245, 158, 11, 0.45);
+      box-shadow: 0 20px 45px rgba(245, 158, 11, 0.15);
     }
 
     .promo-badge {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       background: rgba(245, 158, 11, 0.15);
-      border: 1px solid rgba(245, 158, 11, 0.3);
-      color: #F59E0B;
-      padding: 5px 14px;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: #D97706;
+      padding: 6px 16px;
       border-radius: 12px;
-      font-size: 0.8rem;
+      font-size: 0.84rem;
       font-weight: 800;
-      margin-bottom: 1.2rem;
+      margin-bottom: 1.4rem;
       width: fit-content;
     }
 
+    [data-theme="dark"] .promo-badge {
+      color: #FBBF24;
+    }
+
     .promo-title {
-      font-size: 2rem;
+      font-size: 2.1rem;
       letter-spacing: 1.5px;
       color: var(--text-main);
       margin-bottom: 0.8rem;
+      line-height: 1.1;
     }
 
     .promo-desc {
-      font-size: 0.95rem;
+      font-size: 1rem;
       color: var(--text-muted);
-      line-height: 1.6;
-      margin-bottom: 2rem;
+      line-height: 1.65;
+      margin-bottom: 2.2rem;
     }
 
     .coupon-box {
       background: var(--input-bg);
-      border: 1px dashed var(--primary);
-      border-radius: 16px;
-      padding: 12px 18px;
+      border: 2px dashed rgba(220, 38, 38, 0.5);
+      border-radius: 20px;
+      padding: 14px 20px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 1rem;
+      gap: 1.2rem;
     }
 
     .coupon-code {
       font-family: monospace;
-      font-size: 1.3rem;
+      font-size: 1.4rem;
       font-weight: 900;
       color: #EF4444;
       letter-spacing: 2px;
     }
 
     .btn-copy-code {
-      background: var(--primary);
+      background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
       color: white;
       border: none;
-      padding: 8px 16px;
-      border-radius: 10px;
+      padding: 10px 20px;
+      border-radius: 12px;
       font-weight: 700;
-      font-size: 0.85rem;
+      font-size: 0.88rem;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       cursor: pointer;
-      transition: background 0.2s, transform 0.15s;
+      transition: all 0.2s;
+      box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
     }
 
     .btn-copy-code:hover {
-      background: var(--primary-hover);
-      transform: scale(1.04);
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(220, 38, 38, 0.55);
     }
 
-    /* ── DELIVERY GPS SECTION ──────────────────────────────── */
+    /* ── CUSTOMER REVIEWS (SOCIAL PROOF) ────────────────────── */
+    .reviews-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .review-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 2rem;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 1.2rem;
+      transition: transform 0.25s ease, border-color 0.25s ease;
+    }
+
+    .review-card:hover {
+      transform: translateY(-5px);
+      border-color: rgba(220, 38, 38, 0.4);
+    }
+
+    .review-stars {
+      color: #F59E0B;
+      display: flex;
+      gap: 4px;
+      font-size: 1.1rem;
+    }
+
+    .review-text {
+      font-size: 0.96rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      font-style: italic;
+    }
+
+    .review-author {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-top: 1rem;
+      border-top: 1px solid var(--divider);
+    }
+
+    .review-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #DC2626, #F59E0B);
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .review-author-name {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .review-author-location {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    /* ── FAQ ACCORDION SECTION ──────────────────────────────── */
+    .faq-wrapper {
+      max-width: 850px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+
+    .faq-item {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: var(--card-shadow);
+      transition: border-color 0.25s ease;
+    }
+
+    .faq-item.active {
+      border-color: rgba(220, 38, 38, 0.45);
+    }
+
+    .faq-question {
+      padding: 1.3rem 1.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 1.05rem;
+      color: var(--text-main);
+      user-select: none;
+    }
+
+    .faq-icon {
+      transition: transform 0.3s ease;
+      color: #DC2626;
+      flex-shrink: 0;
+    }
+
+    .faq-item.active .faq-icon {
+      transform: rotate(180deg);
+    }
+
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s ease, padding 0.35s ease;
+      padding: 0 1.6rem;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.65;
+    }
+
+    .faq-item.active .faq-answer {
+      max-height: 200px;
+      padding: 0 1.6rem 1.4rem;
+    }
+
+    /* ── DELIVERY GPS DETAIL SECTION ───────────────────────── */
     .delivery-block {
       display: grid;
       grid-template-columns: 1.1fr 0.9fr;
-      gap: 4rem;
+      gap: 4.5rem;
       align-items: center;
     }
 
     .delivery-features-list {
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
-      margin: 2.2rem 0;
+      gap: 1.8rem;
+      margin: 2.5rem 0;
     }
 
     .delivery-feature-item {
       display: flex;
-      gap: 1rem;
+      gap: 1.2rem;
       align-items: flex-start;
     }
 
     .delivery-feature-icon {
-      width: 46px;
-      height: 46px;
-      border-radius: 14px;
-      background: rgba(220, 38, 38, 0.14);
-      border: 1px solid rgba(220, 38, 38, 0.25);
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      background: rgba(220, 38, 38, 0.16);
+      border: 1px solid rgba(220, 38, 38, 0.35);
       color: #EF4444;
       display: flex;
       align-items: center;
@@ -718,16 +1296,16 @@
     }
 
     .delivery-feature-text h4 {
-      font-size: 1.1rem;
+      font-size: 1.2rem;
       color: var(--text-main);
       margin-bottom: 4px;
-      font-weight: 700;
+      font-weight: 800;
     }
 
     .delivery-feature-text p {
-      font-size: 0.9rem;
+      font-size: 0.96rem;
       color: var(--text-muted);
-      line-height: 1.5;
+      line-height: 1.6;
     }
 
     .delivery-visual-box {
@@ -736,20 +1314,20 @@
     }
 
     .delivery-rider-img {
-      width: min(420px, 85vw);
-      filter: drop-shadow(0 20px 35px rgba(220, 38, 38, 0.35));
+      width: min(440px, 88vw);
+      filter: drop-shadow(0 25px 40px rgba(220, 38, 38, 0.35));
       animation: floatMascot 4s infinite ease-in-out;
     }
 
-    /* ── CTA DOWNLOAD BANNER ───────────────────────────────── */
+    /* ── DOWNLOAD CTA BANNER ───────────────────────────────── */
     .cta-banner {
       background: linear-gradient(135deg, rgba(220, 38, 38, 0.95) 0%, rgba(153, 27, 27, 0.98) 100%);
-      border-radius: 32px;
-      padding: 5rem 3rem;
+      border-radius: 36px;
+      padding: 5.5rem 3rem;
       text-align: center;
       position: relative;
       overflow: hidden;
-      box-shadow: 0 25px 60px rgba(220, 38, 38, 0.4);
+      box-shadow: 0 30px 70px rgba(220, 38, 38, 0.5);
       color: white;
     }
 
@@ -757,7 +1335,7 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.15), transparent 60%);
+      background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.2), transparent 60%);
       pointer-events: none;
     }
 
@@ -765,32 +1343,32 @@
       position: absolute;
       right: -20px;
       bottom: -30px;
-      width: 260px;
-      opacity: 0.25;
+      width: 280px;
+      opacity: 0.22;
       transform: rotate(-20deg);
       pointer-events: none;
-      filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
+      filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.5));
     }
 
     .cta-title {
-      font-size: clamp(2.5rem, 5vw, 4.2rem);
+      font-size: clamp(2.6rem, 5.2vw, 4.4rem);
       letter-spacing: 2px;
       margin-bottom: 1rem;
-      color: white;
-      text-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      color: #FFFFFF;
+      text-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
     }
 
     .cta-desc {
-      font-size: 1.15rem;
-      max-width: 620px;
-      margin: 0 auto 2.5rem;
-      color: rgba(255, 255, 255, 0.9);
-      line-height: 1.6;
+      font-size: 1.18rem;
+      max-width: 650px;
+      margin: 0 auto 2.8rem;
+      color: rgba(255, 255, 255, 0.95);
+      line-height: 1.65;
     }
 
     .cta-actions-group {
       display: flex;
-      gap: 1.2rem;
+      gap: 1.4rem;
       justify-content: center;
       flex-wrap: wrap;
       position: relative;
@@ -800,31 +1378,31 @@
     .btn-download-app {
       background: #FFFFFF;
       color: #B91C1C !important;
-      padding: 1rem 2.2rem;
-      border-radius: 18px;
+      padding: 1.1rem 2.4rem;
+      border-radius: 20px;
       font-weight: 900;
-      font-size: 1.1rem;
+      font-size: 1.12rem;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
       gap: 12px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
       transition: transform 0.25s, box-shadow 0.25s;
     }
 
     .btn-download-app:hover {
       transform: translateY(-3px) scale(1.03);
-      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.45);
+      box-shadow: 0 16px 45px rgba(0, 0, 0, 0.5);
     }
 
     .btn-admin-cta {
-      background: rgba(0, 0, 0, 0.35);
+      background: rgba(0, 0, 0, 0.4);
       color: white !important;
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      padding: 1rem 2rem;
-      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      padding: 1.1rem 2.2rem;
+      border-radius: 20px;
       font-weight: 700;
-      font-size: 1.1rem;
+      font-size: 1.12rem;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
@@ -834,48 +1412,149 @@
     }
 
     .btn-admin-cta:hover {
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.6);
       transform: translateY(-2px);
     }
 
-    /* ── FOOTER ─────────────────────────────────────────────── */
-    .site-footer {
-      border-top: 1px solid var(--divider);
-      background: var(--header-bg);
-      padding: 3rem 2rem 2rem;
-      text-align: center;
-      color: var(--text-muted);
+    /* ── FLOATING WHATSAPP BUTTON (PALPITANTE A LA DERECHA) ─── */
+    .floating-whatsapp-btn {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      left: auto;
+      background: #25D366;
+      color: #FFFFFF !important;
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px rgba(37, 211, 102, 0.45);
+      z-index: 998;
+      text-decoration: none;
+      animation: whatsappPulse 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
+      transition: transform 0.25s, box-shadow 0.25s;
     }
 
-    .footer-content {
+    @keyframes whatsappPulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.7), 0 8px 24px rgba(37, 211, 102, 0.4);
+        transform: scale(1);
+      }
+      50% {
+        box-shadow: 0 0 0 16px rgba(37, 211, 102, 0), 0 12px 30px rgba(37, 211, 102, 0.55);
+        transform: scale(1.06);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(37, 211, 102, 0), 0 8px 24px rgba(37, 211, 102, 0.4);
+        transform: scale(1);
+      }
+    }
+
+    .floating-whatsapp-btn:hover {
+      animation: none;
+      transform: scale(1.12) translateY(-3px);
+      box-shadow: 0 16px 36px rgba(37, 211, 102, 0.7);
+    }
+
+    /* ── FOOTER (ENRICHED BRANDING & PERFECT CONTRAST) ──────── */
+    .site-footer {
+      border-top: 1px solid rgba(220, 38, 38, 0.35);
+      background: #080302;
+      padding: 5rem 1.5rem 2.5rem;
+      color: #CBD5E1;
+    }
+
+    .footer-grid {
       max-width: 1400px;
       margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr 1fr;
+      gap: 3.5rem;
+      margin-bottom: 3.5rem;
+    }
+
+    .footer-brand-desc {
+      font-size: 0.95rem;
+      line-height: 1.7;
+      margin: 1rem 0 1.5rem;
+      color: #CBD5E1;
+      max-width: 320px;
+    }
+
+    .footer-heading {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #FFFFFF;
+      margin-bottom: 1.4rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      position: relative;
+      display: inline-block;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #DC2626;
+    }
+
+    .footer-links-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
       display: flex;
       flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .footer-links-list a {
+      color: #CBD5E1;
+      text-decoration: none;
+      font-size: 0.94rem;
+      font-weight: 500;
+      transition: color 0.2s, transform 0.2s;
+      display: inline-flex;
       align-items: center;
+      gap: 8px;
+    }
+
+    .footer-links-list a:hover {
+      color: #FF6B6B;
+      transform: translateX(5px);
+    }
+
+    .footer-bottom {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding-top: 2rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
       gap: 1rem;
+      font-size: 0.88rem;
+      color: #CBD5E1;
     }
 
     /* ── TOAST CONTAINER ────────────────────────────────────── */
     #toastMessage {
       position: fixed;
-      bottom: 24px;
-      right: 24px;
-      background: #18100C;
+      bottom: 28px;
+      right: 28px;
+      background: #180905;
       color: #FFFFFF;
-      border: 1px solid rgba(220, 38, 38, 0.5);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-      padding: 12px 20px;
-      border-radius: 14px;
+      border: 1px solid rgba(220, 38, 38, 0.6);
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
+      padding: 14px 22px;
+      border-radius: 16px;
       display: flex;
       align-items: center;
-      gap: 10px;
-      font-weight: 600;
-      font-size: 0.92rem;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 0.95rem;
       z-index: 9999;
-      transform: translateY(100px);
+      transform: translateY(120px);
       opacity: 0;
-      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s;
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s;
       pointer-events: none;
     }
 
@@ -884,37 +1563,415 @@
       opacity: 1;
     }
 
-    /* ── RESPONSIVE DESIGN ──────────────────────────────────── */
+    /* ── DISH POP-UP MODAL (110% RESPONSIVE GLASSMORPHISM) ──── */
+    .dish-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.78);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 99998;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.25rem;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+
+    .dish-modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .dish-modal-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 32px;
+      width: 100%;
+      max-width: 580px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(220, 38, 38, 0.25);
+      position: relative;
+      transform: scale(0.92) translateY(20px);
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      padding: 2.2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .dish-modal-overlay.active .dish-modal-card {
+      transform: scale(1) translateY(0);
+    }
+
+    .dish-modal-close {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: var(--text-main);
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      z-index: 10;
+    }
+
+    .dish-modal-close:hover {
+      background: #DC2626;
+      color: #FFFFFF;
+      transform: rotate(90deg) scale(1.1);
+    }
+
+    .dish-modal-img-wrap {
+      width: 100%;
+      height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+      position: relative;
+    }
+
+    .dish-modal-img {
+      max-width: 90%;
+      max-height: 200px;
+      object-fit: contain;
+      filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.5));
+      animation: floatDish 4s ease-in-out infinite;
+    }
+
+    @keyframes floatDish {
+
+      0%,
+      100% {
+        transform: translateY(0px) rotate(0deg);
+      }
+
+      50% {
+        transform: translateY(-8px) rotate(1.5deg);
+      }
+    }
+
+    .dish-modal-title {
+      font-size: 2.4rem;
+      letter-spacing: 1.5px;
+      color: var(--text-main);
+      margin-bottom: 0.5rem;
+      line-height: 1.05;
+    }
+
+    .dish-modal-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 1.2rem;
+    }
+
+    .dish-modal-badge-item {
+      padding: 4px 14px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dish-modal-desc {
+      font-size: 1.02rem;
+      color: var(--text-muted);
+      line-height: 1.65;
+      margin-bottom: 1.8rem;
+    }
+
+    .dish-modal-details-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      width: 100%;
+      margin-bottom: 2rem;
+    }
+
+    .dish-modal-detail-box {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 12px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .dish-modal-detail-label {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .dish-modal-detail-val {
+      font-size: 0.96rem;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .dish-modal-actions {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      flex-wrap: wrap;
+    }
+
+    /* ── BRAND CRAFTSMANSHIP SHOWCASE ───────────────────────── */
+    .craft-section {
+      background: transparent;
+      padding: 6rem 1.5rem;
+      border-top: 1px solid var(--divider);
+      border-bottom: 1px solid var(--divider);
+    }
+
+    .craft-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 2.2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .craft-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 26px;
+      padding: 2.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      box-shadow: var(--card-shadow);
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.3s ease, border-color 0.3s ease;
+    }
+
+    .craft-card:hover {
+      transform: translateY(-6px);
+      border-color: rgba(220, 38, 38, 0.45);
+    }
+
+    .craft-card-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 18px;
+      background: rgba(220, 38, 38, 0.15);
+      border: 1px solid rgba(220, 38, 38, 0.35);
+      color: #EF4444;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .craft-card-title {
+      font-size: 1.6rem;
+      letter-spacing: 1px;
+      color: var(--text-main);
+      margin: 0;
+    }
+
+    .craft-card-desc {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      line-height: 1.65;
+      margin: 0;
+    }
+
+    /* ── MOBILE STICKY BOTTOM DOCK ──────────────────────────── */
+    .mobile-bottom-dock {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: var(--header-bg);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-top: 1px solid var(--header-border);
+      z-index: 9990;
+      padding: 8px 12px;
+      justify-content: space-around;
+      align-items: center;
+      box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    .dock-tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.74rem;
+      font-weight: 700;
+      transition: color 0.2s;
+    }
+
+    .dock-tab.active,
+    .dock-tab:hover {
+      color: #EF4444;
+    }
+
+    .dock-tab .material-symbols-rounded {
+      font-size: 24px;
+    }
+
+    /* ── GOOGLE PREVIEW ACCORDION / PRESENCE ─────────────────── */
+    .google-preview-box {
+      background: #FFFFFF;
+      color: #202124;
+      border-radius: 18px;
+      padding: 1.5rem;
+      border: 1px solid #DADCE0;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+      max-width: 650px;
+      margin: 2rem auto 0;
+      text-align: left;
+    }
+
+    .google-preview-url {
+      font-size: 0.85rem;
+      color: #202124;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .google-preview-title {
+      font-size: 1.25rem;
+      color: #1A0DAB;
+      font-weight: 500;
+      line-height: 1.3;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+
+    .google-preview-title:hover {
+      text-decoration: underline;
+    }
+
+    .google-preview-snippet {
+      font-size: 0.92rem;
+      color: #4D5156;
+      line-height: 1.55;
+    }
+
+    /* ── RESPONSIVE MEDIA QUERIES ───────────────────────────── */
+    @media (max-width: 1100px) {
+      .footer-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 2.5rem;
+      }
+
+      .categories-scroll-wrapper {
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        padding-bottom: 6px;
+      }
+    }
+
     @media (max-width: 1024px) {
       .hero {
         grid-template-columns: 1fr;
         text-align: center;
         padding-top: 3rem;
-        gap: 3rem;
+        gap: 3.5rem;
       }
-      .hero-badge, .hero-desc, .hero-actions, .hero-stats {
+
+      .hero-badge,
+      .hero-desc,
+      .hero-search-box,
+      .hero-actions,
+      .hero-stats {
         margin-left: auto;
         margin-right: auto;
         justify-content: center;
       }
-      .float-chip-top { right: 5%; top: 5%; }
-      .float-chip-bottom-left { left: 5%; bottom: 5%; }
-      .float-chip-bottom-right { display: none; }
+
+      .float-chip-top {
+        right: 5%;
+        top: 5%;
+      }
+
+      .float-chip-bottom-left {
+        left: 5%;
+        bottom: 5%;
+      }
+
+      .float-chip-bottom-right {
+        display: none;
+      }
+
       .stepper-container {
         grid-template-columns: repeat(3, 1fr);
       }
-      .stepper-track { display: none; }
+
+      .stepper-track {
+        display: none;
+      }
+
       .delivery-block {
         grid-template-columns: 1fr;
         text-align: center;
       }
+
       .delivery-feature-item {
         flex-direction: column;
         align-items: center;
         text-align: center;
       }
+
       .promos-grid {
         grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 820px) {
+      .nav-desktop-links {
+        display: none;
+      }
+
+      .hamburger-btn {
+        display: inline-flex;
+      }
+
+      .categories-scroll-wrapper {
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding: 4px 1rem;
+      }
+
+      .mobile-bottom-dock {
+        display: flex;
+      }
+
+      body {
+        padding-bottom: 64px;
+      }
+
+      .floating-whatsapp-btn {
+        bottom: 80px;
       }
     }
 
@@ -923,53 +1980,131 @@
         grid-template-columns: 1fr;
         gap: 2rem;
       }
+
       .hero-actions {
         flex-direction: column;
         width: 100%;
       }
-      .btn-hero-primary, .btn-hero-secondary {
+
+      .btn-hero-primary,
+      .btn-hero-secondary {
         width: 100%;
         justify-content: center;
       }
+
       .menu-grid {
         grid-template-columns: 1fr;
       }
+
       .cta-banner {
-        padding: 3rem 1.5rem;
+        padding: 3.5rem 1.5rem;
+      }
+
+      .footer-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .footer-bottom {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .dish-modal-card {
+        padding: 1.5rem 1.2rem;
+      }
+
+      .dish-modal-details-grid {
+        grid-template-columns: 1fr;
       }
     }
   </style>
 </head>
+
 <body>
 
-  <!-- Top Navigation Bar -->
+
+
+  <!-- ── TOP NAVIGATION BAR ────────────────────────────────── -->
   <header>
     <div class="navbar">
-      <a href="index.html" class="logo-container">
-        <img src="../recursos/materiales/chileboton.png" alt="La Diabla"
-             style="width:44px; height:44px; border-radius:50%; object-fit:contain; box-shadow: 0 4px 14px rgba(220,38,38,0.5); flex-shrink:0;">
-        <span class="logo-text diabla-font">LA DIABLA</span>
+      <a href="index.html" class="brand-logo-link">
+        <img src="assets/logo/LaDiabla.png" alt="La Diabla" class="brand-logo-img"
+          onerror="this.src='logo/LaDiabla.png';">
+        <span class="brand-logo-title diabla-font">LA DIABLA</span>
       </a>
 
-      <!-- Desktop Links -->
-      <div style="display: flex; align-items: center; gap: 1.2rem;">
-        <a href="#menu" class="btn-secondary" style="padding: 7px 14px; font-size: 0.88rem; text-decoration:none;">
+      <!-- Desktop Navigation Links (Harmonious & High Contrast) -->
+      <nav class="nav-desktop-links" aria-label="Navegación principal">
+        <a href="#menu" class="nav-link-btn active">
           <span class="material-symbols-rounded md-20">restaurant_menu</span>
           <span>Menú</span>
         </a>
-        <a href="#rastreo" class="btn-secondary" style="padding: 7px 14px; font-size: 0.88rem; text-decoration:none;">
+        <a href="#rastreo" class="nav-link-btn">
           <span class="material-symbols-rounded md-20">near_me</span>
           <span>Rastreo GPS</span>
         </a>
-        <a href="#cupones" class="btn-secondary" style="padding: 7px 14px; font-size: 0.88rem; text-decoration:none;">
+        <a href="#cupones" class="nav-link-btn">
           <span class="material-symbols-rounded md-20">local_activity</span>
           <span>Cupones</span>
         </a>
-        <button onclick="toggleWebTheme()" id="themeToggleBtn" class="btn-icon-text" title="Cambiar Tema">
+        <a href="#testimonios" class="nav-link-btn">
+          <span class="material-symbols-rounded md-20">reviews</span>
+          <span>Reseñas</span>
+        </a>
+        <a href="#faq" class="nav-link-btn">
+          <span class="material-symbols-rounded md-20">help</span>
+          <span>FAQ</span>
+        </a>
+        <button onclick="toggleWebTheme()" id="themeToggleBtn" class="btn-icon-text"
+          style="color:#FFFFFF; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.25); padding:8px 16px; border-radius:12px; cursor:pointer;"
+          title="Cambiar Tema">
           <span class="material-symbols-rounded md-20" id="themeIcon">light_mode</span>
           <span id="themeLabel">Claro</span>
         </button>
-        <a href="login.html" class="btn-primary" style="padding: 7px 16px; font-size: 0.88rem; text-decoration:none;">
+        <a href="login/index.html" class="btn-primary"
+          style="padding: 9px 20px; font-size: 0.92rem; text-decoration:none; border-radius:14px; font-weight:800; color:#FFFFFF;">
+          <span class="material-symbols-rounded md-20">admin_panel_settings</span>
+          <span>Admin</span>
+        </a>
+      </nav>
+
+      <!-- Mobile Hamburger Button -->
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button class="hamburger-btn" onclick="toggleMobileMenu()" aria-label="Abrir menú" id="mobileMenuBtn">
+          <span class="material-symbols-rounded md-28" id="hamburgerIcon">menu</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Navigation Drawer -->
+    <div class="mobile-drawer" id="mobileDrawer">
+      <a href="#menu" class="nav-link-btn" onclick="closeMobileMenu()">
+        <span class="material-symbols-rounded md-20">restaurant_menu</span>
+        <span>Menú de Platillos</span>
+      </a>
+      <a href="#rastreo" class="nav-link-btn" onclick="closeMobileMenu()">
+        <span class="material-symbols-rounded md-20">near_me</span>
+        <span>Rastreo GPS en Vivo</span>
+      </a>
+      <a href="#cupones" class="nav-link-btn" onclick="closeMobileMenu()">
+        <span class="material-symbols-rounded md-20">local_activity</span>
+        <span>Cupones &amp; Descuentos</span>
+      </a>
+      <a href="#testimonios" class="nav-link-btn" onclick="closeMobileMenu()">
+        <span class="material-symbols-rounded md-20">reviews</span>
+        <span>Reseñas de Clientes</span>
+      </a>
+      <a href="#faq" class="nav-link-btn" onclick="closeMobileMenu()">
+        <span class="material-symbols-rounded md-20">help</span>
+        <span>Preguntas Frecuentes</span>
+      </a>
+      <div style="display:flex; gap:10px; margin-top:0.5rem;">
+        <button onclick="toggleWebTheme()" class="nav-link-btn" style="flex:1; justify-content:center;">
+          <span class="material-symbols-rounded md-20">contrast</span>
+          <span>Cambiar Tema</span>
+        </button>
+        <a href="login.html" class="btn-primary"
+          style="flex:1; justify-content:center; padding:12px; font-size:0.95rem; text-decoration:none; border-radius:12px; display:inline-flex; align-items:center; gap:8px; color:#FFFFFF;">
           <span class="material-symbols-rounded md-20">admin_panel_settings</span>
           <span>Admin</span>
         </a>
@@ -984,7 +2119,8 @@
       <section class="hero">
         <div class="hero-content">
           <div class="hero-badge">
-            <img src="../recursos/icons/llamadefuego.png" alt="Fuego" class="flame-icon">
+            <img src="assets/recursos/icons/llamadefuego.png" alt="Fuego" class="flame-icon"
+              onerror="this.style.display='none';">
             <span>¡Sabor 100% Mexicano en Bucaramanga &amp; Mutis!</span>
           </div>
 
@@ -994,8 +2130,20 @@
           </h1>
 
           <p class="hero-desc">
-            Disfruta de nuestros legendarios tacos al pastor con piña asada, burritos diabólicos gigantes, quesadillas fundidas y birria con consomé. Rastreo satelital en vivo hasta tu mesa.
+            Disfruta de nuestros legendarios tacos al pastor con piña asada, burritos diabólicos gigantes, quesadillas
+            fundidas y birria con consomé. Rastreo satelital en vivo hasta tu mesa.
           </p>
+
+          <!-- Rappi-style Search Bar -->
+          <div class="hero-search-box">
+            <span class="material-symbols-rounded md-22" style="color:#EF4444;">search</span>
+            <input type="text" id="foodSearchInput" class="hero-search-input"
+              placeholder="¿Qué se te antoja hoy? Ej: Tacos, Burritos, Quesadillas..."
+              oninput="filterMenuBySearch(this.value)">
+            <button class="hero-search-btn" onclick="scrollToMenu()">
+              <span>Explorar</span>
+            </button>
+          </div>
 
           <div class="hero-actions">
             <a href="app-release.apk" download="LaDiabla-App.apk" class="btn-hero-primary">
@@ -1004,11 +2152,7 @@
             </a>
             <a href="#menu" class="btn-hero-secondary">
               <span class="material-symbols-rounded md-24">restaurant_menu</span>
-              <span>Ver Menú</span>
-            </a>
-            <a href="login.html" class="btn-hero-secondary">
-              <span class="material-symbols-rounded md-24">shield_person</span>
-              <span>Panel Admin</span>
+              <span>Ver Menú Completo</span>
             </a>
           </div>
 
@@ -1022,15 +2166,17 @@
             </div>
 
             <div class="stat-pill">
-              <span class="material-symbols-rounded md-28" style="color:#F59E0B; background:rgba(245,158,11,0.15);">hotel_class</span>
+              <span class="material-symbols-rounded md-28"
+                style="color:#F59E0B; background:rgba(245,158,11,0.18);">hotel_class</span>
               <div>
                 <div class="stat-pill-num">4.9 ★</div>
-                <div class="stat-pill-label">Calificación de Clientes</div>
+                <div class="stat-pill-label">Calificación Clientes</div>
               </div>
             </div>
 
             <div class="stat-pill">
-              <span class="material-symbols-rounded md-28" style="color:#10B981; background:rgba(16,185,129,0.15);">timer</span>
+              <span class="material-symbols-rounded md-28"
+                style="color:#10B981; background:rgba(16,185,129,0.18);">timer</span>
               <div>
                 <div class="stat-pill-num">~25 min</div>
                 <div class="stat-pill-label">Tiempo Promedio</div>
@@ -1042,11 +2188,12 @@
         <!-- Hero Visual / Floating Mascot -->
         <div class="hero-visual-wrapper">
           <div class="hero-flare"></div>
-          <img src="../recursos/materiales/deliverylogo.png" alt="La Diabla Mascota" class="hero-mascot-img">
+          <img src="assets/recursos/materiales/deliverylogo.png" alt="La Diabla Mascota" class="hero-mascot-img"
+            onerror="this.src='assets/logo/LaDiabla.png';">
 
           <!-- Floating Badge 1: Rating -->
           <div class="float-chip float-chip-top">
-            <div class="chip-icon-box" style="background: rgba(245, 158, 11, 0.15); color: #F59E0B;">
+            <div class="chip-icon-box" style="background: rgba(245, 158, 11, 0.18); color: #D97706;">
               <span class="material-symbols-rounded md-24">star</span>
             </div>
             <div>
@@ -1057,7 +2204,7 @@
 
           <!-- Floating Badge 2: Delivery Speed -->
           <div class="float-chip float-chip-bottom-left">
-            <div class="chip-icon-box" style="background: rgba(16, 185, 129, 0.15); color: #10B981;">
+            <div class="chip-icon-box" style="background: rgba(16, 185, 129, 0.18); color: #10B981;">
               <span class="material-symbols-rounded md-24">two_wheeler</span>
             </div>
             <div>
@@ -1068,7 +2215,7 @@
 
           <!-- Floating Badge 3: Hot & Fresh -->
           <div class="float-chip float-chip-bottom-right">
-            <div class="chip-icon-box" style="background: rgba(220, 38, 38, 0.15); color: #EF4444;">
+            <div class="chip-icon-box" style="background: rgba(220, 38, 38, 0.18); color: #EF4444;">
               <span class="material-symbols-rounded md-24">local_fire_department</span>
             </div>
             <div>
@@ -1089,141 +2236,276 @@
         </div>
         <h2 class="diabla-font section-title">EL MENÚ MÁS DIABÓLICO 🌶️</h2>
         <p class="section-subtitle">
-          Preparado al instante con ingredientes frescos, salsas tradicionales mexicanas y recetas caseras que te harán sudar de sabor.
+          Preparado al instante con ingredientes frescos, salsas tradicionales mexicanas y recetas caseras que te harán
+          sudar de sabor.
         </p>
       </div>
 
-      <div class="menu-grid">
+      <div class="menu-grid" id="menuItemsGrid">
 
         <!-- Card 1: Tacos -->
-        <div class="menu-card">
-          <span class="menu-badge">Más Pedido</span>
+        <div class="menu-card" data-category="tacos" data-keywords="tacos pastor birria carne limon cebolla cilantro"
+          onclick="openDishModal('tacos')">
           <div class="menu-img-wrap">
-            <img src="../recursos/materiales/taco.png" alt="Tacos al Pastor" class="menu-img">
+            <img src="https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=700&auto=format&fit=crop&q=80" alt="Tacos al Pastor & Birria" class="menu-img"
+              onerror="this.src='assets/logo/LaDiabla.png';">
+            <span class="menu-badge">⭐ Más Pedido</span>
           </div>
-          <h3 class="diabla-font menu-name">Tacos al Pastor &amp; Birria</h3>
-          <p class="menu-desc">
-            Carne marinada al pastor con piña asada, cilantro, cebolla y tacos de birria con consomé caliente para sopear.
-          </p>
-          <div class="menu-card-footer">
-            <div class="menu-price">
-              <div class="menu-price-label">Desde</div>
-              <div class="menu-price-val">$18.900</div>
+          <div class="menu-card-content">
+            <h3 class="diabla-font menu-name">Tacos al Pastor &amp; Birria</h3>
+            <p class="menu-desc">
+              Carne marinada al pastor con piña asada, cilantro, cebolla y tacos de birria con consomé caliente para sopear.
+            </p>
+            <div class="menu-card-footer">
+              <div class="menu-price">
+                <div class="menu-price-label">Desde</div>
+                <div class="menu-price-val">$18.900</div>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button type="button" class="btn-hero-secondary"
+                  style="padding:8px 12px; border-radius:12px; font-size:0.85rem;"
+                  onclick="event.stopPropagation(); openDishModal('tacos');" title="Ver detalles del platillo">
+                  <span class="material-symbols-rounded md-18">visibility</span>
+                </button>
+                <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20pedir%20Tacos%20al%20Pastor%20y%20Birria!" target="_blank" rel="noopener" class="btn-order-card"
+                  onclick="event.stopPropagation();">
+                  <span class="material-symbols-rounded md-18">shopping_bag</span>
+                  <span>Pedir</span>
+                </a>
+              </div>
             </div>
-            <a href="../build/app/outputs/flutter-apk/app-release.apk" class="btn-order-card" onclick="showAppPrompt('Tacos')">
-              <span class="material-symbols-rounded md-18">shopping_bag</span>
-              <span>Pedir en App</span>
-            </a>
           </div>
         </div>
 
         <!-- Card 2: Burritos -->
-        <div class="menu-card">
-          <span class="menu-badge" style="color: #EF4444; border-color: rgba(239, 68, 68, 0.35); background: rgba(239,68,68,0.12);">Gigante</span>
+        <div class="menu-card" data-category="burritos"
+          data-keywords="burrito burritos frijol arroz carne guacamole queso gigante"
+          onclick="openDishModal('burritos')">
           <div class="menu-img-wrap">
-            <img src="../recursos/materiales/burrito.png" alt="Burritos Diabólicos" class="menu-img">
+            <img src="https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=700&auto=format&fit=crop&q=80" alt="Burritos Diabólicos" class="menu-img"
+              onerror="this.src='assets/logo/LaDiabla.png';">
+            <span class="menu-badge" style="color: #EF4444; border-color: rgba(239, 68, 68, 0.4); background: rgba(239,68,68,0.16);">🔥 Gigante</span>
           </div>
-          <h3 class="diabla-font menu-name">Burritos Diabólicos</h3>
-          <p class="menu-desc">
-            Tortilla de trigo gigante rellena de frijol refrito, arroz sazonado, carne asada, guacamole y abundante queso fundido.
-          </p>
-          <div class="menu-card-footer">
-            <div class="menu-price">
-              <div class="menu-price-label">Desde</div>
-              <div class="menu-price-val">$24.500</div>
+          <div class="menu-card-content">
+            <h3 class="diabla-font menu-name">Burritos Diabólicos</h3>
+            <p class="menu-desc">
+              Tortilla de trigo gigante rellena de frijol refrito, arroz sazonado, carne asada, guacamole y abundante queso fundido.
+            </p>
+            <div class="menu-card-footer">
+              <div class="menu-price">
+                <div class="menu-price-label">Desde</div>
+                <div class="menu-price-val">$24.500</div>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button type="button" class="btn-hero-secondary"
+                  style="padding:8px 12px; border-radius:12px; font-size:0.85rem;"
+                  onclick="event.stopPropagation(); openDishModal('burritos');" title="Ver detalles del platillo">
+                  <span class="material-symbols-rounded md-18">visibility</span>
+                </button>
+                <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20pedir%20Burritos%20Diabólicos!" target="_blank" rel="noopener" class="btn-order-card"
+                  onclick="event.stopPropagation();">
+                  <span class="material-symbols-rounded md-18">shopping_bag</span>
+                  <span>Pedir</span>
+                </a>
+              </div>
             </div>
-            <a href="../build/app/outputs/flutter-apk/app-release.apk" class="btn-order-card" onclick="showAppPrompt('Burritos')">
-              <span class="material-symbols-rounded md-18">shopping_bag</span>
-              <span>Pedir en App</span>
-            </a>
           </div>
         </div>
 
         <!-- Card 3: Quesadillas -->
-        <div class="menu-card">
+        <div class="menu-card" data-category="quesadillas"
+          data-keywords="quesadilla quesadillas queso oaxaca champiñon pollo crema fundida"
+          onclick="openDishModal('quesadillas')">
           <div class="menu-img-wrap">
-            <img src="../recursos/materiales/quesadilla.png" alt="Quesadillas Fundidas" class="menu-img">
+            <img src="https://images.unsplash.com/photo-1618040996337-56904b7850b9?w=700&auto=format&fit=crop&q=80" alt="Quesadillas Fundidas" class="menu-img"
+              onerror="this.src='assets/logo/LaDiabla.png';">
+            <span class="menu-badge" style="color: #10B981; border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.16);">🧀 Extra Queso</span>
           </div>
-          <h3 class="diabla-font menu-name">Quesadillas Fundidas</h3>
-          <p class="menu-desc">
-            Generosa porción de doble queso Oaxaca derretido, champiñones, birria desmechada o pollo al pastor con crema agria.
-          </p>
-          <div class="menu-card-footer">
-            <div class="menu-price">
-              <div class="menu-price-label">Desde</div>
-              <div class="menu-price-val">$19.900</div>
+          <div class="menu-card-content">
+            <h3 class="diabla-font menu-name">Quesadillas Fundidas</h3>
+            <p class="menu-desc">
+              Generosa porción de doble queso Oaxaca derretido, champiñones, birria desmechada o pollo al pastor con crema agria.
+            </p>
+            <div class="menu-card-footer">
+              <div class="menu-price">
+                <div class="menu-price-label">Desde</div>
+                <div class="menu-price-val">$19.900</div>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button type="button" class="btn-hero-secondary"
+                  style="padding:8px 12px; border-radius:12px; font-size:0.85rem;"
+                  onclick="event.stopPropagation(); openDishModal('quesadillas');" title="Ver detalles del platillo">
+                  <span class="material-symbols-rounded md-18">visibility</span>
+                </button>
+                <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20pedir%20Quesadillas%20Fundidas!" target="_blank" rel="noopener" class="btn-order-card"
+                  onclick="event.stopPropagation();">
+                  <span class="material-symbols-rounded md-18">shopping_bag</span>
+                  <span>Pedir</span>
+                </a>
+              </div>
             </div>
-            <a href="../build/app/outputs/flutter-apk/app-release.apk" class="btn-order-card" onclick="showAppPrompt('Quesadillas')">
-              <span class="material-symbols-rounded md-18">shopping_bag</span>
-              <span>Pedir en App</span>
-            </a>
           </div>
         </div>
 
         <!-- Card 4: Especiales -->
-        <div class="menu-card">
-          <span class="menu-badge" style="color: #A855F7; border-color: rgba(168,85,247,0.35); background: rgba(168,85,247,0.12);">Para Compartir</span>
+        <div class="menu-card" data-category="especiales"
+          data-keywords="especiales parrillada volcanes gringas combos amigos familia"
+          onclick="openDishModal('especiales')">
           <div class="menu-img-wrap">
-            <img src="../recursos/materiales/especiales.png" alt="Especiales de la Diabla" class="menu-img">
+            <img src="https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=700&auto=format&fit=crop&q=80" alt="Especiales de la Diabla" class="menu-img"
+              onerror="this.src='assets/logo/LaDiabla.png';">
+            <span class="menu-badge" style="color: #9333EA; border-color: rgba(147,51,234,0.4); background: rgba(147,51,234,0.16);">👑 Para Compartir</span>
           </div>
-          <h3 class="diabla-font menu-name">Especiales de la Diabla</h3>
-          <p class="menu-desc">
-            Parrilladas mixtas, volcanes crujientes de queso, gringas de pastor y combos diabólicos para reuniones familiares.
-          </p>
-          <div class="menu-card-footer">
-            <div class="menu-price">
-              <div class="menu-price-label">Desde</div>
-              <div class="menu-price-val">$32.000</div>
+          <div class="menu-card-content">
+            <h3 class="diabla-font menu-name">Especiales de la Diabla</h3>
+            <p class="menu-desc">
+              Parrilladas mixtas, volcanes crujientes de queso, gringas de pastor y combos diabólicos para reuniones familiares.
+            </p>
+            <div class="menu-card-footer">
+              <div class="menu-price">
+                <div class="menu-price-label">Desde</div>
+                <div class="menu-price-val">$32.000</div>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button type="button" class="btn-hero-secondary"
+                  style="padding:8px 12px; border-radius:12px; font-size:0.85rem;"
+                  onclick="event.stopPropagation(); openDishModal('especiales');" title="Ver detalles del platillo">
+                  <span class="material-symbols-rounded md-18">visibility</span>
+                </button>
+                <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20pedir%20Especiales%20de%20la%20Diabla!" target="_blank" rel="noopener" class="btn-order-card"
+                  onclick="event.stopPropagation();">
+                  <span class="material-symbols-rounded md-18">shopping_bag</span>
+                  <span>Pedir</span>
+                </a>
+              </div>
             </div>
-            <a href="../build/app/outputs/flutter-apk/app-release.apk" class="btn-order-card" onclick="showAppPrompt('Especiales')">
-              <span class="material-symbols-rounded md-18">shopping_bag</span>
-              <span>Pedir en App</span>
-            </a>
           </div>
         </div>
 
-        <!-- Card 5: Antojos & Nachos -->
-        <div class="menu-card">
+        <!-- Card 5: Antojos & Totopos -->
+        <div class="menu-card" data-category="antojos"
+          data-keywords="antojos nachos totopos cheddar jalapeño pico de gallo salsa brava"
+          onclick="openDishModal('antojos')">
           <div class="menu-img-wrap">
-            <img src="../recursos/materiales/antojoextra.png" alt="Antojos y Nachos" class="menu-img">
+            <img src="https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?w=700&auto=format&fit=crop&q=80" alt="Antojos &amp; Totopos con Cheddar" class="menu-img"
+              onerror="this.src='assets/logo/LaDiabla.png';">
+            <span class="menu-badge" style="color: #D97706; border-color: rgba(217,119,6,0.4); background: rgba(217,119,6,0.16);">🍟 Crujientes</span>
           </div>
-          <h3 class="diabla-font menu-name">Antojos &amp; Totopos</h3>
-          <p class="menu-desc">
-            Nachos crocantes bañados en queso cheddar artesanal, jalapeños en escabeche, pico de gallo y salsa brava diabólica.
-          </p>
-          <div class="menu-card-footer">
-            <div class="menu-price">
-              <div class="menu-price-label">Desde</div>
-              <div class="menu-price-val">$14.500</div>
+          <div class="menu-card-content">
+            <h3 class="diabla-font menu-name">Antojos &amp; Totopos</h3>
+            <p class="menu-desc">
+              Nachos crocantes bañados en queso cheddar artesanal, jalapeños en escabeche, pico de gallo y salsa brava diabólica.
+            </p>
+            <div class="menu-card-footer">
+              <div class="menu-price">
+                <div class="menu-price-label">Desde</div>
+                <div class="menu-price-val">$14.500</div>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button type="button" class="btn-hero-secondary"
+                  style="padding:8px 12px; border-radius:12px; font-size:0.85rem;"
+                  onclick="event.stopPropagation(); openDishModal('antojos');" title="Ver detalles del platillo">
+                  <span class="material-symbols-rounded md-18">visibility</span>
+                </button>
+                <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20pedir%20Antojos%20y%20Totopos!" target="_blank" rel="noopener" class="btn-order-card"
+                  onclick="event.stopPropagation();">
+                  <span class="material-symbols-rounded md-18">shopping_bag</span>
+                  <span>Pedir</span>
+                </a>
+              </div>
             </div>
-            <a href="../build/app/outputs/flutter-apk/app-release.apk" class="btn-order-card" onclick="showAppPrompt('Antojos')">
-              <span class="material-symbols-rounded md-18">shopping_bag</span>
-              <span>Pedir en App</span>
-            </a>
           </div>
         </div>
 
         <!-- Card 6: Bebidas -->
-        <div class="menu-card">
+        <div class="menu-card" data-category="bebidas"
+          data-keywords="bebidas jarritos horchata jamaica refresco agua canela mandarina tamarindo"
+          onclick="openDishModal('bebidas')">
           <div class="menu-img-wrap">
-            <img src="../recursos/materiales/bebidas.png" alt="Bebidas Mexicanas" class="menu-img">
+            <img src="https://images.unsplash.com/photo-1556881286-fc6915169721?w=700&auto=format&fit=crop&q=80" alt="Bebidas Mexicanas &amp; Jarritos" class="menu-img"
+              onerror="this.src='assets/logo/LaDiabla.png';">
+            <span class="menu-badge" style="color: #0284C7; border-color: rgba(2,132,199,0.4); background: rgba(2,132,199,0.16);">❄️ Heladas</span>
           </div>
-          <h3 class="diabla-font menu-name">Bebidas &amp; Jarritos</h3>
-          <p class="menu-desc">
-            Agua fresca tradicional de Horchata con canela, Flor de Jamaica helada, Jarritos de mandarina y tamarindo mexicano.
-          </p>
-          <div class="menu-card-footer">
-            <div class="menu-price">
-              <div class="menu-price-label">Desde</div>
-              <div class="menu-price-val">$6.000</div>
+          <div class="menu-card-content">
+            <h3 class="diabla-font menu-name">Bebidas &amp; Jarritos</h3>
+            <p class="menu-desc">
+              Agua fresca tradicional de Horchata con canela, Flor de Jamaica helada, Jarritos de mandarina y tamarindo mexicano.
+            </p>
+            <div class="menu-card-footer">
+              <div class="menu-price">
+                <div class="menu-price-label">Desde</div>
+                <div class="menu-price-val">$6.000</div>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button type="button" class="btn-hero-secondary"
+                  style="padding:8px 12px; border-radius:12px; font-size:0.85rem;"
+                  onclick="event.stopPropagation(); openDishModal('bebidas');" title="Ver detalles del platillo">
+                  <span class="material-symbols-rounded md-18">visibility</span>
+                </button>
+                <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20pedir%20Bebidas%20y%20Aguas%20Frescas!" target="_blank" rel="noopener" class="btn-order-card"
+                  onclick="event.stopPropagation();">
+                  <span class="material-symbols-rounded md-18">shopping_bag</span>
+                  <span>Pedir</span>
+                </a>
+              </div>
             </div>
-            <a href="../build/app/outputs/flutter-apk/app-release.apk" class="btn-order-card" onclick="showAppPrompt('Bebidas')">
-              <span class="material-symbols-rounded md-18">shopping_bag</span>
-              <span>Pedir en App</span>
-            </a>
           </div>
         </div>
 
+      </div>
+    </section>
+
+    <!-- ── 2.5 BRAND CRAFTSMANSHIP & CULINARY QUALITY ────────── -->
+    <section class="craft-section">
+      <div class="section-container" style="padding: 0;">
+        <div class="section-header-center">
+          <div class="section-tag">
+            <span class="material-symbols-rounded md-18">local_fire_department</span>
+            <span>Tradición &amp; Sabor Diabólico</span>
+          </div>
+          <h2 class="diabla-font section-title">EL ARTE DE NUESTRA COCINA MEXICANA</h2>
+          <p class="section-subtitle">
+            No usamos conservantes ni comida procesada. Cada receta se prepara diariamente con fuego vivo y sazón
+            auténtico de la abuela mexicana.
+          </p>
+        </div>
+
+        <div class="craft-grid">
+          <div class="craft-card">
+            <div class="craft-card-icon">
+              <span class="material-symbols-rounded md-28">grain</span>
+            </div>
+            <h3 class="diabla-font craft-card-title">100% Maíz Nixtamalizado</h3>
+            <p class="craft-card-desc">
+              Tortillas artesanales con la elasticidad, textura y aroma tradicional que solo el verdadero maíz criollo
+              cocinado en piedra puede brindar.
+            </p>
+          </div>
+
+          <div class="craft-card">
+            <div class="craft-card-icon"
+              style="background:rgba(245,158,11,0.15); border-color:rgba(245,158,11,0.35); color:#F59E0B;">
+              <span class="material-symbols-rounded md-28">outdoor_grill</span>
+            </div>
+            <h3 class="diabla-font craft-card-title">Pastor al Trompo &amp; Fuego</h3>
+            <p class="craft-card-desc">
+              Carne marinada por 24 horas en achiote y especias ancestrales, asada lentamente con piña caramelizada al
+              carbón vivo.
+            </p>
+          </div>
+
+          <div class="craft-card">
+            <div class="craft-card-icon"
+              style="background:rgba(16,185,129,0.15); border-color:rgba(16,185,129,0.35); color:#10B981;">
+              <span class="material-symbols-rounded md-28">soup_kitchen</span>
+            </div>
+            <h3 class="diabla-font craft-card-title">Birria en Olla de Barro</h3>
+            <p class="craft-card-desc">
+              Cocción lenta de 8 horas con chiles secos guajillo y ancho, produciendo una carne ultra tierna y un
+              consomé repleto de colágeno y sabor.
+            </p>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -1237,7 +2519,8 @@
           </div>
           <h2 class="diabla-font section-title">SIGUE TU PEDIDO EN VIVO</h2>
           <p class="section-subtitle">
-            Desde el momento en que confirmas tu orden hasta que el repartidor timbra en tu puerta. ¡Transparencia total sin sorpresas!
+            Desde el momento en que confirmas tu orden hasta que el repartidor timbra en tu puerta. ¡Transparencia total
+            sin sorpresas!
           </p>
         </div>
 
@@ -1250,7 +2533,8 @@
           <!-- Step 1: Recibido -->
           <div class="step-item active">
             <div class="step-icon-bubble">
-              <img src="../recursos/icons/recibido.png" alt="Recibido" class="step-img">
+              <img src="assets/recursos/icons/recibido.png" alt="Recibido" class="step-img"
+                onerror="this.src='assets/logo/LaDiabla.png';">
             </div>
             <div class="step-title">1. Recibido</div>
             <div class="step-desc">Tu orden ingresa a nuestro sistema en línea</div>
@@ -1259,30 +2543,33 @@
           <!-- Step 2: Confirmado -->
           <div class="step-item active">
             <div class="step-icon-bubble">
-              <img src="../recursos/icons/confirmado.png" alt="Confirmado" class="step-img">
+              <img src="assets/recursos/icons/confirmado.png" alt="Confirmado" class="step-img"
+                onerror="this.src='assets/logo/LaDiabla.png';">
             </div>
             <div class="step-title">2. Confirmado</div>
-            <div class="step-desc">Cocina valida los ingredientes y tu método de pago</div>
+            <div class="step-desc">Cocina valida los ingredientes y el método de pago</div>
           </div>
 
           <!-- Step 3: Preparando -->
           <div class="step-item active">
             <div class="step-icon-bubble">
-              <img src="../recursos/icons/preparando.png" alt="En Cocina" class="step-img">
+              <img src="assets/recursos/icons/preparando.png" alt="En Cocina" class="step-img"
+                onerror="this.src='assets/logo/LaDiabla.png';">
             </div>
             <div class="step-title">3. En Cocina</div>
             <div class="step-desc">Los taqueros arman tus platillos al fuego</div>
           </div>
 
           <!-- Step 4: En Camino (Live Pulse) -->
-          <div class="step-item active">
-            <div class="step-icon-bubble" style="border-color: #F59E0B; box-shadow: 0 0 25px rgba(245,158,11,0.6);">
-              <img src="../recursos/icons/encamino.png" alt="En Camino" class="step-img">
+          <div class="step-item active live-step">
+            <div class="step-icon-bubble">
+              <img src="assets/recursos/icons/encamino.png" alt="En Camino" class="step-img"
+                onerror="this.src='assets/logo/LaDiabla.png';">
             </div>
-            <div class="step-title" style="color: #F59E0B;">4. En Camino</div>
+            <div class="step-title" style="color: #D97706;">4. En Camino</div>
             <div class="step-desc">Repartidor con ruta satelital optimizada</div>
             <span class="step-live-pill">
-              <span class="material-symbols-rounded md-16" style="color:#F59E0B;">radar</span>
+              <span class="material-symbols-rounded md-16" style="color:#D97706;">radar</span>
               GPS Activo
             </span>
           </div>
@@ -1290,7 +2577,8 @@
           <!-- Step 5: Entregado -->
           <div class="step-item">
             <div class="step-icon-bubble">
-              <img src="../recursos/icons/entregado.png" alt="Entregado" class="step-img">
+              <img src="assets/recursos/icons/entregado.png" alt="Entregado" class="step-img"
+                onerror="this.src='assets/logo/LaDiabla.png';">
             </div>
             <div class="step-title">5. ¡Entregado!</div>
             <div class="step-desc">Tacos calientes listos para disfrutar</div>
@@ -1323,12 +2611,14 @@
             </span>
             <h3 class="diabla-font promo-title">ENVÍO GRATIS EN BUCARAMANGA</h3>
             <p class="promo-desc">
-              Aplica para cualquier pedido nuevo en la aplicación sin mínimo de compra. ¡Nosotros cubrimos la entrega hasta tu puerta!
+              Aplica para cualquier pedido nuevo en la aplicación sin mínimo de compra. ¡Nosotros cubrimos la entrega
+              hasta tu puerta!
             </p>
           </div>
           <div class="coupon-box">
             <div>
-              <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Código de Cupón</div>
+              <div style="font-size: 0.76rem; color: var(--text-dim); font-weight: 700; text-transform: uppercase;">
+                Código de Cupón</div>
               <div class="coupon-code">ENVIOGRATIIS</div>
             </div>
             <button class="btn-copy-code" onclick="copyCoupon('ENVIOGRATIIS')">
@@ -1341,7 +2631,8 @@
         <!-- Coupon 2 -->
         <div class="promo-card">
           <div>
-            <span class="promo-badge" style="color: #10B981; border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.12);">
+            <span class="promo-badge"
+              style="color: #10B981; border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.16);">
               <span class="material-symbols-rounded md-18">percent</span>
               <span>Combo Familiar</span>
             </span>
@@ -1352,7 +2643,8 @@
           </div>
           <div class="coupon-box">
             <div>
-              <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Código de Cupón</div>
+              <div style="font-size: 0.76rem; color: var(--text-dim); font-weight: 700; text-transform: uppercase;">
+                Código de Cupón</div>
               <div class="coupon-code">DIABLO20</div>
             </div>
             <button class="btn-copy-code" onclick="copyCoupon('DIABLO20')">
@@ -1365,8 +2657,129 @@
       </div>
     </section>
 
-    <!-- ── 5. DELIVERY GPS DETAIL SECTION ──────────────────── -->
-    <section class="section-container" style="padding-top: 2rem;">
+    <!-- ── 5. CUSTOMER TESTIMONIALS (SOCIAL PROOF) ─────────── -->
+    <section id="testimonios" class="section-container" style="padding-top: 2rem;">
+      <div class="section-header-center">
+        <div class="section-tag">
+          <span class="material-symbols-rounded md-18">star</span>
+          <span>Lo que dicen en Bucaramanga</span>
+        </div>
+        <h2 class="diabla-font section-title">OPINIONES DE NUESTROS CLIENTES</h2>
+        <p class="section-subtitle">
+          Cientos de comensales ya disfrutan de la auténtica gastronomía mexicana entregada en tiempo récord.
+        </p>
+      </div>
+
+      <div class="reviews-grid">
+        <div class="review-card">
+          <div class="review-stars">★★★★★</div>
+          <p class="review-text">
+            "Los mejores tacos al pastor de Bucaramanga. La piña asada y la salsa verde diabólica están en otro nivel.
+            El pedido llegó en 20 minutos calientito."
+          </p>
+          <div class="review-author">
+            <div class="review-avatar">CC</div>
+            <div>
+              <div class="review-author-name">Camilo C.</div>
+              <div class="review-author-location">📍 Mutis · Pedido verificado</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="review-card">
+          <div class="review-stars">★★★★★</div>
+          <p class="review-text">
+            "El burrito gigante rinde para dos personas. Queso derretido espectacular y el rastreo GPS te muestra exacto
+            cuándo llega el motorizado."
+          </p>
+          <div class="review-author">
+            <div class="review-avatar" style="background: linear-gradient(135deg, #F59E0B, #10B981);">VG</div>
+            <div>
+              <div class="review-author-name">Valentina G.</div>
+              <div class="review-author-location">📍 Cabecera · Pedido verificado</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="review-card">
+          <div class="review-stars">★★★★★</div>
+          <p class="review-text">
+            "La quesadilla con birria y consomé es adictiva. Pagamos con Nequi sin líos y aplicamos el cupón de primer
+            pedido sin problemas."
+          </p>
+          <div class="review-author">
+            <div class="review-avatar" style="background: linear-gradient(135deg, #DC2626, #9333EA);">DA</div>
+            <div>
+              <div class="review-author-name">Diego A.</div>
+              <div class="review-author-location">📍 Real de Minas · Pedido verificado</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 6. FAQ ACCORDION SECTION ────────────────────────── -->
+    <section id="faq" class="section-container">
+      <div class="section-header-center">
+        <div class="section-tag">
+          <span class="material-symbols-rounded md-18">help</span>
+          <span>Resuelve tus Dudas</span>
+        </div>
+        <h2 class="diabla-font section-title">PREGUNTAS FRECUENTES</h2>
+        <p class="section-subtitle">
+          Todo lo que necesitas saber antes de pedir tus platillos favoritos en La Diabla.
+        </p>
+      </div>
+
+      <div class="faq-wrapper">
+        <div class="faq-item active" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>¿Cuánto tiempo tarda en llegar mi pedido?</span>
+            <span class="material-symbols-rounded faq-icon">expand_more</span>
+          </div>
+          <div class="faq-answer">
+            Nuestro tiempo promedio de entrega en Bucaramanga y el sector de Mutis es de aproximadamente 20 a 35
+            minutos. Puedes seguir la ubicación en tiempo real del repartidor con nuestro sistema GPS.
+          </div>
+        </div>
+
+        <div class="faq-item" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>¿Cuáles son los métodos de pago aceptados?</span>
+            <span class="material-symbols-rounded faq-icon">expand_more</span>
+          </div>
+          <div class="faq-answer">
+            Aceptamos transferencias inmediatas por Nequi y Daviplata, pagos seguros en línea con PSE / Tarjetas de
+            crédito, datáfono inalámbrico al recibir o dinero en efectivo con cambio exacto.
+          </div>
+        </div>
+
+        <div class="faq-item" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>¿Cómo aplico los cupones de descuento?</span>
+            <span class="material-symbols-rounded faq-icon">expand_more</span>
+          </div>
+          <div class="faq-answer">
+            Solo haz clic en el botón 'Copiar' en la sección de cupones de esta página e ingresa el código al finalizar
+            tu pedido dentro de la aplicación móvil de La Diabla.
+          </div>
+        </div>
+
+        <div class="faq-item" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>¿Cómo garantizan que la comida llegue caliente?</span>
+            <span class="material-symbols-rounded faq-icon">expand_more</span>
+          </div>
+          <div class="faq-answer">
+            Contamos con empaques térmicos sellados de alta resistencia y flota propia de repartidores capacitados para
+            transportar los alimentos directamente desde la cocina central sin demoras ni intermediarios.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 7. DELIVERY GPS DETAIL SECTION ──────────────────── -->
+    <section class="section-container" style="padding-top: 1rem;">
       <div class="delivery-block">
         <div>
           <div class="section-tag">
@@ -1375,7 +2788,8 @@
           </div>
           <h2 class="diabla-font section-title">DELIVERY DIRECTO &amp; SIN INTERMEDIARIOS</h2>
           <p class="section-subtitle">
-            A diferencia de otras plataformas con comisiones abusivas, en La Diabla contamos con motorizados propios entrenados para cuidar tu comida.
+            A diferencia de otras plataformas con comisiones abusivas, en La Diabla contamos con motorizados propios
+            entrenados para cuidar tu comida.
           </p>
 
           <div class="delivery-features-list">
@@ -1385,7 +2799,8 @@
               </div>
               <div class="delivery-feature-text">
                 <h4>Cocina Central Estratégica</h4>
-                <p>Ubicados en Cl. 59 # 39W-24, Estoraques 1. Cobertura en Mutis, Real de Minas, Cabecera y toda el área metropolitana de Bucaramanga.</p>
+                <p>Ubicados en Cl. 59 # 39W-24, Estoraques 1. Cobertura en Mutis, Real de Minas, Cabecera y toda el área
+                  metropolitana de Bucaramanga.</p>
               </div>
             </div>
 
@@ -1405,35 +2820,40 @@
               </div>
               <div class="delivery-feature-text">
                 <h4>Garantía Diabla 100% Caliente</h4>
-                <p>Si tu pedido no llega en perfecto estado térmico o hay algún faltante, te reembolsamos o reenviamos al instante.</p>
+                <p>Si tu pedido no llega en perfecto estado térmico o hay algún faltante, te reembolsamos o reenviamos
+                  al instante.</p>
               </div>
             </div>
           </div>
 
-          <a href="../build/app/outputs/flutter-apk/app-release.apk" download="LaDiabla-App.apk" class="btn-hero-primary" style="font-size: 1rem;">
+          <a href="app-release.apk" download="LaDiabla-App.apk" class="btn-hero-primary" style="font-size: 1rem;">
             <span class="material-symbols-rounded md-22">install_mobile</span>
             <span>Instalar App y Pedir Ahora</span>
           </a>
         </div>
 
         <div class="delivery-visual-box">
-          <img src="../recursos/materiales/delivery.png" alt="Repartidor La Diabla en Moto" class="delivery-rider-img">
+          <img src="assets/recursos/materiales/delivery.png" alt="Repartidor La Diabla en Moto"
+            class="delivery-rider-img" onerror="this.src='assets/logo/LaDiabla.png';">
         </div>
       </div>
     </section>
 
-    <!-- ── 6. DOWNLOAD CTA BANNER ──────────────────────────── -->
+    <!-- ── 8. DOWNLOAD CTA BANNER ──────────────────────────── -->
     <section class="section-container">
       <div class="cta-banner">
-        <img src="../recursos/materiales/taco.png" alt="Taco" class="cta-taco-deco">
+        <img src="assets/recursos/materiales/taco.png" alt="Taco Decorativo" class="cta-taco-deco"
+          onerror="this.style.display='none';">
 
-        <span class="material-symbols-rounded md-48" style="color: #FEF08A; margin-bottom: 1rem; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));">
+        <span class="material-symbols-rounded md-48"
+          style="color: #FEF08A; margin-bottom: 1.2rem; filter: drop-shadow(0 4px 14px rgba(0,0,0,0.45));">
           local_fire_department
         </span>
 
         <h2 class="diabla-font cta-title">¡ORDENA YA EN LA DIABLA APP!</h2>
         <p class="cta-desc">
-          Descarga el instalador oficial de Android en tu smartphone. Configuración en segundos, menú completo interactivo y las mejores promociones de comida mexicana.
+          Descarga el instalador oficial de Android en tu smartphone. Configuración en segundos, menú completo
+          interactivo y las mejores promociones de comida mexicana.
         </p>
 
         <div class="cta-actions-group">
@@ -1451,35 +2871,197 @@
 
   </main>
 
-  <!-- ── 7. FOOTER ───────────────────────────────────────── -->
+  <!-- ── FLOATING WHATSAPP BUTTON (PALPITANTE A LA DERECHA) ─── -->
+  <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20hacer%20un%20pedido!" target="_blank"
+    rel="noopener" class="floating-whatsapp-btn" title="Chatear por WhatsApp con La Diabla" aria-label="Chatear por WhatsApp">
+    <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="#FFFFFF">
+      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+    </svg>
+  </a>
+
+  <!-- ── 9. FOOTER (RICH BRANDING & PERFECT CONTRAST) ──────── -->
   <footer class="site-footer">
-    <div class="footer-content">
-      <img src="../recursos/materiales/chileboton.png" alt="La Diabla" style="width: 44px; height: 44px; object-fit: contain;">
-      <p style="font-size: 0.95rem; font-weight: 700; color: var(--text-main);">
-        La Diabla Restaurante &amp; Delivery Bucaramanga
-      </p>
-      <p style="font-size: 0.85rem;">
-        Cl. 59 # 39W-24, Estoraques 1 · Bucaramanga, Santander, Colombia
-      </p>
-      <div style="display: flex; gap: 1.5rem; justify-content: center; margin: 0.5rem 0;">
-        <a href="#menu" style="color: var(--text-muted); text-decoration: none; font-size: 0.82rem;">Menú</a>
-        <a href="#rastreo" style="color: var(--text-muted); text-decoration: none; font-size: 0.82rem;">Rastreo GPS</a>
-        <a href="#cupones" style="color: var(--text-muted); text-decoration: none; font-size: 0.82rem;">Cupones</a>
-        <a href="login.html" style="color: var(--text-muted); text-decoration: none; font-size: 0.82rem;">Portal Administrativo</a>
+    <div class="footer-grid">
+      <!-- Col 1: Brand & Bio -->
+      <div>
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:0.8rem;">
+          <img src="assets/logo/LaDiabla.png" alt="La Diabla"
+            style="width: 46px; height: 46px; object-fit: contain; border-radius:50%; box-shadow:0 4px 14px rgba(220,38,38,0.4);"
+            onerror="this.src='logo/LaDiabla.png';">
+          <span class="brand-logo-title diabla-font" style="font-size:1.9rem;">LA DIABLA</span>
+        </div>
+        <p class="footer-brand-desc">
+          El verdadero templo del sabor mexicano en Bucaramanga. Tacos al pastor, burritos gigantes, birria artesanal y
+          salsas con el toque picante perfecto.
+        </p>
+        <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20hacer%20un%20pedido!" target="_blank"
+          rel="noopener" class="btn-primary"
+          style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; font-size:0.9rem; font-weight:700; text-decoration:none; border-radius:14px; color:#FFFFFF; box-shadow:0 4px 15px rgba(220,38,38,0.4);">
+          <span class="material-symbols-rounded md-20">chat</span>
+          <span>Pedir por WhatsApp</span>
+        </a>
       </div>
-      <p style="font-size: 0.78rem; margin-top: 0.5rem; opacity: 0.7;">
+
+      <!-- Col 2: Enlaces Rápidos -->
+      <div>
+        <h4 class="footer-heading">Navegación</h4>
+        <ul class="footer-links-list">
+          <li><a href="#menu"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span>
+              Menú de Platillos</a></li>
+          <li><a href="#rastreo"><span class="material-symbols-rounded md-16"
+                style="color:#EF4444;">chevron_right</span> Rastreo GPS en Vivo</a></li>
+          <li><a href="#cupones"><span class="material-symbols-rounded md-16"
+                style="color:#EF4444;">chevron_right</span> Cupones Activos</a></li>
+          <li><a href="#testimonios"><span class="material-symbols-rounded md-16"
+                style="color:#EF4444;">chevron_right</span> Reseñas de Clientes</a></li>
+          <li><a href="#faq"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span>
+              Preguntas Frecuentes</a></li>
+          <li><a href="app-release.apk" download="LaDiabla-App.apk"><span class="material-symbols-rounded md-16"
+                style="color:#EF4444;">chevron_right</span> Descargar App Android</a></li>
+        </ul>
+      </div>
+
+      <!-- Col 3: Ubicación & Cobertura -->
+      <div>
+        <h4 class="footer-heading">Ubicación &amp; Horarios</h4>
+        <p style="font-size: 0.94rem; line-height: 1.6; margin-bottom: 0.9rem; color:#F8FAFC;">
+          📍 Cl. 59 # 39W-24, Estoraques 1<br>
+          Bucaramanga, Santander, Colombia
+        </p>
+        <p
+          style="font-size: 0.9rem; color: #FBBF24; font-weight: 800; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.35); padding:6px 12px; border-radius:10px; display:inline-block;">
+          🕒 Todos los días: 11:30 AM – 11:00 PM
+        </p>
+        <p style="font-size: 0.88rem; margin-top: 0.8rem; color:#CBD5E1;">
+          🚀 Cobertura en Mutis, Real de Minas, Cabecera, Provenza y Zona Metropolitana.
+        </p>
+      </div>
+
+      <!-- Col 4: Métodos de Pago -->
+      <div>
+        <h4 class="footer-heading">Medios de Pago</h4>
+        <p style="font-size: 0.92rem; line-height: 1.5; margin-bottom: 1.1rem; color:#CBD5E1;">
+          Aceptamos todos los medios seguros en tu entrega o en la app:
+        </p>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          <span
+            style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18); padding:6px 14px; border-radius:12px; font-size:0.84rem; font-weight:700; color:#FFFFFF;">🟣
+            Nequi</span>
+          <span
+            style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18); padding:6px 14px; border-radius:12px; font-size:0.84rem; font-weight:700; color:#FFFFFF;">🔴
+            Daviplata</span>
+          <span
+            style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18); padding:6px 14px; border-radius:12px; font-size:0.84rem; font-weight:700; color:#FFFFFF;">💳
+            PSE / Tarjetas</span>
+          <span
+            style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18); padding:6px 14px; border-radius:12px; font-size:0.84rem; font-weight:700; color:#FFFFFF;">💵
+            Efectivo</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div>
         © 2026 La Diabla App · Todos los derechos reservados · Hecho con sabor y pasión 🌶️
-      </p>
+      </div>
+      <div style="display:flex; gap:1.2rem;">
+        <a href="login.html"
+          style="color:#CBD5E1; text-decoration:none; font-size:0.88rem; transition:color 0.2s;">Admin Login</a>
+        <span style="opacity:0.4;">·</span>
+        <a href="#menu" style="color:#CBD5E1; text-decoration:none; font-size:0.88rem; transition:color 0.2s;">Volver al
+          inicio ↑</a>
+      </div>
     </div>
   </footer>
 
+  <!-- ── 10. DISH DETAIL POP-UP MODAL (110% RESPONSIVE GLASSMORPHISM) ──── -->
+  <div id="dishModalOverlay" class="dish-modal-overlay" onclick="closeDishModal(event)">
+    <div class="dish-modal-card" id="dishModalCard" onclick="event.stopPropagation()">
+      <button class="dish-modal-close" onclick="closeDishModal()" title="Cerrar ventana">
+        <span class="material-symbols-rounded md-22">close</span>
+      </button>
+
+      <div class="dish-modal-img-wrap">
+        <img src="assets/recursos/materiales/taco.png" id="modalDishImg" alt="Platillo" class="dish-modal-img"
+          onerror="this.src='assets/logo/LaDiabla.png';">
+      </div>
+
+      <div class="dish-modal-badges" id="modalBadgesContainer">
+        <!-- Injected via JS -->
+      </div>
+
+      <h3 class="diabla-font dish-modal-title" id="modalDishTitle">Tacos al Pastor &amp; Birria</h3>
+      <p class="dish-modal-desc" id="modalDishDesc">
+        Carne marinada al pastor con piña asada, cilantro, cebolla y tacos de birria con consomé caliente para sopear.
+      </p>
+
+      <div class="dish-modal-details-grid">
+        <div class="dish-modal-detail-box">
+          <span class="dish-modal-detail-label">Nivel de Picante</span>
+          <span class="dish-modal-detail-val" id="modalSpiceLevel">🌶️🌶️ Medio</span>
+        </div>
+        <div class="dish-modal-detail-box">
+          <span class="dish-modal-detail-label">Porción</span>
+          <span class="dish-modal-detail-val" id="modalPortion">3 Unidades</span>
+        </div>
+        <div class="dish-modal-detail-box">
+          <span class="dish-modal-detail-label">Precio</span>
+          <span class="dish-modal-detail-val" id="modalPrice" style="color: #EF4444; font-size:1.15rem;">$18.900</span>
+        </div>
+      </div>
+
+      <div class="dish-modal-actions">
+        <a href="app-release.apk" class="btn-hero-primary" style="flex: 1; justify-content: center;"
+          onclick="showAppPrompt(document.getElementById('modalDishTitle').textContent)">
+          <span class="material-symbols-rounded md-22">shopping_bag</span>
+          <span>Pedir en la App</span>
+        </a>
+        <button type="button" class="btn-hero-secondary" onclick="shareDish()" style="justify-content: center;">
+          <span class="material-symbols-rounded md-20">share</span>
+          <span>Compartir</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 11. MOBILE BOTTOM DOCK (EASY 1-THUMB NAVIGATION) ──── -->
+  <nav class="mobile-bottom-dock" aria-label="Navegación Móvil">
+    <a href="#menu" class="dock-tab active">
+      <span class="material-symbols-rounded">restaurant_menu</span>
+      <span>Menú</span>
+    </a>
+    <a href="#rastreo" class="dock-tab">
+      <span class="material-symbols-rounded">near_me</span>
+      <span>Rastreo</span>
+    </a>
+    <a href="#cupones" class="dock-tab">
+      <span class="material-symbols-rounded">local_activity</span>
+      <span>Cupones</span>
+    </a>
+    <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20hacer%20un%20pedido!" target="_blank"
+      rel="noopener" class="dock-tab" style="color: #22C55E;">
+      <span class="material-symbols-rounded">chat</span>
+      <span>WhatsApp</span>
+    </a>
+  </nav>
+
   <!-- Toast Notification element -->
   <div id="toastMessage">
-    <span class="material-symbols-rounded md-20" style="color: #EF4444;">check_circle</span>
+    <span class="material-symbols-rounded md-22" style="color: #EF4444;">check_circle</span>
     <span id="toastText">¡Acción realizada con éxito!</span>
   </div>
 
   <script>
+    // ── PRELOADER FADE OUT ──────────────────────────────────
+    window.addEventListener('load', () => {
+      const preloader = document.getElementById('pagePreloader');
+      if (preloader) {
+        setTimeout(() => {
+          preloader.classList.add('fade-out');
+        }, 350);
+      }
+    });
+
     // ── THEME TOGGLE (Material Symbols) ─────────────────────
     function toggleWebTheme() {
       const current = document.documentElement.getAttribute('data-theme') || 'dark';
@@ -1490,7 +3072,7 @@
     }
 
     function updateThemeToggleBtnLabel(theme) {
-      const icon  = document.getElementById('themeIcon');
+      const icon = document.getElementById('themeIcon');
       const label = document.getElementById('themeLabel');
       if (icon) {
         icon.textContent = theme === 'dark' ? 'light_mode' : 'dark_mode';
@@ -1503,6 +3085,29 @@
     window.addEventListener('DOMContentLoaded', () => {
       updateThemeToggleBtnLabel(document.documentElement.getAttribute('data-theme') || 'dark');
     });
+
+    // ── MOBILE MENU TOGGLE ──────────────────────────────────
+    function toggleMobileMenu() {
+      const drawer = document.getElementById('mobileDrawer');
+      const icon = document.getElementById('hamburgerIcon');
+      if (!drawer) return;
+
+      const isOpen = drawer.classList.contains('open');
+      if (isOpen) {
+        drawer.classList.remove('open');
+        if (icon) icon.textContent = 'menu';
+      } else {
+        drawer.classList.add('open');
+        if (icon) icon.textContent = 'close';
+      }
+    }
+
+    function closeMobileMenu() {
+      const drawer = document.getElementById('mobileDrawer');
+      const icon = document.getElementById('hamburgerIcon');
+      if (drawer) drawer.classList.remove('open');
+      if (icon) icon.textContent = 'menu';
+    }
 
     // ── TOAST HELPER ────────────────────────────────────────
     let toastTimeout;
@@ -1532,7 +3137,199 @@
     function showAppPrompt(dish) {
       showToast('Descarga la app para personalizar tu pedido de ' + dish + '!');
     }
+
+    // ── CATEGORY FILTERING ──────────────────────────────────
+    function filterMenuCategory(category, btnElement) {
+      const chips = document.querySelectorAll('.cat-chip');
+      chips.forEach(c => c.classList.remove('active'));
+      if (btnElement) btnElement.classList.add('active');
+
+      const cards = document.querySelectorAll('#menuItemsGrid .menu-card');
+      cards.forEach(card => {
+        const cardCat = card.getAttribute('data-category');
+        if (category === 'all' || cardCat === category) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    // ── SEARCH FILTERING ────────────────────────────────────
+    function filterMenuBySearch(query) {
+      const clean = (query || '').toLowerCase().trim();
+      const cards = document.querySelectorAll('#menuItemsGrid .menu-card');
+
+      cards.forEach(card => {
+        const title = (card.querySelector('.menu-name')?.textContent || '').toLowerCase();
+        const desc = (card.querySelector('.menu-desc')?.textContent || '').toLowerCase();
+        const kw = (card.getAttribute('data-keywords') || '').toLowerCase();
+
+        if (!clean || title.includes(clean) || desc.includes(clean) || kw.includes(clean)) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    function scrollToMenu() {
+      const menuSec = document.getElementById('menu');
+      if (menuSec) {
+        menuSec.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+
+    // ── FAQ ACCORDION TOGGLE ────────────────────────────────
+    function toggleFaq(item) {
+      const allFaq = document.querySelectorAll('.faq-item');
+      allFaq.forEach(f => {
+        if (f !== item) f.classList.remove('active');
+      });
+      item.classList.toggle('active');
+    }
+
+    // ── DISH DETAILS DATA & MODAL HANDLERS ───────────────────
+    const DISHES_DATA = {
+      tacos: {
+        title: "Tacos al Pastor & Birria",
+        img: "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=700&auto=format&fit=crop&q=80",
+        badges: [
+          { text: "⭐ Más Pedido", bg: "rgba(245,158,11,0.15)", border: "rgba(245,158,11,0.4)", color: "#F59E0B" },
+          { text: "🔥 Al Carbón", bg: "rgba(220,38,38,0.15)", border: "rgba(220,38,38,0.4)", color: "#EF4444" }
+        ],
+        desc: "Carne marinada al pastor durante 24 horas con achiote y piña asada, servida sobre tortillas de maíz recién hechas con cebolla, cilantro fresco y limones. Acompañado de consomé de birria caliente para sopear.",
+        spice: "🌶️🌶️ Medio",
+        portion: "Orden de 3 tacos",
+        price: "$18.900"
+      },
+      burritos: {
+        title: "Burritos Diabólicos Gigantes",
+        img: "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=700&auto=format&fit=crop&q=80",
+        badges: [
+          { text: "🔥 Gigante 500g", bg: "rgba(220,38,38,0.15)", border: "rgba(220,38,38,0.4)", color: "#EF4444" },
+          { text: "🥑 Guacamole Casero", bg: "rgba(16,185,129,0.15)", border: "rgba(16,185,129,0.4)", color: "#10B981" }
+        ],
+        desc: "Enorme tortilla de trigo artesanal de 30cm rellena de frijol negro refrito, arroz rojo mexicano, jugosa carne asada, guacamole cremoso, pico de gallo y queso mozzarella fundido al grill.",
+        spice: "🌶️🌶️🌶️ Fuerte / Al Gusto",
+        portion: "1 Burrito Grande (500g)",
+        price: "$24.500"
+      },
+      quesadillas: {
+        title: "Quesadillas Fundidas",
+        img: "https://images.unsplash.com/photo-1618040996337-56904b7850b9?w=700&auto=format&fit=crop&q=80",
+        badges: [
+          { text: "🧀 Doble Queso Oaxaca", bg: "rgba(16,185,129,0.15)", border: "rgba(16,185,129,0.4)", color: "#10B981" },
+          { text: "✨ Dorada al Comal", bg: "rgba(245,158,11,0.15)", border: "rgba(245,158,11,0.4)", color: "#F59E0B" }
+        ],
+        desc: "Tortilla de harina dorada y crocante con abundante queso Oaxaca e hilado derretido, champiñones salteados o tierna birria desmechada, servida con crema agria y pico de gallo.",
+        spice: "🌶️ Suave",
+        portion: "2 Porciones Grandes",
+        price: "$19.900"
+      },
+      especiales: {
+        title: "Especiales de la Diabla",
+        img: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=700&auto=format&fit=crop&q=80",
+        badges: [
+          { text: "👑 Combo Familiar", bg: "rgba(147,51,234,0.15)", border: "rgba(147,51,234,0.4)", color: "#A855F7" },
+          { text: "🥩 Parrillada Mixta", bg: "rgba(220,38,38,0.15)", border: "rgba(220,38,38,0.4)", color: "#EF4444" }
+        ],
+        desc: "El festín definitivo para compartir: parrillada de carnes al pastor y asada, volcanes crujientes con costra de queso, gringas mexicanas, nachos con cheddar y trío de salsas diabólicas.",
+        spice: "🌶️🌶️ Acompañado de salsas",
+        portion: "Para 2 a 3 Personas",
+        price: "$32.000"
+      },
+      antojos: {
+        title: "Antojos &amp; Totopos con Cheddar",
+        img: "https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?w=700&auto=format&fit=crop&q=80",
+        badges: [
+          { text: "🍟 Super Crocantes", bg: "rgba(217,119,6,0.15)", border: "rgba(217,119,6,0.4)", color: "#F59E0B" },
+          { text: "🧀 Salsa Cheddar Caliente", bg: "rgba(245,158,11,0.15)", border: "rgba(245,158,11,0.4)", color: "#F59E0B" }
+        ],
+        desc: "Totopos de maíz fritos al momento, bañados en abundante queso cheddar caliente, jalapeños encurtidos en rodajas, frijoles refritos, pico de gallo y salsa brava artesanal.",
+        spice: "🌶️🌶️ Medio",
+        portion: "Plato Para Compartir",
+        price: "$14.500"
+      },
+      bebidas: {
+        title: "Bebidas Mexicanas &amp; Jarritos",
+        img: "https://images.unsplash.com/photo-1556881286-fc6915169721?w=700&auto=format&fit=crop&q=80",
+        badges: [
+          { text: "❄️ 100% Heladas", bg: "rgba(2,132,199,0.15)", border: "rgba(2,132,199,0.4)", color: "#38BDF8" },
+          { text: "🌿 Receta Tradicional", bg: "rgba(16,185,129,0.15)", border: "rgba(16,185,129,0.4)", color: "#10B981" }
+        ],
+        desc: "Auténticas aguas frescas de Horchata con canela y leche condensada, Flor de Jamaica helada y refrescos Jarritos importados con sabores tradicionales de Mandarina, Tamarindo y Toronja.",
+        spice: "Sin Picante / Refrescante",
+        portion: "Botella / Vaso 400ml",
+        price: "$6.000"
+      }
+    };
+
+    function openDishModal(dishId) {
+      const data = DISHES_DATA[dishId];
+      if (!data) return;
+
+      document.getElementById('modalDishImg').src = data.img;
+      document.getElementById('modalDishTitle').innerHTML = data.title;
+      document.getElementById('modalDishDesc').textContent = data.desc;
+      document.getElementById('modalSpiceLevel').textContent = data.spice;
+      document.getElementById('modalPortion').textContent = data.portion;
+      document.getElementById('modalPrice').textContent = data.price;
+
+      const badgesContainer = document.getElementById('modalBadgesContainer');
+      badgesContainer.innerHTML = '';
+      data.badges.forEach(b => {
+        const badgeSpan = document.createElement('span');
+        badgeSpan.className = 'dish-modal-badge-item';
+        badgeSpan.style.background = b.bg;
+        badgeSpan.style.borderColor = b.border;
+        badgeSpan.style.border = '1px solid ' + b.border;
+        badgeSpan.style.color = b.color;
+        badgeSpan.textContent = b.text;
+        badgesContainer.appendChild(badgeSpan);
+      });
+
+      const overlay = document.getElementById('dishModalOverlay');
+      overlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeDishModal(event) {
+      if (event && event.target && event.target.id !== 'dishModalOverlay' && !event.target.closest('.dish-modal-close')) {
+        return;
+      }
+      const overlay = document.getElementById('dishModalOverlay');
+      if (overlay) {
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const overlay = document.getElementById('dishModalOverlay');
+        if (overlay && overlay.classList.contains('active')) {
+          overlay.classList.remove('active');
+          document.body.style.overflow = '';
+        }
+      }
+    });
+
+    function shareDish() {
+      const title = document.getElementById('modalDishTitle').textContent;
+      if (navigator.share) {
+        navigator.share({
+          title: title + ' - La Diabla App',
+          text: '¡Mira este delicioso ' + title + ' en La Diabla App Bucaramanga!',
+          url: window.location.href
+        }).catch(() => { });
+      } else {
+        copyCoupon('https://ladiabla-11718.web.app/#menu');
+        showToast('¡Enlace del menú copiado al portapapeles!');
+      }
+    }
   </script>
 
 </body>
+
 </html>
