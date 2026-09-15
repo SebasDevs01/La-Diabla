@@ -1143,7 +1143,7 @@ function renderProducts() {
 
     return `
       <div class="product-card ${!isAvail ? 'unavailable' : ''}" id="prodCard_${p.id}">
-        <div class="product-card-img-wrap" onclick="openProofModal('${safeImgUrl}', '${p.id}', '${safeName}', 'Precio: ${formatCOP(p.price)}', '${safeCat}')" title="Click para ampliar fotografía">
+        <div class="product-card-img-wrap" onclick="openProductDetailModal('${p.id}')" title="Click para ver ficha completa del platillo" style="cursor:pointer;">
           <img src="${imgUrl}" alt="${escapeHtml(p.name)}" class="product-card-img" onerror="this.src='https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600'">
           <span class="product-card-category-badge">${catLabel}</span>
           ${(p.spicyLevel || 0) > 0 ? `<span class="product-card-spicy-badge">${spicyText}</span>` : ''}
@@ -1155,13 +1155,13 @@ function renderProducts() {
 
         <div class="product-card-body">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:4px;">
-            <div class="product-card-title diabla-font">${escapeHtml(p.name)}</div>
+            <div class="product-card-title diabla-font" onclick="openProductDetailModal('${p.id}')" title="Click para ver detalles" style="cursor:pointer;">${escapeHtml(p.name)}</div>
             <div class="product-card-price diabla-font">${formatCOP(p.price)}</div>
           </div>
 
-          <div class="product-card-desc">${escapeHtml(p.description || 'Sin descripción detallada.')}</div>
+          <div class="product-card-desc" onclick="openProductDetailModal('${p.id}')" style="cursor:pointer;" title="Click para ver detalles">${escapeHtml(p.description || 'Sin descripción detallada.')}</div>
 
-          <div class="product-ingredients-wrap">
+          <div class="product-ingredients-wrap" onclick="openProductDetailModal('${p.id}')" style="cursor:pointer;" title="Click para ver detalles">
             ${ingredientsChips}
           </div>
 
@@ -1175,9 +1175,11 @@ function renderProducts() {
             </div>
 
             <div class="product-card-actions">
+              <button class="btn-card-action" title="Ver ficha del platillo" onclick="openProductDetailModal('${p.id}')">
+                <span class="material-symbols-rounded md-18">visibility</span>
+              </button>
               <button class="btn-card-action" title="Editar platillo" onclick="openProductModal('${p.id}')">
                 <span class="material-symbols-rounded md-18">edit</span>
-                <span>Editar</span>
               </button>
               <button class="btn-card-action btn-delete" title="Eliminar platillo" onclick="deleteProduct('${p.id}')">
                 <span class="material-symbols-rounded md-18">delete</span>
@@ -1274,6 +1276,148 @@ function closeProductModalBackdrop(event) {
   if (event && event.target && event.target.id === 'productModal') {
     closeProductModal();
   }
+}
+
+// ─── PRODUCT DETAIL POP-UP MODAL (FICHA TÉCNICA DEL PLATILLO) ───
+let currentDetailProductId = null;
+
+function openProductDetailModal(productId) {
+  if (!productId) return;
+  const p = allProducts.find(x => x.id === productId);
+  if (!p) return;
+
+  currentDetailProductId = p.id;
+  const modal = document.getElementById('productDetailModal');
+  if (!modal) return;
+
+  const categoryNames = {
+    'tacos': '🌮 Tacos',
+    'burritos': '🌯 Burritos',
+    'quesadillas': '🧀 Quesadillas',
+    'mariscos': '🦐 Mariscos',
+    'ensaladas': '🥗 Ensaladas',
+    'bebidas': '🥤 Bebidas',
+    'especiales': '⭐ Especiales'
+  };
+
+  const spicyLabels = [
+    'Sin picante',
+    'Suave 🌶️',
+    'Medio 🌶️🌶️',
+    'Diabla 🔥'
+  ];
+
+  const isAvail = p.available !== false;
+  const catLabel = categoryNames[p.categoryId] || p.categoryId || 'General';
+  const spicyText = spicyLabels[p.spicyLevel || 0] || 'Sin picante';
+  const imgUrl = p.imageUrl && p.imageUrl.startsWith('http') 
+    ? p.imageUrl 
+    : 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600';
+
+  // Elementos del Modal
+  const headerCat = document.getElementById('pdHeaderCategory');
+  const statusBadge = document.getElementById('pdStatusBadge');
+  const statusIcon = document.getElementById('pdStatusIcon');
+  const statusText = document.getElementById('pdStatusText');
+  const imgEl = document.getElementById('pdDetailImg');
+  const catBadge = document.getElementById('pdDetailCatBadge');
+  const spicyBadge = document.getElementById('pdDetailSpicyBadge');
+  const idCode = document.getElementById('pdDetailIdCode');
+  const imgOpenLink = document.getElementById('pdDetailImgOpen');
+  const nameEl = document.getElementById('pdDetailName');
+  const priceEl = document.getElementById('pdDetailPrice');
+  const descEl = document.getElementById('pdDetailDesc');
+  const ingsEl = document.getElementById('pdDetailIngredients');
+  const spicyTextEl = document.getElementById('pdDetailSpicyText');
+  const catTextEl = document.getElementById('pdDetailCategoryText');
+  const availTextEl = document.getElementById('pdDetailAvailText');
+  const toggleBtnText = document.getElementById('pdBtnToggleAvailText');
+
+  if (headerCat) headerCat.textContent = catLabel;
+  if (nameEl) nameEl.textContent = p.name || 'Sin Nombre';
+  if (priceEl) priceEl.textContent = formatCOP(p.price);
+  if (idCode) idCode.textContent = `#${p.id}`;
+  if (descEl) descEl.textContent = p.description || 'Sin descripción detallada para este producto.';
+
+  // Imagen y enlaces
+  if (imgEl) {
+    imgEl.src = imgUrl;
+    imgEl.alt = p.name || 'Platillo';
+  }
+  if (imgOpenLink) {
+    imgOpenLink.href = imgUrl;
+  }
+
+  // Badges sobre la foto
+  if (catBadge) catBadge.textContent = catLabel;
+  if (spicyBadge) {
+    if ((p.spicyLevel || 0) > 0) {
+      spicyBadge.textContent = spicyText;
+      spicyBadge.style.display = 'inline-block';
+    } else {
+      spicyBadge.style.display = 'none';
+    }
+  }
+
+  // Meta cajas
+  if (spicyTextEl) spicyTextEl.textContent = spicyText;
+  if (catTextEl) catTextEl.textContent = catLabel;
+  if (availTextEl) {
+    availTextEl.textContent = isAvail ? 'Activo en la App' : 'Agotado temporalmente';
+    availTextEl.style.color = isAvail ? '#22C55E' : '#EF4444';
+  }
+
+  // Badge de estado en el header
+  if (statusBadge && statusIcon && statusText) {
+    statusBadge.className = `product-status-pill ${isAvail ? 'pill-available' : 'pill-unavailable'}`;
+    statusIcon.textContent = isAvail ? 'check_circle' : 'cancel';
+    statusText.textContent = isAvail ? 'DISPONIBLE' : 'AGOTADO';
+  }
+
+  // Botón para alternar disponibilidad
+  if (toggleBtnText) {
+    toggleBtnText.textContent = isAvail ? 'Marcar como Agotado' : 'Marcar como Disponible';
+  }
+
+  // Lista de ingredientes en chips
+  if (ingsEl) {
+    if (p.ingredients && p.ingredients.length > 0) {
+      ingsEl.innerHTML = p.ingredients.map(ing => `<span class="product-ingredient-chip">${escapeHtml(ing)}</span>`).join('');
+    } else {
+      ingsEl.innerHTML = '<span style="font-size:0.8rem; color:var(--text-muted); font-style:italic;">Sin ingredientes específicos registrados</span>';
+    }
+  }
+
+  modal.style.display = 'flex';
+}
+
+function closeProductDetailModal(event) {
+  if (event && event.target && !event.target.classList.contains('product-modal-backdrop') && !event.target.classList.contains('proof-modal-close') && !event.target.classList.contains('pd-btn-secondary')) {
+    return;
+  }
+  const modal = document.getElementById('productDetailModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+function editFromDetailModal() {
+  const pId = currentDetailProductId;
+  const modal = document.getElementById('productDetailModal');
+  if (modal) modal.style.display = 'none';
+  if (pId) {
+    openProductModal(pId);
+  }
+}
+
+async function toggleCurrentDetailProductAvail() {
+  if (!currentDetailProductId) return;
+  const prod = allProducts.find(p => p.id === currentDetailProductId);
+  if (!prod) return;
+  const newAvail = prod.available === false ? true : false;
+  await toggleProductAvailability(currentDetailProductId, newAvail);
+  // Refrescar modal con el nuevo estado
+  openProductDetailModal(currentDetailProductId);
 }
 
 function selectSpicyLevel(level) {

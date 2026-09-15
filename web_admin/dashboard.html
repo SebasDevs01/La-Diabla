@@ -324,6 +324,100 @@
     </div>
   </div>
 
+  <!-- ── Product Detail Pop-up Modal (Ficha Completa de Producto) ── -->
+  <div id="productDetailModal" class="product-modal-backdrop" style="display: none;" onclick="closeProductDetailModal(event)">
+    <div class="product-detail-modal-card" onclick="event.stopPropagation()">
+      <div class="product-detail-modal-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div class="pd-header-icon-wrap">
+            <span class="material-symbols-rounded" style="color:var(--primary); font-size: 24px;">restaurant_menu</span>
+          </div>
+          <div>
+            <h3 class="diabla-font" style="font-size:1.25rem; color:var(--text-main); margin:0;">Ficha del Platillo</h3>
+            <span id="pdHeaderCategory" style="font-size:0.8rem; color:var(--text-muted); font-weight:500;">Catálogo Digital</span>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div id="pdStatusBadge" class="product-status-pill pill-available">
+            <span class="material-symbols-rounded" id="pdStatusIcon" style="font-size:14px;">check_circle</span>
+            <span id="pdStatusText">DISPONIBLE</span>
+          </div>
+          <button class="proof-modal-close" onclick="closeProductDetailModal()">&times;</button>
+        </div>
+      </div>
+
+      <div class="product-detail-modal-body">
+        <div class="product-detail-grid">
+          <!-- Columna Izquierda: Fotografía -->
+          <div class="pd-media-column">
+            <div class="pd-image-box">
+              <img id="pdDetailImg" src="" alt="Foto del Platillo" class="pd-full-image" onerror="this.src='https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600'">
+              <span id="pdDetailCatBadge" class="pd-floating-cat-badge">Categoría</span>
+              <span id="pdDetailSpicyBadge" class="pd-floating-spicy-badge" style="display:none;">🌶️ Picante</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+              <span id="pdDetailIdCode" style="font-family:monospace; font-size:0.75rem; color:var(--text-muted);">#ID</span>
+              <a id="pdDetailImgOpen" href="#" target="_blank" class="pd-link-btn" title="Ver imagen original en alta resolución">
+                <span class="material-symbols-rounded md-16">open_in_new</span> Ver Foto HD
+              </a>
+            </div>
+          </div>
+
+          <!-- Columna Derecha: Información del Producto -->
+          <div class="pd-info-column">
+            <div class="pd-title-row">
+              <h2 id="pdDetailName" class="diabla-font pd-title-text">Nombre del Platillo</h2>
+              <div id="pdDetailPrice" class="diabla-font pd-price-tag">$0</div>
+            </div>
+
+            <div class="pd-section-block">
+              <span class="pd-section-title"><span class="material-symbols-rounded md-16">description</span> Descripción</span>
+              <p id="pdDetailDesc" class="pd-desc-text">Descripción completa del producto...</p>
+            </div>
+
+            <div class="pd-section-block">
+              <span class="pd-section-title"><span class="material-symbols-rounded md-16">inventory_2</span> Ingredientes / Componentes</span>
+              <div id="pdDetailIngredients" class="product-ingredients-wrap" style="margin-top:6px;">
+                <!-- Chips de ingredientes -->
+              </div>
+            </div>
+
+            <div class="pd-meta-grid">
+              <div class="pd-meta-card">
+                <span class="pd-meta-card-label">Nivel de Picante</span>
+                <span id="pdDetailSpicyText" class="pd-meta-card-value">Sin picante</span>
+              </div>
+              <div class="pd-meta-card">
+                <span class="pd-meta-card-label">Categoría Menú</span>
+                <span id="pdDetailCategoryText" class="pd-meta-card-value">General</span>
+              </div>
+              <div class="pd-meta-card">
+                <span class="pd-meta-card-label">Disponibilidad</span>
+                <span id="pdDetailAvailText" class="pd-meta-card-value" style="color:#22C55E;">Activo en la App</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="product-detail-modal-footer">
+        <button class="action-btn pd-btn-secondary" onclick="closeProductDetailModal()">
+          Cerrar
+        </button>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button id="pdBtnToggleAvail" class="action-btn pd-btn-toggle" onclick="toggleCurrentDetailProductAvail()">
+            <span class="material-symbols-rounded md-18">sync_alt</span>
+            <span id="pdBtnToggleAvailText">Marcar Agotado</span>
+          </button>
+          <button class="action-btn pd-btn-primary" onclick="editFromDetailModal()">
+            <span class="material-symbols-rounded md-18">edit</span>
+            <span>Editar Platillo</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Product Modal (Crear / Editar Platillo) ── -->
   <div id="productModal" class="product-modal-backdrop" style="display: none;"
     onclick="closeProductModalBackdrop(event)">
