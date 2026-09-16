@@ -341,12 +341,10 @@ class NotificationService {
     await _localNotifications.show(notifId, title, body, details, payload: payload);
   }
 
-  // ─── Realtime Notification Listener ────────────────────────────────────────
-
-  /// Escucha en tiempo real nuevas notificaciones en Firestore y muestra banners con sonido y vibración
-  void startRealtimeNotificationListener(String userId) {
-    // Los UIDs de Firebase anónimos son strings hexadecimales reales (ej. "abc123xyz890")
-    // Solo bloqueamos userId vacío o el string literal 'guest' (fallback sin Firebase)
+  // --- Realtime Notification Listener ---
+  /// Escucha en tiempo real nuevas notificaciones en Firestore y muestra banners.
+  /// [isDriver] si true, omite notificaciones tipo order_status (son para el cliente, no el repartidor).
+  void startRealtimeNotificationListener(String userId, {bool isDriver = false}) {
     if (userId.isEmpty || userId == 'guest') return;
     _realtimeNotifsSub?.cancel();
     _sessionStartTime = DateTime.now().subtract(const Duration(seconds: 3));
@@ -362,48 +360,22 @@ class NotificationService {
         if (change.type == DocumentChangeType.added) {
           final data = change.doc.data();
           if (data == null) continue;
-
           final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
-          if (createdAt != null && createdAt.isBefore(_sessionStartTime)) {
-            continue;
-          }
-
+          if (createdAt != null && createdAt.isBefore(_sessionStartTime)) continue;
           final senderId = data['senderId'] as String? ?? '';
           if (senderId.isNotEmpty && senderId == userId) continue;
-
           final orderId = data['orderId'] as String? ?? '';
           final title = data['title'] as String? ?? 'Nuevo mensaje';
           final body = data['body'] as String? ?? '';
           final type = data['type'] as String? ?? 'chat_message';
           final status = data['status'] as String? ?? '';
-
-          // Si el usuario ya está viendo activamente el chat de esta orden, omitir banner redundante
-          if (type == 'chat_message' &&
-              OrderChatScreen.currentActiveOrderId != null &&
-              OrderChatScreen.currentActiveOrderId == orderId) {
-            continue;
-          }
-
-          // Clave de deduplicación unificada: idéntica a la del push de FCM
+          // Si es repartidor, omitir notificaciones order_status (son para el cliente).
+          if (isDriver && type == 'order_status') continue;
+          if (type == 'chat_message' && OrderChatScreen.currentActiveOrderId != null && OrderChatScreen.currentActiveOrderId == orderId) continue;
           final dedupKey = (orderId.isNotEmpty && (status.isNotEmpty || type == 'order_status'))
               ? 'order_status_${orderId}_$status'
-              : (type == 'chat_message'
-                  ? 'chat_${orderId}_${title}_$body'
-                  : (change.doc.id.isNotEmpty
-                      ? change.doc.id
-                      : '${orderId}_${type}_${status}_${title}_$body'));
-
-          showLocalNotification(
-            title: title,
-            body: body,
-            deduplicationKey: dedupKey,
-            payload: jsonEncode({
-              'type': type,
-              'orderId': orderId,
-              'title': title,
-              'body': body,
-            }),
-          );
+              : (type == 'chat_message' ? 'chat_${orderId}_${change.doc.id}' : (change.doc.id.isNotEmpty ? change.doc.id : '$title-$body'));
+          showLocalNotification(title: title, body: body, deduplicationKey: dedupKey, payload: jsonEncode({'type': type, 'orderId': orderId, 'title': title, 'body': body}));
         }
       }
     }, onError: (e) {
@@ -440,7 +412,8 @@ class NotificationService {
       }
 
       // Iniciar escucha activa en tiempo real de notificaciones/chat
-      startRealtimeNotificationListener(userId);
+      // Los repartidores reciben push de nuevos pedidos vía FCM (Cloud Function), no vía listener.
+      startRealtimeNotificationListener(userId, isDriver: role == 'driver');
 
       // Suscribir al topic general de notificaciones
       await _messaging.subscribeToTopic(NotificationTopics.allUsers);

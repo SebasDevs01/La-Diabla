@@ -3,14 +3,30 @@
     "source": "functions",
     "runtime": "nodejs22"
   },
+  "storage": {
+    "rules": "storage.rules"
+  },
   "hosting": {
     "public": "web_admin",
+    "cleanUrls": true,
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "/login/**",
+        "destination": "/login/index.html"
+      },
+      {
+        "source": "/admin/**",
+        "destination": "/admin/index.html"
+      },
+      {
+        "source": "/inicio/**",
+        "destination": "/inicio/index.html"
+      },
       {
         "source": "**",
         "destination": "/index.html"

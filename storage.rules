@@ -1,0 +1,32 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ─── Imágenes de productos (solo usuarios autenticados pueden subir) ───
+    match /products/{productId}/{allPaths=**} {
+      // Cualquiera puede ver las imágenes (para mostrarlas en la app y la web)
+      allow read: if true;
+      // Solo usuarios autenticados pueden subir/eliminar imágenes de productos
+      allow write: if request.auth != null;
+    }
+
+    // ─── Fotos de perfil de usuarios ──────────────────────────────────────
+    match /users/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ─── Fotos de repartidores (documentos de identidad, placas) ─────────
+    match /drivers/{driverId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // ─── Regla de respaldo: solo usuarios autenticados ────────────────────
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}

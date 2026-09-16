@@ -14,6 +14,7 @@ import '../../../../mock/mock_products.dart';
 import '../../../cart/providers/cart_notifier.dart';
 import '../../../favorites/providers/favorites_provider.dart';
 import '../../../home/providers/home_provider.dart';
+import '../../../../domain/entities/product_entity.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   const ProductDetailScreen({super.key, required this.productId});
@@ -70,14 +71,88 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final allProducts = ref.watch(productsProvider).value ?? mockProducts;
-    final product = allProducts.firstWhere(
-      (p) => p.id == widget.productId,
-      orElse: () => allProducts.isNotEmpty ? allProducts.first : mockProducts.first,
-    );
+    try {
+      return _buildContent(context);
+    } catch (e, st) {
+      debugPrint('ProductDetailScreen error: $e\n$st');
+      return _buildErrorScreen(context, e.toString());
+    }
+  }
 
-    final selectedExtrasList = product.extras
+  Widget _buildErrorScreen(BuildContext context, String error) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFFAF7F2),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFDC2626),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+          onPressed: () => context.pop(),
+        ),
+        title: const Text('Detalle del Platillo', style: TextStyle(color: Colors.white)),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.fastfood_rounded, size: 80, color: Color(0xFFDC2626)),
+              const SizedBox(height: 16),
+              const Text(
+                'No pudimos cargar este platillo',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Intenta de nuevo o regresa al menú',
+                style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFDC2626),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                onPressed: () => context.pop(),
+                icon: const Icon(Icons.arrow_back_rounded),
+                label: const Text('Volver al menú'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Obtener producto con null-safety: buscar por id, si no existe usar fallback
+    final allProducts = ref.watch(productsProvider).value ?? mockProducts;
+    final ProductEntity product = () {
+      try {
+        return allProducts.firstWhere((p) => p.id == widget.productId);
+      } catch (_) {
+        return allProducts.isNotEmpty ? allProducts.first : mockProducts.first;
+      }
+    }();
+
+    // Null-safe extras e ingredientes (Firestore puede devolver listas nulas)
+    final safeExtras = product.extras.where((e) => e.id.isNotEmpty).toList();
+    final safeIngredients = product.ingredients.where((i) => i.isNotEmpty).toList();
+
+    // Null-safe imageUrl
+    final effectiveImageUrl = (product.imageUrl.isNotEmpty &&
+            (product.imageUrl.startsWith('http://') ||
+                product.imageUrl.startsWith('https://')))
+        ? product.imageUrl
+        : 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600';
+
+    final selectedExtrasList = safeExtras
         .where((extra) => _selectedExtraIds.contains(extra.id))
         .toList();
 
@@ -127,14 +202,19 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
-              background: CachedNetworkImage(
-                imageUrl: product.imageUrl,
-                fit: BoxFit.cover,
-                errorWidget: (context, url, error) => Container(
-                  color: const Color(0xFF1E1E1E),
-                  child: const Center(child: Icon(Icons.fastfood_rounded, size: 80, color: Colors.orange)),
-                ),
-              ),
+              background: effectiveImageUrl.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: effectiveImageUrl,
+                      fit: BoxFit.cover,
+                      errorWidget: (context, url, error) => Container(
+                        color: const Color(0xFF1E1E1E),
+                        child: const Center(child: Icon(Icons.fastfood_rounded, size: 80, color: Colors.orange)),
+                      ),
+                    )
+                  : Container(
+                      color: const Color(0xFF1E1E1E),
+                      child: const Center(child: Icon(Icons.fastfood_rounded, size: 80, color: Colors.orange)),
+                    ),
             ),
           ),
           SliverToBoxAdapter(
@@ -266,7 +346,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   ],
 
                   // ─── 2. PERSONALIZACIÓN DE INGREDIENTES BASE ────────────────
-                  if (product.ingredients.isNotEmpty) ...[
+                  if (safeIngredients.isNotEmpty) ...[
                     _buildSectionHeader('Personaliza tus Ingredientes 🥗✂️', isDark),
                     const SizedBox(height: 4),
                     Text(
@@ -278,7 +358,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    ...product.ingredients.map((ing) {
+                    ...safeIngredients.map((ing) {
                       final isRemoved = _removedIngredients.contains(ing);
                       final isIncluded = !isRemoved;
 
@@ -366,10 +446,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   ],
 
                   // ─── 3. EXTRAS OPCIONALES ───────────────────────────────────
-                  if (product.extras.isNotEmpty) ...[
+                  if (safeExtras.isNotEmpty) ...[
                     _buildSectionHeader('Agrega Extras Deliciosos 🧀🥑', isDark),
                     const SizedBox(height: 8),
-                    ...product.extras.map((extra) {
+                    ...safeExtras.map((extra) {
                       final isSelected = _selectedExtraIds.contains(extra.id);
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
@@ -598,5 +678,5 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         );
       }).toList(),
     );
-  }
+  }  // end _buildContent
 }

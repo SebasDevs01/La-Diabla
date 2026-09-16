@@ -37,6 +37,7 @@ let currentProductCategory = 'all';
 let productSearchQuery = '';
 let currentModalIngredients = [];
 let selectedImageFile = null;
+let currentUploadTask = null; // Firebase Storage UploadTask en curso (para cancelar al cerrar modal)
 
 // Audio Chime Generator using Web Audio API
 function playOrderChime() {
@@ -1264,11 +1265,35 @@ function openProductModal(productId = null) {
   }
 }
 
-// Llamado desde el botón X — siempre cierra sin condiciones
+// Llamado desde el botón X — siempre cierra sin condiciones y resetea TODO el estado
 function closeProductModal(event) {
   const modal = document.getElementById('productModal');
   if (modal) modal.style.display = 'none';
+
+  // Cancelar upload en curso si existe (evita que el botón quede en "Subiendo foto...")
+  if (currentUploadTask) {
+    try { currentUploadTask.cancel(); } catch (_) {}
+    currentUploadTask = null;
+  }
+
+  // Cancelar y limpiar archivo de imagen seleccionado
   selectedImageFile = null;
+  const fileInput = document.getElementById('pmImageFile');
+  if (fileInput) fileInput.value = '';
+
+  // Resetear preview de imagen
+  const previewImg = document.getElementById('pmImagePreview');
+  const previewHolder = document.getElementById('pmPreviewPlaceholder');
+  if (previewImg) { previewImg.src = ''; previewImg.style.display = 'none'; }
+  if (previewHolder) previewHolder.style.display = 'flex';
+
+  // Resetear completamente el botón Guardar (por si estaba en "Subiendo foto...")
+  const saveBtn = document.getElementById('btnSaveProduct');
+  const saveText = document.getElementById('btnSaveProductText');
+  const saveIcon = document.getElementById('btnSaveProductIcon');
+  if (saveBtn) saveBtn.disabled = false;
+  if (saveText) saveText.textContent = 'Guardar Platillo';
+  if (saveIcon) saveIcon.textContent = 'check';
 }
 
 // Llamado desde el backdrop — solo cierra si el click fue en el propio backdrop (no en la card)
@@ -1473,18 +1498,51 @@ function renderModalIngredientChips() {
 }
 
 // ─── IMAGE FILE & URL PREVIEW ──────────────────────────────────
+// Comprime una imagen con Canvas a max 800px / calidad 0.82 JPEG antes de subir
+function compressImageFile(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 800;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob((blob) => {
+          if (!blob) { resolve(file); return; }
+          const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' });
+          resolve(compressed);
+        }, 'image/jpeg', 0.82);
+      };
+      img.onerror = () => resolve(file);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
+
 function handleProductFileSelect(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
-  selectedImageFile = file;
-  const objectUrl = URL.createObjectURL(file);
   const previewImg = document.getElementById('pmImagePreview');
   const previewHolder = document.getElementById('pmPreviewPlaceholder');
-  if (previewImg) {
-    previewImg.src = objectUrl;
-    previewImg.style.display = 'block';
-  }
+  // Mostrar preview inmediatamente con la URL local (sin esperar compresión)
+  const objectUrl = URL.createObjectURL(file);
+  if (previewImg) { previewImg.src = objectUrl; previewImg.style.display = 'block'; }
   if (previewHolder) previewHolder.style.display = 'none';
+  // Comprimir en segundo plano y guardar la versión comprimida para el upload
+  compressImageFile(file).then((compressed) => {
+    selectedImageFile = compressed;
+  }).catch(() => {
+    selectedImageFile = file; // fallback al original si falla
+  });
 }
 
 function handleProductUrlInput(val) {
@@ -1546,16 +1604,27 @@ async function saveProduct() {
   if (saveIcon) saveIcon.textContent = 'sync';
 
   try {
-    // Si se subió archivo de imagen local, subir a Firebase Storage
+    // Si se subió archivo de imagen local, subir a Firebase Storage (con timeout de 30s)
     if (selectedImageFile && storage) {
       try {
         if (saveText) saveText.textContent = 'Subiendo foto...';
-        const fileExt = selectedImageFile.name.split('.').pop() || 'jpg';
-        const storageRef = storage.ref(`products/${docId}/main_${Date.now()}.${fileExt}`);
-        const uploadSnapshot = await storageRef.put(selectedImageFile);
-        imageUrl = await uploadSnapshot.ref.getDownloadURL();
+        const storageRef = storage.ref(`products/${docId}/main_${Date.now()}.jpg`);
+        // Guardar referencia al UploadTask para poder cancelarlo si se cierra el modal
+        currentUploadTask = storageRef.put(selectedImageFile);
+        const uploadPromise = currentUploadTask.then(snap => snap.ref.getDownloadURL());
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Upload timeout (30s)')), 30000)
+        );
+        imageUrl = await Promise.race([uploadPromise, timeoutPromise]);
+        currentUploadTask = null; // Upload completado, limpiar referencia
       } catch (uploadErr) {
-        console.warn("No se pudo subir a Storage, guardando con URL o local:", uploadErr);
+        currentUploadTask = null;
+        if (uploadErr.code === 'storage/cancelled') {
+          // El modal fue cerrado por el usuario — abortar silenciosamente sin guardar
+          return;
+        }
+        console.warn("No se pudo subir a Storage, se guardará con placeholder:", uploadErr);
+        // No bloquear el guardado — imageUrl quedará vacío y usará el placeholder de abajo
       }
     }
 
