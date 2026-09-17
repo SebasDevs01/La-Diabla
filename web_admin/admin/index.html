@@ -21,7 +21,7 @@
   <!-- Font Awesome 6 Free (CDN) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
     crossorigin="anonymous">
-  <link rel="stylesheet" href="../styles.css?v=6.0">
+  <link rel="stylesheet" href="../styles.css?v=8.0">
 
   <!-- Firebase App SDK (CDN) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -354,6 +354,7 @@
       <div class="product-detail-modal-body">
         <div class="product-detail-grid">
           <!-- Columna Izquierda: Fotografía -->
+          <div class="pd-media-column">
             <div class="pd-image-box">
               <img id="pdDetailImg" src="" alt="Foto del Platillo" class="pd-full-image" onerror="this.src='https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600'">
               <button type="button" class="pd-gallery-nav pd-gallery-prev" id="pdGalleryPrev" onclick="prevDetailImage()" style="display:none;" title="Foto anterior">❮</button>
@@ -506,27 +507,51 @@
         <div class="form-group">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <label class="form-label" style="margin:0;">Fotos del Platillo (puedes subir varias) 📸</label>
-            <span id="pmPhotoCountBadge" style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">0 fotos</span>
+            <span id="pmPhotoCountBadge" style="font-size:0.78rem; color:var(--primary); font-weight:700; background:rgba(220,38,38,0.1); padding:2px 8px; border-radius:12px;">0 fotos</span>
           </div>
-          <div style="display:flex; flex-direction:column; gap:8px; margin-top:6px;">
-            <div style="display:flex; gap:8px;">
-              <input type="file" id="pmImageFiles" accept="image/*" multiple class="form-input" style="padding:6px;"
-                onchange="handleProductFilesSelect(event)">
+          <div style="display:flex; flex-direction:column; gap:10px; margin-top:8px;">
+            <!-- Opción 1: Subir archivos locales desde dispositivo / PC -->
+            <div id="pmDropZone" class="product-file-upload-card" onclick="document.getElementById('pmImageFiles').click()"
+              ondragover="handleProductDragOver(event)" ondragleave="handleProductDragLeave(event)" ondrop="handleProductDrop(event)">
+              <div class="upload-icon-circle">
+                <span class="material-symbols-rounded" style="font-size:26px;">cloud_upload</span>
+              </div>
+              <div class="upload-text-group">
+                <div class="upload-title">Subir fotos desde tu equipo o celular</div>
+                <div class="upload-subtitle">Haz clic aquí o arrastra fotos (PNG, JPG, WEBP) — Puedes seleccionar varias</div>
+              </div>
+              <button type="button" class="upload-browse-btn">
+                <span class="material-symbols-rounded" style="font-size:18px;">add_photo_alternate</span>
+                <span>Elegir fotos</span>
+              </button>
             </div>
-            <div style="display:flex; gap:8px;">
-              <input type="url" id="pmImageUrl" class="form-input" placeholder="O pega URL de foto y presiona Añadir"
-                onkeydown="handleProductUrlKey(event)">
-              <button type="button" class="btn-secondary" style="padding:0 14px; white-space:nowrap; border-radius:10px; font-weight:700;"
-                onclick="addModalImageFromUrl()">+ Añadir</button>
+            <input type="file" id="pmImageFiles" accept="image/*" multiple style="display:none;"
+              onchange="handleProductFilesSelect(event)">
+
+            <!-- Opción 2: Añadir fotos por URL web con botón + -->
+            <div style="display:flex; gap:8px; align-items:center; width:100%;">
+              <div style="position:relative; flex:1; min-width:0;">
+                <span class="material-symbols-rounded" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:18px; pointer-events:none;">link</span>
+                <input type="url" id="pmImageUrl" class="form-input" style="width:100%; box-sizing:border-box; padding-left:38px;"
+                  placeholder="O pega URL de imagen (https://...) y pulsa +"
+                  onkeydown="handleProductUrlKey(event)">
+              </div>
+              <button type="button" class="action-btn"
+                style="background:linear-gradient(135deg, #DC2626, #B91C1C); color:white; padding:10px 18px; border-radius:12px; border:none; font-weight:800; font-size:0.88rem; display:inline-flex; align-items:center; gap:6px; cursor:pointer; flex-shrink:0; box-shadow:0 4px 12px rgba(220,38,38,0.35); height:42px;"
+                onclick="addModalImageFromUrl()" title="Añadir foto por URL">
+                <span class="material-symbols-rounded" style="font-size:20px; font-weight:900;">add</span>
+                <span>Añadir</span>
+              </button>
             </div>
           </div>
 
-          <!-- Multi-Photo Gallery Container -->
+          <!-- Multi-Photo Gallery Preview Container (Carga y previsualiza aquí abajo) -->
           <div class="pm-images-gallery-wrap">
             <div id="pmImagesGrid" class="pm-images-grid"></div>
-            <div id="pmImagesEmptyPlaceholder" class="img-preview-box" style="height:100px;">
-              <span style="color:var(--text-muted); font-size:0.85rem; display:flex; align-items:center; gap:6px;">
-                <span class="material-symbols-rounded">add_photo_alternate</span> Ninguna foto seleccionada aún. Sube archivos o agrega URLs.
+            <div id="pmImagesEmptyPlaceholder" class="img-preview-box" style="height:90px;">
+              <span style="color:var(--text-muted); font-size:0.85rem; display:flex; align-items:center; gap:8px;">
+                <span class="material-symbols-rounded" style="color:var(--primary);">photo_library</span>
+                <span>Las fotos añadidas se previsualizarán aquí abajo de inmediato.</span>
               </span>
             </div>
           </div>
@@ -562,7 +587,7 @@
   <!-- Toast Container -->
   <div id="toastContainer" class="toast-container"></div>
 
-  <script src="../app.js?v=6.1"></script>
+  <script src="../app.js?v=8.0"></script>
   <script>
     function logoutAdmin() {
       sessionStorage.removeItem('diabla_admin_auth');

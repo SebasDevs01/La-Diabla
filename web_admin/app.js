@@ -1216,7 +1216,7 @@ function openProductModal(productId = null) {
   if (urlInput) urlInput.value = '';
 
   if (isEditing) {
-    const prod = allProducts.find(p => p.id === productId.trim());
+    const prod = allProducts.find(p => String(p.id).trim() === String(productId).trim());
     if (prod) {
       if (title) title.textContent = 'Editar Platillo';
       if (idInput) idInput.value = prod.id;
@@ -1229,22 +1229,34 @@ function openProductModal(productId = null) {
 
       currentModalIngredients = Array.isArray(prod.ingredients) ? [...prod.ingredients] : [];
 
-      // Cargar imágenes existentes (soporta lista images o single imageUrl)
-      if (Array.isArray(prod.images) && prod.images.length > 0) {
-        currentModalImages = prod.images
-          .filter(u => u && typeof u === 'string' && u.trim().length > 0)
-          .map((u, idx) => ({
-            id: 'ex_' + idx + '_' + Date.now(),
-            url: u.trim(),
-            file: null
-          }));
-      } else if (prod.imageUrl && typeof prod.imageUrl === 'string' && prod.imageUrl.trim().length > 0) {
-        currentModalImages = [{
-          id: 'ex_0_' + Date.now(),
-          url: prod.imageUrl.trim(),
-          file: null
-        }];
+      // Cargar TODAS las imágenes existentes de manera exhaustiva (soporta images, imageUrl, image)
+      const rawUrls = [];
+      if (Array.isArray(prod.images)) {
+        prod.images.forEach(u => {
+          if (u && typeof u === 'string' && u.trim().length > 0 && !rawUrls.includes(u.trim())) {
+            rawUrls.push(u.trim());
+          }
+        });
       }
+      if (prod.imageUrl && typeof prod.imageUrl === 'string' && prod.imageUrl.trim().length > 0) {
+        const u = prod.imageUrl.trim();
+        if (!rawUrls.includes(u)) {
+          rawUrls.unshift(u);
+        }
+      }
+      if (prod.image && typeof prod.image === 'string' && prod.image.trim().length > 0) {
+        const u = prod.image.trim();
+        if (!rawUrls.includes(u)) {
+          rawUrls.unshift(u);
+        }
+      }
+
+      currentModalImages = rawUrls.map((u, idx) => ({
+        id: 'ex_' + idx + '_' + Math.random().toString(36).substr(2, 6),
+        url: u,
+        file: null,
+        isPending: false
+      }));
     }
   } else {
     // Creación de Nuevo Platillo
@@ -1536,14 +1548,44 @@ let currentModalImages = [];
 let currentDetailImages = [];
 let currentDetailImageIndex = 0;
 
+// Drag & Drop handlers sobre el dropzone de subida de archivos
+function handleProductDragOver(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  const dropZone = document.getElementById('pmDropZone');
+  if (dropZone) dropZone.classList.add('dragover');
+}
+
+function handleProductDragLeave(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  const dropZone = document.getElementById('pmDropZone');
+  if (dropZone) dropZone.classList.remove('dragover');
+}
+
+function handleProductDrop(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  const dropZone = document.getElementById('pmDropZone');
+  if (dropZone) dropZone.classList.remove('dragover');
+
+  const files = event.dataTransfer?.files;
+  if (!files || files.length === 0) return;
+  processProductFiles(Array.from(files));
+}
+
+// Selección de archivos desde el explorador del dispositivo / PC
 function handleProductFilesSelect(event) {
   const files = event.target.files;
   if (!files || files.length === 0) return;
-
-  const fileList = Array.from(files);
+  processProductFiles(Array.from(files));
   event.target.value = '';
+}
 
+function processProductFiles(fileList) {
+  let addedCount = 0;
   fileList.forEach((file) => {
+    if (!file.type || !file.type.startsWith('image/')) return;
     const objectUrl = URL.createObjectURL(file);
     const item = {
       id: 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
@@ -1552,17 +1594,23 @@ function handleProductFilesSelect(event) {
       isPending: true
     };
     currentModalImages.push(item);
-    renderModalImagesGallery();
+    addedCount++;
 
-    // Comprimir en segundo plano para optimizar peso en subida
+    // Comprimir en segundo plano para optimizar peso al subir
     compressImageFile(file).then((compressed) => {
       item.file = compressed;
     }).catch(() => {
-      // conservar file original si falla
+      // Conservar file original si falla compresión
     });
   });
+
+  if (addedCount > 0) {
+    renderModalImagesGallery();
+    showToast(`Se añadieron ${addedCount} foto(s) a la vista previa`, 'info');
+  }
 }
 
+// Manejador tecla Enter en el input de URL
 function handleProductUrlKey(event) {
   if (event.key === 'Enter') {
     event.preventDefault();
@@ -1570,23 +1618,49 @@ function handleProductUrlKey(event) {
   }
 }
 
+// Añadir foto mediante botón "+" o tecla Enter
 function addModalImageFromUrl() {
   const input = document.getElementById('pmImageUrl');
   if (!input) return;
   const val = (input.value || '').trim();
-  if (!val) return;
-  if (!val.startsWith('http://') && !val.startsWith('https://')) {
-    showToast("Ingresa una URL válida que comience con http:// o https://", "warning");
+  if (!val) {
+    showToast("Pega primero la URL de una foto en el campo de texto", "warning");
+    input.focus();
     return;
   }
-  currentModalImages.push({
-    id: 'url_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-    url: val,
-    file: null,
-    isPending: false
+
+  // Soporta múltiples URLs pegadas separadas por comas o saltos de línea
+  const rawUrls = val.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+  let added = 0;
+
+  rawUrls.forEach(urlStr => {
+    let cleanUrl = urlStr;
+    if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+      if (cleanUrl.startsWith('www.') || cleanUrl.includes('.')) {
+        cleanUrl = 'https://' + cleanUrl;
+      } else {
+        return;
+      }
+    }
+    // Evitar URLs duplicadas
+    if (!currentModalImages.some(img => img.url === cleanUrl)) {
+      currentModalImages.push({
+        id: 'url_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        url: cleanUrl,
+        file: null,
+        isPending: false
+      });
+      added++;
+    }
   });
-  input.value = '';
-  renderModalImagesGallery();
+
+  if (added > 0) {
+    input.value = '';
+    renderModalImagesGallery();
+    showToast(`¡${added} foto(s) agregada(s) a la vista previa!`, "success");
+  } else {
+    showToast("Por favor ingresa una URL válida (ej: https://...)", "warning");
+  }
 }
 
 function removeModalImage(index) {
@@ -1600,6 +1674,7 @@ function setModalImagePrimary(index) {
   const [item] = currentModalImages.splice(index, 1);
   currentModalImages.unshift(item);
   renderModalImagesGallery();
+  showToast("Foto establecida como portada principal", "info");
 }
 
 function renderModalImagesGallery() {
@@ -1625,14 +1700,16 @@ function renderModalImagesGallery() {
 
   grid.innerHTML = currentModalImages.map((img, idx) => {
     const isPrimary = idx === 0;
+    const isLocalFile = !!img.file;
     return `
       <div class="pm-image-card ${isPrimary ? 'is-primary' : ''}">
         <img src="${escapeHtml(img.url)}" alt="Foto ${idx + 1}" onerror="this.src='https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600'">
         ${isPrimary ? `<span class="pm-primary-badge"><span class="material-symbols-rounded" style="font-size:12px;">star</span> Principal</span>` : ''}
+        ${isLocalFile && !isPrimary ? `<span class="pm-local-badge" title="Foto desde archivo local"><span class="material-symbols-rounded" style="font-size:11px;">cloud_upload</span> Archivo</span>` : ''}
         <div class="pm-image-actions">
           <button type="button" class="pm-btn-icon" onclick="removeModalImage(${idx})" title="Eliminar foto">&times;</button>
         </div>
-        ${!isPrimary ? `<button type="button" class="pm-btn-set-primary" onclick="setModalImagePrimary(${idx})">⭐ Principal</button>` : ''}
+        ${!isPrimary ? `<button type="button" class="pm-btn-set-primary" onclick="setModalImagePrimary(${idx})">⭐ Hacer Principal</button>` : ''}
       </div>
     `;
   }).join('');
@@ -1741,6 +1818,23 @@ async function saveProduct() {
   if (saveIcon) saveIcon.textContent = 'sync';
 
   try {
+    // Si el usuario pegó o escribió una URL en el campo pero olvidó pulsar el botón +, capturarla automáticamente
+    const leftoverUrlInput = document.getElementById('pmImageUrl');
+    if (leftoverUrlInput && leftoverUrlInput.value) {
+      let rawVal = leftoverUrlInput.value.trim();
+      if (rawVal.startsWith('http://') || rawVal.startsWith('https://')) {
+        if (!currentModalImages.some(img => img.url === rawVal)) {
+          currentModalImages.push({
+            id: 'url_leftover_' + Date.now(),
+            url: rawVal,
+            file: null,
+            isPending: false
+          });
+          leftoverUrlInput.value = '';
+        }
+      }
+    }
+
     const finalImagesUrls = [];
 
     // Subir cada foto pendiente a Firebase Storage
