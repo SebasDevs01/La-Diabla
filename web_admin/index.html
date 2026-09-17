@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="dark">
+<html lang="es" data-theme="light">
 
 <head>
   <meta charset="UTF-8">
@@ -72,7 +72,7 @@
 
   <script>
     (function () {
-      const savedTheme = localStorage.getItem('diabla_web_theme') || 'dark';
+      const savedTheme = localStorage.getItem('diabla_web_theme') || 'light';
       document.documentElement.setAttribute('data-theme', savedTheme);
     })();
   </script>
@@ -992,6 +992,28 @@
       filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
     }
 
+    .step-img-dark {
+      display: none !important;
+    }
+
+    .step-img-light {
+      display: block !important;
+    }
+
+    [data-theme="dark"] .step-img-dark {
+      display: block !important;
+      filter: drop-shadow(0 2px 10px rgba(255, 255, 255, 0.45));
+    }
+
+    [data-theme="dark"] .step-img-light {
+      display: none !important;
+    }
+
+    [data-theme="dark"] .step-icon-bubble {
+      background: #180D0A;
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+
     .step-title {
       font-size: 1.15rem;
       font-weight: 800;
@@ -1644,9 +1666,11 @@
 
     .dish-modal-img {
       max-width: 90%;
-      max-height: 200px;
-      object-fit: contain;
-      filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.5));
+      max-height: 210px;
+      object-fit: cover;
+      border-radius: 24px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
+      border: 2px solid rgba(220, 38, 38, 0.25);
       animation: floatDish 4s ease-in-out infinite;
     }
 
@@ -1876,7 +1900,24 @@
       line-height: 1.55;
     }
 
+    /* Global Viewport & Mobile Safe Overflow */
+    html, body {
+      overflow-x: hidden;
+      max-width: 100vw;
+      width: 100%;
+    }
+
     /* ── RESPONSIVE MEDIA QUERIES ───────────────────────────── */
+    @media (max-width: 1200px) {
+      .navbar {
+        padding: 0.85rem 1.2rem;
+      }
+      .nav-link-btn {
+        padding: 8px 14px;
+        font-size: 0.88rem;
+      }
+    }
+
     @media (max-width: 1100px) {
       .footer-grid {
         grid-template-columns: 1fr 1fr;
@@ -1894,8 +1935,8 @@
       .hero {
         grid-template-columns: 1fr;
         text-align: center;
-        padding-top: 3rem;
-        gap: 3.5rem;
+        padding-top: 2.5rem;
+        gap: 3rem;
       }
 
       .hero-badge,
@@ -1909,13 +1950,13 @@
       }
 
       .float-chip-top {
-        right: 5%;
-        top: 5%;
+        right: 4%;
+        top: 4%;
       }
 
       .float-chip-bottom-left {
-        left: 5%;
-        bottom: 5%;
+        left: 4%;
+        bottom: 4%;
       }
 
       .float-chip-bottom-right {
@@ -1923,7 +1964,14 @@
       }
 
       .stepper-container {
-        grid-template-columns: repeat(3, 1fr);
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 2rem 1.5rem;
+      }
+
+      .step-item {
+        flex: 0 1 180px;
       }
 
       .stepper-track {
@@ -1960,48 +2008,243 @@
         flex-wrap: nowrap;
         overflow-x: auto;
         padding: 4px 1rem;
+        -webkit-overflow-scrolling: touch;
       }
 
       .mobile-bottom-dock {
         display: flex;
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
       }
 
       body {
-        padding-bottom: 64px;
+        padding-bottom: max(74px, calc(64px + env(safe-area-inset-bottom)));
       }
 
+      /* Hide redundant floating whatsapp on mobile to prevent blocking buttons & inputs */
       .floating-whatsapp-btn {
-        bottom: 80px;
+        display: none !important;
       }
     }
 
     @media (max-width: 680px) {
-      .stepper-container {
-        grid-template-columns: 1fr;
-        gap: 2rem;
+      .section-container {
+        padding: 3.5rem 1.2rem;
+      }
+
+      .hero {
+        padding-top: 1.5rem;
+        gap: 2.2rem;
+      }
+
+      .hero-title {
+        font-size: clamp(2.3rem, 8.5vw, 4rem);
+        line-height: 1.05;
+      }
+
+      .hero-desc {
+        font-size: 1rem;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+      }
+
+      .hero-search-box {
+        width: 100%;
+        padding: 6px 8px 6px 14px;
+        gap: 8px;
+        border-radius: 16px;
+      }
+
+      .hero-search-input {
+        min-width: 0;
+        font-size: 0.92rem;
+      }
+
+      .hero-search-btn {
+        padding: 8px 14px;
+        font-size: 0.85rem;
+        border-radius: 12px;
+        flex-shrink: 0;
       }
 
       .hero-actions {
         flex-direction: column;
         width: 100%;
+        gap: 10px;
       }
 
       .btn-hero-primary,
       .btn-hero-secondary {
         width: 100%;
         justify-content: center;
+        padding: 0.95rem 1.4rem;
+        font-size: 0.98rem;
+      }
+
+      .hero-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.8rem;
+        width: 100%;
+        padding-top: 1.2rem;
+      }
+
+      .stat-pill {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 6px;
+      }
+
+      .stat-pill .material-symbols-rounded {
+        padding: 6px;
+        font-size: 20px;
+      }
+
+      .stat-pill-num {
+        font-size: 1.4rem;
+      }
+
+      .stat-pill-label {
+        font-size: 0.7rem;
+      }
+
+      .hero-mascot-img {
+        width: min(320px, 85vw);
+      }
+
+      .float-chip {
+        padding: 6px 12px;
+        gap: 8px;
+        border-radius: 14px;
+      }
+
+      .chip-icon-box {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+      }
+
+      .chip-title {
+        font-size: 0.82rem;
+      }
+
+      .chip-sub {
+        font-size: 0.68rem;
+      }
+
+      .float-chip-top {
+        top: 0;
+        right: 0;
+      }
+
+      .float-chip-bottom-left {
+        bottom: 0;
+        left: 0;
+      }
+
+      /* Modern Responsive Stepper: sleek card layout on mobile */
+      .stepper-container {
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+        max-width: 440px;
+        margin: 2rem auto;
+        padding: 0;
+      }
+
+      .step-item {
+        flex-direction: row;
+        text-align: left;
+        align-items: center;
+        gap: 1.1rem;
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        padding: 1rem 1.2rem;
+        border-radius: 20px;
+        box-shadow: var(--card-shadow);
+        width: 100%;
+      }
+
+      .step-icon-bubble {
+        width: 60px;
+        height: 60px;
+        min-width: 60px;
+        margin-bottom: 0;
+      }
+
+      .step-img {
+        width: 36px;
+        height: 36px;
+      }
+
+      .step-title {
+        font-size: 1.05rem;
+      }
+
+      .step-desc {
+        max-width: 100%;
+        font-size: 0.85rem;
+      }
+
+      .step-live-pill {
+        margin-top: 4px;
       }
 
       .menu-grid {
         grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+
+      .promo-card {
+        padding: 1.8rem 1.4rem;
+        border-radius: 22px;
+      }
+
+      .coupon-box {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+        gap: 10px;
+      }
+
+      .coupon-code {
+        font-size: 1.25rem;
+      }
+
+      .btn-copy-code {
+        width: 100%;
+        justify-content: center;
       }
 
       .cta-banner {
-        padding: 3.5rem 1.5rem;
+        padding: 3rem 1.4rem;
+        border-radius: 24px;
+      }
+
+      .cta-title {
+        font-size: clamp(2rem, 7vw, 3.2rem);
+      }
+
+      .cta-actions-group {
+        flex-direction: column;
+        width: 100%;
+        gap: 12px;
+      }
+
+      .btn-download-app,
+      .btn-admin-cta {
+        width: 100%;
+        justify-content: center;
       }
 
       .footer-grid {
         grid-template-columns: 1fr;
+        text-align: center;
+        gap: 2rem;
+      }
+
+      .footer-grid .footer-col ul {
+        align-items: center;
       }
 
       .footer-bottom {
@@ -2011,10 +2254,19 @@
 
       .dish-modal-card {
         padding: 1.5rem 1.2rem;
+        width: 94vw;
+        max-height: 90vh;
+        overflow-y: auto;
       }
 
       .dish-modal-details-grid {
         grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 440px) {
+      .float-chip {
+        display: none;
       }
     }
   </style>
@@ -2058,8 +2310,8 @@
         <button onclick="toggleWebTheme()" id="themeToggleBtn" class="btn-icon-text"
           style="color:#FFFFFF; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.25); padding:8px 16px; border-radius:12px; cursor:pointer;"
           title="Cambiar Tema">
-          <span class="material-symbols-rounded md-20" id="themeIcon">light_mode</span>
-          <span id="themeLabel">Claro</span>
+          <span class="material-symbols-rounded md-20" id="themeIcon">dark_mode</span>
+          <span id="themeLabel">Oscuro</span>
         </button>
         <a href="login/index.html" class="btn-primary"
           style="padding: 9px 20px; font-size: 0.92rem; text-decoration:none; border-radius:14px; font-weight:800; color:#FFFFFF;">
@@ -2577,7 +2829,9 @@
           <!-- Step 5: Entregado -->
           <div class="step-item">
             <div class="step-icon-bubble">
-              <img src="assets/recursos/icons/entregado.png" alt="Entregado" class="step-img"
+              <img src="assets/recursos/icons/entregado.png" alt="Entregado" class="step-img step-img-light"
+                onerror="this.src='assets/logo/LaDiabla.png';">
+              <img src="assets/recursos/icons/casablanca.png" alt="Entregado" class="step-img step-img-dark"
                 onerror="this.src='assets/logo/LaDiabla.png';">
             </div>
             <div class="step-title">5. ¡Entregado!</div>
@@ -3064,7 +3318,7 @@
 
     // ── THEME TOGGLE (Material Symbols) ─────────────────────
     function toggleWebTheme() {
-      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
       const next = current === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
       localStorage.setItem('diabla_web_theme', next);
@@ -3083,7 +3337,7 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-      updateThemeToggleBtnLabel(document.documentElement.getAttribute('data-theme') || 'dark');
+      updateThemeToggleBtnLabel(document.documentElement.getAttribute('data-theme') || 'light');
     });
 
     // ── MOBILE MENU TOGGLE ──────────────────────────────────

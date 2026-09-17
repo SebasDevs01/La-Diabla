@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="../styles.css?v=3.0">
   <script>
     (function () {
-      const savedTheme = localStorage.getItem('diabla_web_theme') || 'dark';
+      const savedTheme = localStorage.getItem('diabla_web_theme') || 'light';
       document.documentElement.setAttribute('data-theme', savedTheme);
     })();
   </script>
@@ -171,7 +171,7 @@
     });
 
     function toggleWebTheme() {
-      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
       const next = current === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
       localStorage.setItem('diabla_web_theme', next);
@@ -184,7 +184,7 @@
       if (label) label.textContent = theme === 'dark' ? 'Claro' : 'Oscuro';
     }
     window.addEventListener('DOMContentLoaded', () => {
-      updateThemeToggleBtnLabel(document.documentElement.getAttribute('data-theme') || 'dark');
+      updateThemeToggleBtnLabel(document.documentElement.getAttribute('data-theme') || 'light');
     });
   </script>
 

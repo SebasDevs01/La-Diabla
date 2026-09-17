@@ -36,8 +36,47 @@
 .material-symbols-rounded.md-36 { font-size: 36px; }
 .material-symbols-rounded.md-48 { font-size: 48px; }
 
-/* ── 1. DESIGN TOKENS (Dark Mode Default) ─────────────────── */
-:root, [data-theme="dark"] {
+/* ── 1. DESIGN TOKENS (Light Mode Default) ─────────────────── */
+:root, [data-theme="light"] {
+  --primary:          #DC2626;
+  --primary-hover:    #B91C1C;
+  --primary-glow:     rgba(220, 38, 38, 0.25);
+  --accent:           #D97706;
+  --accent-gold:      #D97706;
+
+  --dark-bg:          #FFFFFF;
+  --bg-gradient:      none;
+
+  /* Header stays red in light mode — brand consistency */
+  --header-bg:        linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
+  --header-border:    rgba(0, 0, 0, 0.12);
+  --header-text:      #FFFFFF;
+  --header-subtext:   #FFF7ED;
+
+  --card-bg:          #FFFFFF;
+  --card-border:      #E5E7EB;
+  --card-shadow:      0 8px 24px rgba(0, 0, 0, 0.07);
+
+  --text-main:        #0F172A;
+  --text-muted:       #334155;
+  --text-dim:         #64748B;
+
+  --input-bg:         #F8FAFC;
+  --input-border:     #CBD5E1;
+
+  --tab-bg:           #F1F5F9;
+  --tab-border:       #E2E8F0;
+
+  --btn-sec-bg:       rgba(255, 255, 255, 0.2);
+  --btn-sec-border:   rgba(255, 255, 255, 0.35);
+  --btn-sec-text:     #FFFFFF;
+
+  --divider:          #E2E8F0;
+  --scrollbar-thumb:  rgba(220, 38, 38, 0.35);
+}
+
+/* ── 2. DARK MODE ─────────────────────────────────────────── */
+[data-theme="dark"] {
   --primary:          #DC2626;
   --primary-hover:    #EF4444;
   --primary-glow:     rgba(220, 38, 38, 0.45);
@@ -74,43 +113,19 @@
   --scrollbar-thumb:  rgba(220, 38, 38, 0.45);
 }
 
-/* ── 2. LIGHT MODE ────────────────────────────────────────── */
-[data-theme="light"] {
-  --primary:          #DC2626;
-  --primary-hover:    #B91C1C;
-  --primary-glow:     rgba(220, 38, 38, 0.25);
-  --accent:           #D97706;
-  --accent-gold:      #D97706;
-
-  --dark-bg:          #FFFFFF;
-  --bg-gradient:      none;
-
-  /* Header stays red in light mode — brand consistency */
-  --header-bg:        linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
-  --header-border:    rgba(0, 0, 0, 0.12);
-  --header-text:      #FFFFFF;
-  --header-subtext:   #FFF7ED;
-
-  --card-bg:          #FFFFFF;
-  --card-border:      #E5E7EB;
-  --card-shadow:      0 8px 24px rgba(0, 0, 0, 0.07);
-
-  --text-main:        #0F172A;
-  --text-muted:       #334155;
-  --text-dim:         #64748B;
-
-  --input-bg:         #F8FAFC;
-  --input-border:     #CBD5E1;
-
-  --tab-bg:           #F1F5F9;
-  --tab-border:       #E2E8F0;
-
-  --btn-sec-bg:       rgba(255, 255, 255, 0.2);
-  --btn-sec-border:   rgba(255, 255, 255, 0.35);
-  --btn-sec-text:     #FFFFFF;
-
-  --divider:          #E2E8F0;
-  --scrollbar-thumb:  rgba(220, 38, 38, 0.35);
+/* ── House Icon Contrast in Dark Mode (Usa casablanca.png) ─── */
+.step-img-dark {
+  display: none !important;
+}
+.step-img-light {
+  display: block !important;
+}
+[data-theme="dark"] .step-img-dark {
+  display: block !important;
+  filter: drop-shadow(0 2px 10px rgba(255, 255, 255, 0.45));
+}
+[data-theme="dark"] .step-img-light {
+  display: none !important;
 }
 
 /* ── 3. BASE RESET ────────────────────────────────────────── */

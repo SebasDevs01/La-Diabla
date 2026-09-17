@@ -866,7 +866,7 @@ function logoutAdmin() {
 
 // Theme Toggle Helper (Modo Claro ☀️ / Modo Oscuro 🌙)
 function toggleWebTheme() {
-  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
   const next = current === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('diabla_web_theme', next);
@@ -2248,7 +2248,7 @@ async function seedBaseProducts(force = false) {
 
 // ─── INITIALIZATION ────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
-  const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
   updateThemeToggleBtnLabel(currentTheme);
 
   if (sessionStorage.getItem('diabla_admin_auth') !== 'true') {
