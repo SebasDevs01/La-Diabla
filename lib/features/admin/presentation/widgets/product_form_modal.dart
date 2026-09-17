@@ -44,7 +44,8 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
   late bool _available;
   late List<String> _ingredients;
 
-  File? _pickedImageFile;
+  final List<String> _existingImages = [];
+  final List<File> _pickedImageFiles = [];
   bool _isSaving = false;
 
   final List<Map<String, String>> _predefinedCategories = [
@@ -65,13 +66,17 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
     _priceController = TextEditingController(
       text: p != null ? p.price.toInt().toString() : '',
     );
-    _urlController = TextEditingController(text: p?.imageUrl ?? '');
+    _urlController = TextEditingController();
     _ingredientController = TextEditingController();
 
     _selectedCategory = p?.categoryId ?? 'tacos';
     _spicyLevel = p?.spicyLevel ?? 1;
     _available = p?.available ?? true;
     _ingredients = List.from(p?.ingredients ?? []);
+
+    if (p != null) {
+      _existingImages.addAll(p.allImages);
+    }
   }
 
   @override
@@ -84,27 +89,76 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
     super.dispose();
   }
 
-  Future<void> _pickImage(ImageSource source) async {
+  Future<void> _pickMultipleImages() async {
+    try {
+      final picker = ImagePicker();
+      final pickedList = await picker.pickMultiImage(
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      if (pickedList.isNotEmpty) {
+        setState(() {
+          _pickedImageFiles.addAll(pickedList.map((x) => File(x.path)));
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al seleccionar imágenes: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickCameraImage() async {
     try {
       final picker = ImagePicker();
       final picked = await picker.pickImage(
-        source: source,
+        source: ImageSource.camera,
         maxWidth: 1024,
         maxHeight: 1024,
         imageQuality: 85,
       );
       if (picked != null) {
         setState(() {
-          _pickedImageFile = File(picked.path);
+          _pickedImageFiles.add(File(picked.path));
         });
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al seleccionar imagen: $e')),
+          SnackBar(content: Text('Error al tomar foto con cámara: $e')),
         );
       }
     }
+  }
+
+  void _addUrlImage() {
+    final url = _urlController.text.trim();
+    if (url.isEmpty) return;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ingresa una URL válida que comience con http:// o https://')),
+      );
+      return;
+    }
+    setState(() {
+      _existingImages.add(url);
+      _urlController.clear();
+    });
+  }
+
+  void _removeExistingImage(int index) {
+    setState(() {
+      _existingImages.removeAt(index);
+    });
+  }
+
+  void _removePickedImage(int index) {
+    setState(() {
+      _pickedImageFiles.removeAt(index);
+    });
   }
 
   void _addIngredient() {
@@ -143,22 +197,26 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
       final id = widget.productToEdit?.id ??
           'prod_${DateTime.now().millisecondsSinceEpoch}';
 
-      String finalImageUrl = _urlController.text.trim();
+      final List<String> finalImages = List.from(_existingImages);
 
-      // 1. Subir imagen a Firebase Storage si se seleccionó archivo nuevo
-      if (_pickedImageFile != null) {
+      // Subir imágenes locales nuevas a Firebase Storage
+      if (_pickedImageFiles.isNotEmpty) {
         final storage = StorageService();
-        finalImageUrl = await storage.uploadProductImage(
-          productId: id,
-          file: _pickedImageFile!,
-        );
+        for (int i = 0; i < _pickedImageFiles.length; i++) {
+          final uploadedUrl = await storage.uploadProductImageItem(
+            productId: id,
+            file: _pickedImageFiles[i],
+            index: i,
+          );
+          finalImages.add(uploadedUrl);
+        }
       }
 
-      if (finalImageUrl.isEmpty) {
-        finalImageUrl =
-            'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600';
+      if (finalImages.isEmpty) {
+        finalImages.add('https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600');
       }
 
+      final primaryImageUrl = finalImages.first;
       final priceVal = double.tryParse(_priceController.text.trim()) ?? 0.0;
 
       final product = ProductEntity(
@@ -166,7 +224,8 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
         name: _nameController.text.trim(),
         description: _descController.text.trim(),
         price: priceVal,
-        imageUrl: finalImageUrl,
+        imageUrl: primaryImageUrl,
+        images: finalImages,
         categoryId: _selectedCategory,
         spicyLevel: _spicyLevel,
         available: _available,
@@ -261,74 +320,239 @@ class _ProductFormModalState extends ConsumerState<ProductFormModal> {
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  // ─── Foto del Producto ─────────────────────────────────────────────
-                  Center(
-                    child: Column(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            width: 140,
-                            height: 140,
-                            color: isDark ? Colors.black38 : Colors.grey.shade100,
-                            child: _pickedImageFile != null
-                                ? Image.file(_pickedImageFile!, fit: BoxFit.cover)
-                                : (_urlController.text.isNotEmpty
-                                    ? CachedNetworkImage(
-                                        imageUrl: _urlController.text,
-                                        fit: BoxFit.cover,
-                                        errorWidget: (context, url, error) => const Center(
-                                          child: Icon(Icons.fastfood_rounded, size: 48, color: Colors.grey),
-                                        ),
-                                      )
-                                    : const Center(
-                                        child: Icon(Icons.add_a_photo_rounded, size: 48, color: Colors.grey),
-                                      )),
+                  // ─── Fotos del Producto (Multi-Foto) ──────────────────────────────
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Fotos del Platillo 📸',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                           ),
+                          Text(
+                            '${_existingImages.length + _pickedImageFiles.length} foto(s)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? AppColors.textMutedDark : Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Tira horizontal de fotos
+                      Container(
+                        height: 120,
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.black26 : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
                         ),
-                        const SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            ElevatedButton.icon(
+                        child: (_existingImages.isEmpty && _pickedImageFiles.isEmpty)
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.add_photo_alternate_rounded,
+                                        size: 40, color: Colors.grey.shade400),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Sin fotos aún. Agrega fotos de la galería o cámara.',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isDark ? AppColors.textMutedDark : Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView(
+                                scrollDirection: Axis.horizontal,
+                                padding: const EdgeInsets.all(8),
+                                children: [
+                                  // Fotos existentes (red)
+                                  ..._existingImages.asMap().entries.map((entry) {
+                                    final idx = entry.key;
+                                    final url = entry.value;
+                                    final isPrimary = idx == 0;
+                                    return Container(
+                                      width: 104,
+                                      margin: const EdgeInsets.only(right: 8),
+                                      child: Stack(
+                                        fit: StackFit.expand,
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: CachedNetworkImage(
+                                              imageUrl: url,
+                                              fit: BoxFit.cover,
+                                              errorWidget: (context, url, error) => Container(
+                                                color: Colors.black26,
+                                                child: const Icon(Icons.fastfood_rounded),
+                                              ),
+                                            ),
+                                          ),
+                                          if (isPrimary)
+                                            Positioned(
+                                              top: 4,
+                                              left: 4,
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFEAB308),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: const Text(
+                                                  '⭐ Principal',
+                                                  style: TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.bold),
+                                                ),
+                                              ),
+                                            ),
+                                          Positioned(
+                                            top: 4,
+                                            right: 4,
+                                            child: GestureDetector(
+                                              onTap: () => _removeExistingImage(idx),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(3),
+                                                decoration: const BoxDecoration(
+                                                  color: Colors.black87,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(Icons.close_rounded, size: 14, color: Colors.white),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }),
+
+                                  // Fotos recién seleccionadas (locales)
+                                  ..._pickedImageFiles.asMap().entries.map((entry) {
+                                    final idx = entry.key;
+                                    final file = entry.value;
+                                    final isPrimary = _existingImages.isEmpty && idx == 0;
+                                    return Container(
+                                      width: 104,
+                                      margin: const EdgeInsets.only(right: 8),
+                                      child: Stack(
+                                        fit: StackFit.expand,
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: Image.file(file, fit: BoxFit.cover),
+                                          ),
+                                          Positioned(
+                                            top: 4,
+                                            left: 4,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: isPrimary ? const Color(0xFFEAB308) : Colors.black87,
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                isPrimary ? '⭐ Principal' : 'Nueva ⏳',
+                                                style: TextStyle(
+                                                  color: isPrimary ? Colors.black : Colors.white,
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          Positioned(
+                                            top: 4,
+                                            right: 4,
+                                            child: GestureDetector(
+                                              onTap: () => _removePickedImage(idx),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(3),
+                                                decoration: const BoxDecoration(
+                                                  color: Colors.black87,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(Icons.close_rounded, size: 14, color: Colors.white),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }),
+                                ],
+                              ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Botones para agregar fotos
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFDC2626),
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
-                              onPressed: () => _pickImage(ImageSource.gallery),
+                              onPressed: _pickMultipleImages,
                               icon: const Icon(Icons.photo_library_rounded, size: 16),
-                              label: const Text('Galería', style: TextStyle(fontSize: 12)),
+                              label: const Text('+ Galería', style: TextStyle(fontSize: 12)),
                             ),
-                            const SizedBox(width: 8),
-                            OutlinedButton.icon(
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
                               style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
-                              onPressed: () => _pickImage(ImageSource.camera),
+                              onPressed: _pickCameraImage,
                               icon: const Icon(Icons.camera_alt_rounded, size: 16),
-                              label: const Text('Cámara', style: TextStyle(fontSize: 12)),
+                              label: const Text('+ Cámara', style: TextStyle(fontSize: 12)),
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
 
-                  // URL opcional de imagen
-                  TextFormField(
-                    controller: _urlController,
-                    decoration: InputDecoration(
-                      labelText: 'O pega la URL de la imagen',
-                      prefixIcon: const Icon(Icons.link_rounded),
-                      filled: true,
-                      fillColor: isDark ? Colors.black26 : Colors.grey.shade50,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onChanged: (_) => setState(() {}),
+                      // Input URL con botón Agregar
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _urlController,
+                              decoration: InputDecoration(
+                                labelText: 'O ingresa URL de imagen',
+                                hintText: 'https://...',
+                                prefixIcon: const Icon(Icons.link_rounded),
+                                filled: true,
+                                fillColor: isDark ? Colors.black26 : Colors.grey.shade50,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              ),
+                              onFieldSubmitted: (_) => _addUrlImage(),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isDark ? const Color(0xFF2C1E18) : Colors.grey.shade200,
+                              foregroundColor: isDark ? Colors.white : Colors.black87,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                            ),
+                            onPressed: _addUrlImage,
+                            child: const Text('Agregar', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
 

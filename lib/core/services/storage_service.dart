@@ -38,6 +38,18 @@ class StorageService {
     );
   }
 
+  /// Sube una de las fotos de la galería de un producto.
+  Future<String> uploadProductImageItem({
+    required String productId,
+    required File file,
+    required int index,
+  }) async {
+    return _uploadFile(
+      path: '$_productsPath/$productId/img_${DateTime.now().millisecondsSinceEpoch}_$index.jpg',
+      file: file,
+    );
+  }
+
   /// Sube la foto de prueba de entrega de un pedido.
   Future<String> uploadDeliveryProof({
     required String orderId,

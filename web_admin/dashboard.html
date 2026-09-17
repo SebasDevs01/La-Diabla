@@ -354,12 +354,15 @@
       <div class="product-detail-modal-body">
         <div class="product-detail-grid">
           <!-- Columna Izquierda: Fotografía -->
-          <div class="pd-media-column">
             <div class="pd-image-box">
               <img id="pdDetailImg" src="" alt="Foto del Platillo" class="pd-full-image" onerror="this.src='https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600'">
+              <button type="button" class="pd-gallery-nav pd-gallery-prev" id="pdGalleryPrev" onclick="prevDetailImage()" style="display:none;" title="Foto anterior">❮</button>
+              <button type="button" class="pd-gallery-nav pd-gallery-next" id="pdGalleryNext" onclick="nextDetailImage()" style="display:none;" title="Foto siguiente">❯</button>
+              <span id="pdGalleryCounter" class="pd-gallery-counter" style="display:none;">1 / 1</span>
               <span id="pdDetailCatBadge" class="pd-floating-cat-badge">Categoría</span>
               <span id="pdDetailSpicyBadge" class="pd-floating-spicy-badge" style="display:none;">🌶️ Picante</span>
             </div>
+            <div id="pdDetailGalleryStrip" class="pd-gallery-strip" style="display:none;"></div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
               <span id="pdDetailIdCode" style="font-family:monospace; font-size:0.75rem; color:var(--text-muted);">#ID</span>
               <a id="pdDetailImgOpen" href="#" target="_blank" class="pd-link-btn" title="Ver imagen original en alta resolución">
@@ -501,24 +504,31 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">Foto del Platillo</label>
-          <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label class="form-label" style="margin:0;">Fotos del Platillo (puedes subir varias) 📸</label>
+            <span id="pmPhotoCountBadge" style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">0 fotos</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px; margin-top:6px;">
             <div style="display:flex; gap:8px;">
-              <input type="file" id="pmImageFile" accept="image/*" class="form-input" style="padding:6px;"
-                onchange="handleProductFileSelect(event)">
+              <input type="file" id="pmImageFiles" accept="image/*" multiple class="form-input" style="padding:6px;"
+                onchange="handleProductFilesSelect(event)">
             </div>
-            <div style="font-size:0.75rem; color:var(--text-muted); text-align:center;">— O ingresa URL directa de la
-              imagen —</div>
-            <input type="url" id="pmImageUrl" class="form-input" placeholder="https://images.unsplash.com/photo-..."
-              oninput="handleProductUrlInput(this.value)">
+            <div style="display:flex; gap:8px;">
+              <input type="url" id="pmImageUrl" class="form-input" placeholder="O pega URL de foto y presiona Añadir"
+                onkeydown="handleProductUrlKey(event)">
+              <button type="button" class="btn-secondary" style="padding:0 14px; white-space:nowrap; border-radius:10px; font-weight:700;"
+                onclick="addModalImageFromUrl()">+ Añadir</button>
+            </div>
           </div>
 
-          <div class="img-preview-box" id="pmImagePreviewBox" style="margin-top:8px;">
-            <span id="pmPreviewPlaceholder"
-              style="color:var(--text-muted); font-size:0.85rem; display:flex; align-items:center; gap:6px;">
-              <span class="material-symbols-rounded">image</span> Vista previa de la foto
-            </span>
-            <img id="pmImagePreview" src="" alt="Preview" style="display:none;" />
+          <!-- Multi-Photo Gallery Container -->
+          <div class="pm-images-gallery-wrap">
+            <div id="pmImagesGrid" class="pm-images-grid"></div>
+            <div id="pmImagesEmptyPlaceholder" class="img-preview-box" style="height:100px;">
+              <span style="color:var(--text-muted); font-size:0.85rem; display:flex; align-items:center; gap:6px;">
+                <span class="material-symbols-rounded">add_photo_alternate</span> Ninguna foto seleccionada aún. Sube archivos o agrega URLs.
+              </span>
+            </div>
           </div>
         </div>
 

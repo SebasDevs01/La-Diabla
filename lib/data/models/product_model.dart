@@ -15,6 +15,7 @@ class ProductModel extends ProductEntity {
     super.available,
     super.ingredients,
     super.extras,
+    super.images,
     super.createdAt,
     super.updatedAt,
   });
@@ -22,13 +23,29 @@ class ProductModel extends ProductEntity {
   factory ProductModel.fromMap(Map<String, dynamic> map, {required String id}) {
     final extrasRaw = map['extras'] as List<dynamic>? ?? [];
     final ingredientsRaw = map['ingredients'] as List<dynamic>? ?? [];
+    final imagesRaw = map['images'] as List<dynamic>? ?? [];
+
+    final parsedImages = imagesRaw
+        .map((e) => e.toString().trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    final directImageUrl = (map['imageUrl'] as String? ?? '').trim();
+    final effectiveImageUrl = directImageUrl.isNotEmpty
+        ? directImageUrl
+        : (parsedImages.isNotEmpty ? parsedImages.first : '');
+
+    // Si images no vino pero sí imageUrl, poblar images con esa única foto
+    final finalImages = parsedImages.isNotEmpty
+        ? parsedImages
+        : (effectiveImageUrl.isNotEmpty ? [effectiveImageUrl] : <String>[]);
 
     return ProductModel(
       id: id,
       name: map['name'] as String? ?? '',
       description: map['description'] as String? ?? '',
       price: (map['price'] as num?)?.toDouble() ?? 0.0,
-      imageUrl: map['imageUrl'] as String? ?? '',
+      imageUrl: effectiveImageUrl,
       categoryId: map['categoryId'] as String? ?? '',
       spicyLevel: map['spicyLevel'] as int? ?? 0,
       available: map['available'] as bool? ?? true,
@@ -37,6 +54,7 @@ class ProductModel extends ProductEntity {
           .whereType<Map>()
           .map((e) => ExtraModel.fromMap(Map<String, dynamic>.from(e)))
           .toList(),
+      images: finalImages,
       createdAt: map['createdAt'] != null
           ? (map['createdAt'] is int
               ? DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int)
@@ -51,12 +69,20 @@ class ProductModel extends ProductEntity {
   }
 
   Map<String, dynamic> toMap() {
+    final effectiveImages = images.isNotEmpty
+        ? images
+        : (imageUrl.isNotEmpty ? [imageUrl] : <String>[]);
+    final mainImage = imageUrl.isNotEmpty
+        ? imageUrl
+        : (effectiveImages.isNotEmpty ? effectiveImages.first : '');
+
     return {
       'id': id,
       'name': name,
       'description': description,
       'price': price,
-      'imageUrl': imageUrl,
+      'imageUrl': mainImage,
+      'images': effectiveImages,
       'categoryId': categoryId,
       'spicyLevel': spicyLevel,
       'available': available,
@@ -81,6 +107,7 @@ class ProductModel extends ProductEntity {
       available: entity.available,
       ingredients: entity.ingredients,
       extras: entity.extras,
+      images: entity.images,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     );

@@ -1206,14 +1206,14 @@ function openProductModal(productId = null) {
   const descInput = document.getElementById('pmDesc');
   const ingInput = document.getElementById('pmIngredientInput');
   const urlInput = document.getElementById('pmImageUrl');
-  const fileInput = document.getElementById('pmImageFile');
+  const filesInput = document.getElementById('pmImageFiles');
   const availInput = document.getElementById('pmAvailable');
-  const previewImg = document.getElementById('pmImagePreview');
-  const previewHolder = document.getElementById('pmPreviewPlaceholder');
 
   currentModalIngredients = [];
+  currentModalImages = [];
   selectedImageFile = null;
-  if (fileInput) fileInput.value = '';
+  if (filesInput) filesInput.value = '';
+  if (urlInput) urlInput.value = '';
 
   if (isEditing) {
     const prod = allProducts.find(p => p.id === productId.trim());
@@ -1224,21 +1224,26 @@ function openProductModal(productId = null) {
       if (priceInput) priceInput.value = prod.price || '';
       if (catInput) catInput.value = prod.categoryId || 'tacos';
       if (descInput) descInput.value = prod.description || '';
-      if (urlInput) urlInput.value = prod.imageUrl || '';
       if (availInput) availInput.checked = prod.available !== false;
       selectSpicyLevel(prod.spicyLevel || 0);
 
       currentModalIngredients = Array.isArray(prod.ingredients) ? [...prod.ingredients] : [];
 
-      if (prod.imageUrl) {
-        if (previewImg) {
-          previewImg.src = prod.imageUrl;
-          previewImg.style.display = 'block';
-        }
-        if (previewHolder) previewHolder.style.display = 'none';
-      } else {
-        if (previewImg) previewImg.style.display = 'none';
-        if (previewHolder) previewHolder.style.display = 'flex';
+      // Cargar imágenes existentes (soporta lista images o single imageUrl)
+      if (Array.isArray(prod.images) && prod.images.length > 0) {
+        currentModalImages = prod.images
+          .filter(u => u && typeof u === 'string' && u.trim().length > 0)
+          .map((u, idx) => ({
+            id: 'ex_' + idx + '_' + Date.now(),
+            url: u.trim(),
+            file: null
+          }));
+      } else if (prod.imageUrl && typeof prod.imageUrl === 'string' && prod.imageUrl.trim().length > 0) {
+        currentModalImages = [{
+          id: 'ex_0_' + Date.now(),
+          url: prod.imageUrl.trim(),
+          file: null
+        }];
       }
     }
   } else {
@@ -1249,16 +1254,14 @@ function openProductModal(productId = null) {
     if (priceInput) priceInput.value = '';
     if (catInput) catInput.value = 'tacos';
     if (descInput) descInput.value = '';
-    if (urlInput) urlInput.value = '';
     if (availInput) availInput.checked = true;
     selectSpicyLevel(0);
-
-    if (previewImg) previewImg.style.display = 'none';
-    if (previewHolder) previewHolder.style.display = 'flex';
+    currentModalImages = [];
   }
 
   if (ingInput) ingInput.value = '';
   renderModalIngredientChips();
+  renderModalImagesGallery();
 
   if (modal) {
     modal.style.display = 'flex';
@@ -1270,24 +1273,22 @@ function closeProductModal(event) {
   const modal = document.getElementById('productModal');
   if (modal) modal.style.display = 'none';
 
-  // Cancelar upload en curso si existe (evita que el botón quede en "Subiendo foto...")
+  // Cancelar upload en curso si existe
   if (currentUploadTask) {
     try { currentUploadTask.cancel(); } catch (_) {}
     currentUploadTask = null;
   }
 
-  // Cancelar y limpiar archivo de imagen seleccionado
+  // Cancelar y limpiar imágenes seleccionadas
   selectedImageFile = null;
-  const fileInput = document.getElementById('pmImageFile');
-  if (fileInput) fileInput.value = '';
+  currentModalImages = [];
+  const filesInput = document.getElementById('pmImageFiles');
+  if (filesInput) filesInput.value = '';
+  const urlInput = document.getElementById('pmImageUrl');
+  if (urlInput) urlInput.value = '';
+  renderModalImagesGallery();
 
-  // Resetear preview de imagen
-  const previewImg = document.getElementById('pmImagePreview');
-  const previewHolder = document.getElementById('pmPreviewPlaceholder');
-  if (previewImg) { previewImg.src = ''; previewImg.style.display = 'none'; }
-  if (previewHolder) previewHolder.style.display = 'flex';
-
-  // Resetear completamente el botón Guardar (por si estaba en "Subiendo foto...")
+  // Resetear completamente el botón Guardar
   const saveBtn = document.getElementById('btnSaveProduct');
   const saveText = document.getElementById('btnSaveProductText');
   const saveIcon = document.getElementById('btnSaveProductIcon');
@@ -1335,20 +1336,28 @@ function openProductDetailModal(productId) {
   const isAvail = p.available !== false;
   const catLabel = categoryNames[p.categoryId] || p.categoryId || 'General';
   const spicyText = spicyLabels[p.spicyLevel || 0] || 'Sin picante';
-  const imgUrl = p.imageUrl && p.imageUrl.startsWith('http') 
-    ? p.imageUrl 
-    : 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600';
+
+  // Fotos del platillo (soporta array de images o single imageUrl)
+  currentDetailImages = [];
+  if (Array.isArray(p.images) && p.images.length > 0) {
+    currentDetailImages = p.images.filter(u => u && typeof u === 'string' && u.trim().length > 0);
+  }
+  if (currentDetailImages.length === 0 && p.imageUrl && typeof p.imageUrl === 'string' && p.imageUrl.trim().length > 0) {
+    currentDetailImages = [p.imageUrl.trim()];
+  }
+  if (currentDetailImages.length === 0) {
+    currentDetailImages = ['https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600'];
+  }
+  currentDetailImageIndex = 0;
 
   // Elementos del Modal
   const headerCat = document.getElementById('pdHeaderCategory');
   const statusBadge = document.getElementById('pdStatusBadge');
   const statusIcon = document.getElementById('pdStatusIcon');
   const statusText = document.getElementById('pdStatusText');
-  const imgEl = document.getElementById('pdDetailImg');
   const catBadge = document.getElementById('pdDetailCatBadge');
   const spicyBadge = document.getElementById('pdDetailSpicyBadge');
   const idCode = document.getElementById('pdDetailIdCode');
-  const imgOpenLink = document.getElementById('pdDetailImgOpen');
   const nameEl = document.getElementById('pdDetailName');
   const priceEl = document.getElementById('pdDetailPrice');
   const descEl = document.getElementById('pdDetailDesc');
@@ -1364,14 +1373,8 @@ function openProductDetailModal(productId) {
   if (idCode) idCode.textContent = `#${p.id}`;
   if (descEl) descEl.textContent = p.description || 'Sin descripción detallada para este producto.';
 
-  // Imagen y enlaces
-  if (imgEl) {
-    imgEl.src = imgUrl;
-    imgEl.alt = p.name || 'Platillo';
-  }
-  if (imgOpenLink) {
-    imgOpenLink.href = imgUrl;
-  }
+  // Renderizar galería de fotos de la ficha técnica
+  updateDetailGalleryView(p);
 
   // Badges sobre la foto
   if (catBadge) catBadge.textContent = catLabel;
@@ -1528,40 +1531,176 @@ function compressImageFile(file) {
   });
 }
 
-function handleProductFileSelect(event) {
-  const file = event.target.files && event.target.files[0];
-  if (!file) return;
-  const previewImg = document.getElementById('pmImagePreview');
-  const previewHolder = document.getElementById('pmPreviewPlaceholder');
-  // Mostrar preview inmediatamente con la URL local (sin esperar compresión)
-  const objectUrl = URL.createObjectURL(file);
-  if (previewImg) { previewImg.src = objectUrl; previewImg.style.display = 'block'; }
-  if (previewHolder) previewHolder.style.display = 'none';
-  // Comprimir en segundo plano y guardar la versión comprimida para el upload
-  compressImageFile(file).then((compressed) => {
-    selectedImageFile = compressed;
-  }).catch(() => {
-    selectedImageFile = file; // fallback al original si falla
+// ─── MULTI-IMAGE GALLERY MANAGEMENT IN MODAL ───────────────────
+let currentModalImages = [];
+let currentDetailImages = [];
+let currentDetailImageIndex = 0;
+
+function handleProductFilesSelect(event) {
+  const files = event.target.files;
+  if (!files || files.length === 0) return;
+
+  const fileList = Array.from(files);
+  event.target.value = '';
+
+  fileList.forEach((file) => {
+    const objectUrl = URL.createObjectURL(file);
+    const item = {
+      id: 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      url: objectUrl,
+      file: file,
+      isPending: true
+    };
+    currentModalImages.push(item);
+    renderModalImagesGallery();
+
+    // Comprimir en segundo plano para optimizar peso en subida
+    compressImageFile(file).then((compressed) => {
+      item.file = compressed;
+    }).catch(() => {
+      // conservar file original si falla
+    });
   });
 }
 
-function handleProductUrlInput(val) {
-  const url = (val || '').trim();
-  const previewImg = document.getElementById('pmImagePreview');
-  const previewHolder = document.getElementById('pmPreviewPlaceholder');
-  if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
-    if (previewImg) {
-      previewImg.src = url;
-      previewImg.style.display = 'block';
-    }
-    if (previewHolder) previewHolder.style.display = 'none';
-  } else if (!selectedImageFile) {
-    if (previewImg) previewImg.style.display = 'none';
-    if (previewHolder) previewHolder.style.display = 'flex';
+function handleProductUrlKey(event) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    addModalImageFromUrl();
   }
 }
 
-// ─── SAVE PRODUCT (FIRESTORE + STORAGE) ────────────────────────
+function addModalImageFromUrl() {
+  const input = document.getElementById('pmImageUrl');
+  if (!input) return;
+  const val = (input.value || '').trim();
+  if (!val) return;
+  if (!val.startsWith('http://') && !val.startsWith('https://')) {
+    showToast("Ingresa una URL válida que comience con http:// o https://", "warning");
+    return;
+  }
+  currentModalImages.push({
+    id: 'url_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+    url: val,
+    file: null,
+    isPending: false
+  });
+  input.value = '';
+  renderModalImagesGallery();
+}
+
+function removeModalImage(index) {
+  if (index < 0 || index >= currentModalImages.length) return;
+  currentModalImages.splice(index, 1);
+  renderModalImagesGallery();
+}
+
+function setModalImagePrimary(index) {
+  if (index <= 0 || index >= currentModalImages.length) return;
+  const [item] = currentModalImages.splice(index, 1);
+  currentModalImages.unshift(item);
+  renderModalImagesGallery();
+}
+
+function renderModalImagesGallery() {
+  const grid = document.getElementById('pmImagesGrid');
+  const placeholder = document.getElementById('pmImagesEmptyPlaceholder');
+  const badge = document.getElementById('pmPhotoCountBadge');
+
+  if (badge) {
+    badge.textContent = `${currentModalImages.length} foto${currentModalImages.length === 1 ? '' : 's'}`;
+  }
+
+  if (!grid || !placeholder) return;
+
+  if (currentModalImages.length === 0) {
+    grid.innerHTML = '';
+    grid.style.display = 'none';
+    placeholder.style.display = 'flex';
+    return;
+  }
+
+  placeholder.style.display = 'none';
+  grid.style.display = 'grid';
+
+  grid.innerHTML = currentModalImages.map((img, idx) => {
+    const isPrimary = idx === 0;
+    return `
+      <div class="pm-image-card ${isPrimary ? 'is-primary' : ''}">
+        <img src="${escapeHtml(img.url)}" alt="Foto ${idx + 1}" onerror="this.src='https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600'">
+        ${isPrimary ? `<span class="pm-primary-badge"><span class="material-symbols-rounded" style="font-size:12px;">star</span> Principal</span>` : ''}
+        <div class="pm-image-actions">
+          <button type="button" class="pm-btn-icon" onclick="removeModalImage(${idx})" title="Eliminar foto">&times;</button>
+        </div>
+        ${!isPrimary ? `<button type="button" class="pm-btn-set-primary" onclick="setModalImagePrimary(${idx})">⭐ Principal</button>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+// ─── DETAIL MODAL GALLERY CONTROLS ─────────────────────────────
+function updateDetailGalleryView(p) {
+  if (!currentDetailImages || currentDetailImages.length === 0) return;
+  if (currentDetailImageIndex < 0) currentDetailImageIndex = 0;
+  if (currentDetailImageIndex >= currentDetailImages.length) currentDetailImageIndex = currentDetailImages.length - 1;
+
+  const currentUrl = currentDetailImages[currentDetailImageIndex];
+  const imgEl = document.getElementById('pdDetailImg');
+  const imgOpenLink = document.getElementById('pdDetailImgOpen');
+  const prevBtn = document.getElementById('pdGalleryPrev');
+  const nextBtn = document.getElementById('pdGalleryNext');
+  const counterEl = document.getElementById('pdGalleryCounter');
+  const stripEl = document.getElementById('pdDetailGalleryStrip');
+
+  if (imgEl) {
+    imgEl.src = currentUrl;
+    imgEl.alt = (p && p.name) ? p.name : 'Platillo';
+  }
+  if (imgOpenLink) {
+    imgOpenLink.href = currentUrl;
+  }
+
+  const hasMultiple = currentDetailImages.length > 1;
+  if (prevBtn) prevBtn.style.display = hasMultiple ? 'flex' : 'none';
+  if (nextBtn) nextBtn.style.display = hasMultiple ? 'flex' : 'none';
+  if (counterEl) {
+    counterEl.style.display = hasMultiple ? 'block' : 'none';
+    counterEl.textContent = `${currentDetailImageIndex + 1} / ${currentDetailImages.length}`;
+  }
+
+  if (stripEl) {
+    if (hasMultiple) {
+      stripEl.style.display = 'flex';
+      stripEl.innerHTML = currentDetailImages.map((img, idx) => `
+        <img src="${escapeHtml(img)}" class="pd-gallery-thumb ${idx === currentDetailImageIndex ? 'active' : ''}" 
+          onclick="setDetailImageIndex(${idx})" alt="Miniatura ${idx + 1}" title="Foto ${idx + 1}">
+      `).join('');
+    } else {
+      stripEl.style.display = 'none';
+      stripEl.innerHTML = '';
+    }
+  }
+}
+
+function prevDetailImage() {
+  if (!currentDetailImages || currentDetailImages.length <= 1) return;
+  currentDetailImageIndex = (currentDetailImageIndex - 1 + currentDetailImages.length) % currentDetailImages.length;
+  updateDetailGalleryView();
+}
+
+function nextDetailImage() {
+  if (!currentDetailImages || currentDetailImages.length <= 1) return;
+  currentDetailImageIndex = (currentDetailImageIndex + 1) % currentDetailImages.length;
+  updateDetailGalleryView();
+}
+
+function setDetailImageIndex(idx) {
+  if (!currentDetailImages || idx < 0 || idx >= currentDetailImages.length) return;
+  currentDetailImageIndex = idx;
+  updateDetailGalleryView();
+}
+
+// ─── SAVE PRODUCT (FIRESTORE + STORAGE MULTI-FOTO) ─────────────
 async function saveProduct() {
   const idInput = document.getElementById('pmId');
   const nameInput = document.getElementById('pmName');
@@ -1569,7 +1708,6 @@ async function saveProduct() {
   const catInput = document.getElementById('pmCategory');
   const spicyInput = document.getElementById('pmSpicy');
   const descInput = document.getElementById('pmDesc');
-  const urlInput = document.getElementById('pmImageUrl');
   const availInput = document.getElementById('pmAvailable');
   const saveBtn = document.getElementById('btnSaveProduct');
   const saveText = document.getElementById('btnSaveProductText');
@@ -1580,7 +1718,6 @@ async function saveProduct() {
   const categoryId = catInput?.value || 'tacos';
   const spicyLevel = parseInt(spicyInput?.value || '0', 10);
   const description = (descInput?.value || '').trim();
-  let imageUrl = (urlInput?.value || '').trim();
   const available = availInput ? availInput.checked : true;
   const existingId = idInput?.value || null;
 
@@ -1604,42 +1741,48 @@ async function saveProduct() {
   if (saveIcon) saveIcon.textContent = 'sync';
 
   try {
-    // Si se subió archivo de imagen local, subir a Firebase Storage (con timeout de 30s)
-    if (selectedImageFile && storage) {
-      try {
-        if (saveText) saveText.textContent = 'Subiendo foto...';
-        const storageRef = storage.ref(`products/${docId}/main_${Date.now()}.jpg`);
-        // Guardar referencia al UploadTask para poder cancelarlo si se cierra el modal
-        currentUploadTask = storageRef.put(selectedImageFile);
-        const uploadPromise = currentUploadTask.then(snap => snap.ref.getDownloadURL());
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Upload timeout (30s)')), 30000)
-        );
-        imageUrl = await Promise.race([uploadPromise, timeoutPromise]);
-        currentUploadTask = null; // Upload completado, limpiar referencia
-      } catch (uploadErr) {
-        currentUploadTask = null;
-        if (uploadErr.code === 'storage/cancelled') {
-          // El modal fue cerrado por el usuario — abortar silenciosamente sin guardar
-          return;
+    const finalImagesUrls = [];
+
+    // Subir cada foto pendiente a Firebase Storage
+    for (let i = 0; i < currentModalImages.length; i++) {
+      const item = currentModalImages[i];
+      if (item.file && storage) {
+        try {
+          if (saveText) saveText.textContent = `Subiendo foto ${i + 1}/${currentModalImages.length}...`;
+          const storageRef = storage.ref(`products/${docId}/img_${Date.now()}_${i}.jpg`);
+          currentUploadTask = storageRef.put(item.file);
+          const uploadPromise = currentUploadTask.then(snap => snap.ref.getDownloadURL());
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Upload timeout (30s)')), 30000)
+          );
+          const downloadUrl = await Promise.race([uploadPromise, timeoutPromise]);
+          currentUploadTask = null;
+          finalImagesUrls.push(downloadUrl);
+        } catch (uploadErr) {
+          currentUploadTask = null;
+          if (uploadErr.code === 'storage/cancelled') return;
+          console.warn("Error subiendo foto a Storage:", uploadErr);
         }
-        console.warn("No se pudo subir a Storage, se guardará con placeholder:", uploadErr);
-        // No bloquear el guardado — imageUrl quedará vacío y usará el placeholder de abajo
+      } else if (item.url && (item.url.startsWith('http://') || item.url.startsWith('https://'))) {
+        finalImagesUrls.push(item.url);
       }
     }
 
-    if (!imageUrl) {
-      // Imagen por defecto apetitosa si no se suministró foto
-      imageUrl = 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600';
+    // Fallback si no quedó ninguna imagen
+    if (finalImagesUrls.length === 0) {
+      finalImagesUrls.push('https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600');
     }
 
+    const primaryImageUrl = finalImagesUrls[0];
     const now = Date.now();
+
     const productPayload = {
       id: docId,
       name: name,
       description: description,
       price: price,
-      imageUrl: imageUrl,
+      imageUrl: primaryImageUrl,
+      images: finalImagesUrls,
       categoryId: categoryId,
       spicyLevel: spicyLevel,
       available: available,

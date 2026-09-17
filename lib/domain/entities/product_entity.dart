@@ -15,6 +15,7 @@ class ProductEntity extends Equatable {
     this.available = true,
     this.ingredients = const [],
     this.extras = const [],
+    this.images = const [],
     this.createdAt,
     this.updatedAt,
   });
@@ -31,12 +32,21 @@ class ProductEntity extends Equatable {
   final bool available;
   final List<String> ingredients;
   final List<ExtraEntity> extras;
+  final List<String> images;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
   bool get isSpicy => spicyLevel > 0;
   bool get isDiablaLevel => spicyLevel == 3;
   bool get hasExtras => extras.isNotEmpty;
+
+  /// Retorna todas las fotos del producto de manera segura (si `images` está vacío, usa `imageUrl`).
+  List<String> get allImages {
+    final list = images.where((img) => img.trim().isNotEmpty).toList();
+    if (list.isNotEmpty) return list;
+    if (imageUrl.trim().isNotEmpty) return [imageUrl.trim()];
+    return const [];
+  }
 
   ProductEntity copyWith({
     String? id,
@@ -49,6 +59,7 @@ class ProductEntity extends Equatable {
     bool? available,
     List<String>? ingredients,
     List<ExtraEntity>? extras,
+    List<String>? images,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -63,6 +74,7 @@ class ProductEntity extends Equatable {
       available: available ?? this.available,
       ingredients: ingredients ?? this.ingredients,
       extras: extras ?? this.extras,
+      images: images ?? this.images,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -71,6 +83,6 @@ class ProductEntity extends Equatable {
   @override
   List<Object?> get props => [
     id, name, description, price, imageUrl, categoryId,
-    spicyLevel, available, ingredients, extras,
+    spicyLevel, available, ingredients, extras, images,
   ];
 }

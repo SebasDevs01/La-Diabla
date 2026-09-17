@@ -15,6 +15,7 @@ import '../../../cart/providers/cart_notifier.dart';
 import '../../../favorites/providers/favorites_provider.dart';
 import '../../../home/providers/home_provider.dart';
 import '../../../../domain/entities/product_entity.dart';
+import '../widgets/product_gallery_viewer.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   const ProductDetailScreen({super.key, required this.productId});
@@ -31,6 +32,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   final Set<String> _removedIngredients = {};
   final Map<String, String> _selectedOptions = {};
   final TextEditingController _notesController = TextEditingController();
+
+  final PageController _headerPageController = PageController();
+  int _headerCurrentIndex = 0;
 
   @override
   void initState() {
@@ -50,6 +54,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   @override
   void dispose() {
     _notesController.dispose();
+    _headerPageController.dispose();
     super.dispose();
   }
 
@@ -202,19 +207,214 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
-              background: effectiveImageUrl.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: effectiveImageUrl,
-                      fit: BoxFit.cover,
-                      errorWidget: (context, url, error) => Container(
-                        color: const Color(0xFF1E1E1E),
-                        child: const Center(child: Icon(Icons.fastfood_rounded, size: 80, color: Colors.orange)),
-                      ),
-                    )
-                  : Container(
-                      color: const Color(0xFF1E1E1E),
-                      child: const Center(child: Icon(Icons.fastfood_rounded, size: 80, color: Colors.orange)),
+              background: Builder(
+                builder: (context) {
+                  final images = product.allImages.isNotEmpty
+                      ? product.allImages
+                      : (effectiveImageUrl.isNotEmpty
+                          ? [effectiveImageUrl]
+                          : ['https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600']);
+                  final hasMultiple = images.length > 1;
+
+                  return GestureDetector(
+                    onTap: () {
+                      ProductGalleryViewer.show(
+                        context,
+                        images: images,
+                        initialIndex: _headerCurrentIndex.clamp(0, images.length - 1),
+                        productName: product.name,
+                      );
+                    },
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // ─── 1. Carrusel PageView (Deslizar sin dar clic / Swipe) ───
+                        PageView.builder(
+                          controller: _headerPageController,
+                          itemCount: images.length,
+                          onPageChanged: (idx) {
+                            setState(() => _headerCurrentIndex = idx);
+                          },
+                          itemBuilder: (context, index) {
+                            return CachedNetworkImage(
+                              imageUrl: images[index],
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade200,
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    color: Color(0xFFDC2626),
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: const Color(0xFF1E1E1E),
+                                child: const Center(
+                                  child: Icon(Icons.fastfood_rounded, size: 80, color: Colors.orange),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+
+                        // Gradiente superior e inferior para mejorar legibilidad
+                        Positioned.fill(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.black.withAlpha(90),
+                                  Colors.transparent,
+                                  Colors.black.withAlpha(120),
+                                ],
+                                stops: const [0.0, 0.5, 1.0],
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // ─── 2. Botones de Clic (< y >) para deslizar dando clic ─────
+                        if (hasMultiple) ...[
+                          // Flecha Izquierda
+                          Positioned(
+                            left: 10,
+                            top: 0,
+                            bottom: 0,
+                            child: Center(
+                              child: Material(
+                                color: Colors.black.withAlpha(150),
+                                shape: const CircleBorder(),
+                                child: InkWell(
+                                  customBorder: const CircleBorder(),
+                                  onTap: () {
+                                    final prev = (_headerCurrentIndex - 1 + images.length) % images.length;
+                                    _headerPageController.animateToPage(
+                                      prev,
+                                      duration: const Duration(milliseconds: 280),
+                                      curve: Curves.easeOutCubic,
+                                    );
+                                  },
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: Icon(
+                                      Icons.arrow_back_ios_new_rounded,
+                                      size: 18,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Flecha Derecha
+                          Positioned(
+                            right: 10,
+                            top: 0,
+                            bottom: 0,
+                            child: Center(
+                              child: Material(
+                                color: Colors.black.withAlpha(150),
+                                shape: const CircleBorder(),
+                                child: InkWell(
+                                  customBorder: const CircleBorder(),
+                                  onTap: () {
+                                    final next = (_headerCurrentIndex + 1) % images.length;
+                                    _headerPageController.animateToPage(
+                                      next,
+                                      duration: const Duration(milliseconds: 280),
+                                      curve: Curves.easeOutCubic,
+                                    );
+                                  },
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      size: 18,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+
+                        // ─── 3. Indicador Flotante Inferior (Badge + Puntos) ─────────
+                        Positioned(
+                          bottom: 12,
+                          left: 16,
+                          right: 16,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // Puntos de paginación interactivos
+                              if (hasMultiple)
+                                Row(
+                                  children: List.generate(images.length, (idx) {
+                                    final isSelected = idx == _headerCurrentIndex;
+                                    return GestureDetector(
+                                      onTap: () {
+                                        _headerPageController.animateToPage(
+                                          idx,
+                                          duration: const Duration(milliseconds: 280),
+                                          curve: Curves.easeOutCubic,
+                                        );
+                                      },
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 200),
+                                        margin: const EdgeInsets.only(right: 5),
+                                        width: isSelected ? 18 : 6,
+                                        height: 6,
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? const Color(0xFFDC2626) : Colors.white60,
+                                          borderRadius: BorderRadius.circular(3),
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                )
+                              else
+                                const SizedBox.shrink(),
+
+                              // Badge: "📸 1/3 • Ver fotos ↗"
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withAlpha(175),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: Colors.white24, width: 0.8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.fullscreen_rounded, size: 16, color: Colors.white),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      hasMultiple
+                                          ? '${_headerCurrentIndex + 1}/${images.length} • Ver fotos'
+                                          : 'Ver foto completa',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
+                  );
+                },
+              ),
             ),
           ),
           SliverToBoxAdapter(
