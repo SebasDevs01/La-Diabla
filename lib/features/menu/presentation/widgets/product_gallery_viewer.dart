@@ -84,37 +84,7 @@ class _ProductGalleryViewerState extends State<ProductGalleryViewer> {
     );
   }
 
-  void _goToPrevious() {
-    if (_currentIndex > 0) {
-      _pageController.previousPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
-      );
-    } else {
-      // Loop al final si se desea
-      _pageController.animateToPage(
-        widget.images.length - 1,
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeOutCubic,
-      );
-    }
-  }
 
-  void _goToNext() {
-    if (_currentIndex < widget.images.length - 1) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
-      );
-    } else {
-      // Loop al inicio si se desea
-      _pageController.animateToPage(
-        0,
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeOutCubic,
-      );
-    }
-  }
 
   void _jumpTo(int index) {
     if (index == _currentIndex) return;
@@ -174,52 +144,7 @@ class _ProductGalleryViewerState extends State<ProductGalleryViewer> {
             },
           ),
 
-          // ─── 2. Botones de Clic Laterales ("dando clic" < y >) ──────────────
-          if (hasMultiple) ...[
-            // Flecha Izquierda (Anterior)
-            Positioned(
-              left: 14,
-              top: 0,
-              bottom: 120,
-              child: Center(
-                child: Material(
-                  color: Colors.black.withAlpha(160),
-                  shape: const CircleBorder(),
-                  clipBehavior: Clip.antiAlias,
-                  child: IconButton(
-                    iconSize: 28,
-                    padding: const EdgeInsets.all(12),
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-                    tooltip: 'Foto anterior',
-                    onPressed: _goToPrevious,
-                  ),
-                ),
-              ),
-            ),
-
-            // Flecha Derecha (Siguiente)
-            Positioned(
-              right: 14,
-              top: 0,
-              bottom: 120,
-              child: Center(
-                child: Material(
-                  color: Colors.black.withAlpha(160),
-                  shape: const CircleBorder(),
-                  clipBehavior: Clip.antiAlias,
-                  child: IconButton(
-                    iconSize: 28,
-                    padding: const EdgeInsets.all(12),
-                    icon: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white),
-                    tooltip: 'Foto siguiente',
-                    onPressed: _goToNext,
-                  ),
-                ),
-              ),
-            ),
-          ],
-
-          // ─── 3. Barra Superior (Cerrar, Título, Contador) ───────────────────
+          // ─── 2. Barra Superior (Cerrar, Título, Contador) ───────────────────
           Positioned(
             top: 0,
             left: 0,
@@ -271,7 +196,7 @@ class _ProductGalleryViewerState extends State<ProductGalleryViewer> {
                           ),
                           Text(
                             hasMultiple
-                                ? 'Desliza o toca las flechas para navegar'
+                                ? 'Desliza las fotos o toca las miniaturas'
                                 : 'Pellizca con 2 dedos para hacer zoom',
                             style: TextStyle(
                               fontSize: 11.5,

@@ -103,10 +103,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
 
     // 1. VALIDACIÓN OBLIGATORIA DE DIRECCIÓN
-    final hasAddress = selectedAddress != null ||
-        (user?.guestAddress != null && user!.guestAddress!.trim().isNotEmpty);
+    AddressEntity? effectiveOrderAddress = selectedAddress;
+    if (effectiveOrderAddress == null && user?.guestAddress != null && user!.guestAddress!.trim().isNotEmpty) {
+      effectiveOrderAddress = AddressEntity(
+        id: 'addr_guest_${DateTime.now().millisecondsSinceEpoch}',
+        userId: user.id,
+        label: AddressLabel.home,
+        latitude: 7.092758,
+        longitude: -73.142590,
+        formattedAddress: user.guestAddress!.trim(),
+      );
+    }
 
-    if (!hasAddress) {
+    if (effectiveOrderAddress == null || effectiveOrderAddress.formattedAddress.trim().isEmpty) {
       messenger.showSnackBar(
         const SnackBar(
           content: Text('⚠️ Por favor agrega tu dirección de entrega antes de confirmar el pedido 📍'),
@@ -119,7 +128,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
 
     // 2. VALIDACIÓN OBLIGATORIA DE NÚMERO DE TELÉFONO
-    final userPhone = user?.phone?.trim() ?? '';
+    var effectiveUser = user;
+    final userPhone = effectiveUser?.phone?.trim() ?? '';
     final hasValidPhone = userPhone.isNotEmpty &&
         userPhone != '3000000000' &&
         userPhone.length >= 7;
@@ -138,30 +148,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         );
         return;
       }
-      // Actualizar en Auth y Firestore en segundo plano
-      if (user != null) {
-        final updatedUser = user.copyWith(phone: enteredPhone);
-        ref.read(authNotifierProvider.notifier).updateUser(updatedUser);
-        FirebaseFirestore.instance
-            .collection('users')
-            .doc(updatedUser.id)
-            .set({'phone': enteredPhone}, SetOptions(merge: true))
-            .catchError((_) {});
+      final cleanPhone = enteredPhone.trim();
+      // Actualizar en Auth y Firestore con persistencia total
+      if (effectiveUser != null) {
+        effectiveUser = effectiveUser.copyWith(phone: cleanPhone);
+        await ref.read(authNotifierProvider.notifier).updateUserProfile(phone: cleanPhone);
       }
     }
 
     final orderId = const Uuid().v4();
-
-    final fallbackGuestAddress = AddressEntity(
-      id: 'addr_guest',
-      userId: user?.id ?? 'guest',
-      label: AddressLabel.home,
-      latitude: 7.092758,
-      longitude: -73.142590,
-      formattedAddress: user?.guestAddress ?? 'Cl. 59 # 39W-24, Estoraques 1, Bucaramanga',
-    );
-
-    final effectiveOrderAddress = selectedAddress ?? fallbackGuestAddress;
     final couponState = ref.read(couponProvider);
     final couponDiscount = couponState.coupon?.calculateDiscount(cartState.total) ?? 0;
     final total = (cartState.total - couponDiscount).clamp(0.0, double.infinity);
@@ -343,9 +338,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   : (_selectedPaymentMethod == PaymentMethod.daviplata
                       ? '3138432479'
                       : null))),
-      notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-      customerName: user?.name ?? 'Cliente La Diabla',
-      customerPhone: user?.phone ?? '',
+      customerName: (effectiveUser?.name.isNotEmpty == true && effectiveUser?.name != 'Usuario La Diabla')
+          ? effectiveUser!.name
+          : 'Cliente La Diabla',
+      customerPhone: effectiveUser?.phone ?? '',
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );

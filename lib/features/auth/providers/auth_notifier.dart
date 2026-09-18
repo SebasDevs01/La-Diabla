@@ -56,35 +56,41 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (user.isGuest) {
-        // Invitados: guardar en SharedPreferences como sesión temporal
-        await prefs.setBool('is_logged_in', false);
+        // Invitados: guardar en SharedPreferences con persistencia completa
+        await prefs.setBool('is_logged_in', true);
         await prefs.setBool('is_guest_user', true);
+        await prefs.setString('saved_user_id', user.id);
         await prefs.setString('guest_name', user.name);
-        if (user.phone != null) await prefs.setString('guest_phone', user.phone!);
-        if (user.guestAddress != null) await prefs.setString('guest_address', user.guestAddress!);
-
-        // Si el invitado tiene UID real de Firebase (anónimo), persistir en Firestore
-        // para que pueda recibir notificaciones como cualquier usuario registrado
-        final isRealFirebaseUid = !user.id.startsWith('guest_') && user.id.length > 10;
-        if (isRealFirebaseUid) {
-          try {
-            await FirebaseFirestore.instance.collection('users').doc(user.id).set({
-              'name': user.name,
-              'phone': user.phone ?? '',
-              'email': user.email,
-              'role': 'customer',
-              'isGuest': true,
-              'guestAddress': user.guestAddress ?? '',
-              'updatedAt': FieldValue.serverTimestamp(),
-              'createdAt': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true));
-          } catch (_) {}
-          // Sincronizar token FCM para que reciba notificaciones de sus pedidos
-          NotificationService()
-              .syncUserFcmToken(user.id, role: 'customer')
-              .timeout(const Duration(seconds: 4), onTimeout: () {})
-              .ignore();
+        await prefs.setString('saved_user_name', user.name);
+        if (user.phone != null) {
+          await prefs.setString('guest_phone', user.phone!);
+          await prefs.setString('saved_user_phone', user.phone!);
         }
+        if (user.guestAddress != null) {
+          await prefs.setString('guest_address', user.guestAddress!);
+        }
+        await prefs.setString('saved_user_role', 'customer');
+        await prefs.setString('saved_user_email', user.email);
+
+        // Persistir siempre en Firestore para que reciba notificaciones push de sus pedidos
+        try {
+          await FirebaseFirestore.instance.collection('users').doc(user.id).set({
+            'name': user.name,
+            'phone': user.phone ?? '',
+            'email': user.email,
+            'role': 'customer',
+            'isGuest': true,
+            'guestAddress': user.guestAddress ?? '',
+            'updatedAt': FieldValue.serverTimestamp(),
+            'createdAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        } catch (_) {}
+
+        // Sincronizar token FCM del invitado para que reciba notificaciones
+        NotificationService()
+            .syncUserFcmToken(user.id, role: 'customer')
+            .timeout(const Duration(seconds: 4), onTimeout: () {})
+            .ignore();
         return;
       }
       await prefs.setBool('is_logged_in', true);
@@ -139,27 +145,37 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final isGuest = prefs.getBool('is_guest_user') ?? false;
     final savedId = prefs.getString('saved_user_id');
     final savedEmail = prefs.getString('saved_user_email') ?? '';
+    final savedName = prefs.getString('saved_user_name');
+    final savedPhone = prefs.getString('saved_user_phone');
     final isGuestId = savedId != null && (savedId.startsWith('guest_') || savedId == 'guest');
     final isGuestEmail = savedEmail.contains('@invitado.ladiabla.app') || savedEmail.contains('guest');
 
-    // NUNCA restaurar sesiones de invitados al iniciar la app.
-    // Si hay residuos de invitado en SharedPreferences, se limpian por completo.
+    // Restaurar sesión de invitado si existe (para que la sesión no se cierre al salir de la app)
     if (isGuest || isGuestId || isGuestEmail) {
-      await _clearUserSession();
-      try {
-        final fbUser = FirebaseAuth.instance.currentUser;
-        if (fbUser != null && fbUser.isAnonymous) {
-          await FirebaseAuth.instance.signOut();
-        }
-      } catch (_) {}
-      state = state.copyWith(user: null, isLoading: false);
+      final guestName = prefs.getString('guest_name') ?? (savedName?.isNotEmpty == true ? savedName! : 'Invitado La Diabla');
+      final guestPhone = prefs.getString('guest_phone') ?? savedPhone;
+      final guestAddress = prefs.getString('guest_address');
+      final guestUid = savedId ?? FirebaseAuth.instance.currentUser?.uid ?? 'guest_${DateTime.now().millisecondsSinceEpoch}';
+
+      final guestEntity = UserEntity(
+        id: guestUid,
+        name: guestName,
+        email: savedEmail.isNotEmpty ? savedEmail : 'invitado@ladiabla.app',
+        role: UserRole.customer,
+        phone: guestPhone,
+        isGuest: true,
+        guestAddress: guestAddress,
+        createdAt: DateTime.now(),
+      );
+
+      state = state.copyWith(user: guestEntity, isLoading: false);
+      NotificationService().syncUserFcmToken(guestUid, role: 'customer').ignore();
+      _ref.read(addressesProvider.notifier).reloadForUser(guestUid).ignore();
       return;
     }
 
     final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
     final savedRole = prefs.getString('saved_user_role');
-    final savedName = prefs.getString('saved_user_name');
-    final savedPhone = prefs.getString('saved_user_phone');
     final savedPhoto = prefs.getString('saved_user_photo');
 
     // ── 1. RESTAURAR SESIÓN DESDE SHAREDPREFERENCES INMEDIATAMENTE (Solo usuarios reales)
@@ -302,6 +318,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
             .set({'role': 'driver'}, SetOptions(merge: true))
             .ignore();
       }
+      // Si el usuario ya tenía guardado un teléfono en Firestore o SharedPreferences, recuperarlo
+      try {
+        final existingDoc = await FirebaseFirestore.instance.collection('users').doc(user.id).get();
+        final existingPhone = existingDoc.data()?['phone'] as String?;
+        if (existingPhone != null && existingPhone.trim().isNotEmpty && (user.phone == null || user.phone!.isEmpty)) {
+          user = user.copyWith(phone: existingPhone.trim());
+        }
+      } catch (_) {}
+
       // Asegurar sincronización en Firestore de photoUrl y datos del usuario
       FirebaseFirestore.instance
           .collection('users')
@@ -309,6 +334,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           .set({
             'name': user.name,
             'email': user.email,
+            if (user.phone != null && user.phone!.isNotEmpty) 'phone': user.phone,
             if (user.photoUrl != null && user.photoUrl!.isNotEmpty) 'photoUrl': user.photoUrl,
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true))
@@ -319,6 +345,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await prefs.setBool('is_delivery_mode', isDeliveryMode);
       state = state.copyWith(user: user, isLoading: false);
       _saveUserSession(user).ignore();
+      // Recargar direcciones para este usuario específico
+      _ref.read(addressesProvider.notifier).reloadForUser(user.id).ignore();
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -459,6 +487,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (fbUser != null && fbUser.isAnonymous) {
         await FirebaseAuth.instance.signOut();
       }
+      // Limpiar estado en memoria de direcciones
+      _ref.read(addressesProvider.notifier).clearForLogout().ignore();
       state = const AuthState();
     } catch (e) {
       state = state.copyWith(isLoading: false);

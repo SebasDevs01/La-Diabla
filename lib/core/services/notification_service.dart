@@ -369,8 +369,9 @@ class NotificationService {
           final body = data['body'] as String? ?? '';
           final type = data['type'] as String? ?? 'chat_message';
           final status = data['status'] as String? ?? '';
-          // Si es repartidor, omitir notificaciones order_status (son para el cliente).
-          if (isDriver && type == 'order_status') continue;
+          // Las notificaciones tipo order_status son entregadas directamente por Cloud Functions vía FCM push.
+          // Omitimos generar banner local para order_status aquí para garantizar exactamente 1 notificación única.
+          if (type == 'order_status') continue;
           if (type == 'chat_message' && OrderChatScreen.currentActiveOrderId != null && OrderChatScreen.currentActiveOrderId == orderId) continue;
           final dedupKey = (orderId.isNotEmpty && (status.isNotEmpty || type == 'order_status'))
               ? 'order_status_${orderId}_$status'

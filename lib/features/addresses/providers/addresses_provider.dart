@@ -30,16 +30,17 @@ class AddressesNotifier extends StateNotifier<AddressesState> {
     _loadAddresses();
   }
 
-  static const _prefsKey = 'saved_addresses';
+  String _prefsKey(String? uid) => 'saved_addresses_${uid != null && uid.isNotEmpty ? uid : "guest"}';
 
   String? get _currentUserId => FirebaseAuth.instance.currentUser?.uid;
 
-  Future<void> _loadAddresses() async {
+  Future<void> _loadAddresses({String? userIdOverride}) async {
     state = state.copyWith(isLoading: true);
     try {
-      // 1. Cargar inmediatamente de caché local para evitar pantalla en blanco
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_prefsKey);
+      final uid = userIdOverride ?? _currentUserId;
+      final key = _prefsKey(uid);
+      final raw = prefs.getString(key);
       List<AddressEntity> localList = [];
       if (raw != null) {
         try {
@@ -53,7 +54,6 @@ class AddressesNotifier extends StateNotifier<AddressesState> {
       }
 
       // 2. Sincronizar desde Firestore si hay usuario autenticado (timeout 4s)
-      final uid = _currentUserId;
       if (uid != null && uid.isNotEmpty && uid != 'guest') {
         try {
           final snap = await FirebaseFirestore.instance
@@ -66,13 +66,15 @@ class AddressesNotifier extends StateNotifier<AddressesState> {
           if (snap.docs.isNotEmpty) {
             final firestoreList = snap.docs.map((d) => _fromJson(d.data())).toList();
             state = state.copyWith(addresses: firestoreList, isLoading: false);
-            await _persistLocal(firestoreList);
+            await _persistLocal(firestoreList, uid);
             return;
           }
         } catch (_) {}
       }
 
-      if (localList.isEmpty) {
+      // Si es un usuario invitado sin direcciones en lista, cargar la dirección que ingresó al loguearse como invitado
+      final isGuestUser = prefs.getBool('is_guest_user') ?? false;
+      if (localList.isEmpty && (isGuestUser || uid == 'guest' || uid == null)) {
         final guestAddr = prefs.getString('guest_address');
         if (guestAddr != null && guestAddr.trim().isNotEmpty) {
           final initialGuestAddress = AddressEntity(
@@ -87,7 +89,7 @@ class AddressesNotifier extends StateNotifier<AddressesState> {
             updatedAt: DateTime.now(),
           );
           localList = [initialGuestAddress];
-          await _persistLocal(localList);
+          await _persistLocal(localList, uid);
         }
       }
 
@@ -97,14 +99,24 @@ class AddressesNotifier extends StateNotifier<AddressesState> {
     }
   }
 
-  Future<void> _persistLocal(List<AddressEntity> list) async {
+  Future<void> _persistLocal(List<AddressEntity> list, [String? uidOverride]) async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final key = _prefsKey(uidOverride ?? _currentUserId);
       await prefs.setString(
-        _prefsKey,
+        key,
         json.encode(list.map(_toJson).toList()),
       );
     } catch (_) {}
+  }
+
+  Future<void> clearForLogout() async {
+    state = const AddressesState(addresses: [], isLoading: false);
+  }
+
+  Future<void> reloadForUser(String? newUid) async {
+    state = const AddressesState(isLoading: true);
+    await _loadAddresses(userIdOverride: newUid);
   }
 
   Future<void> addAddress(AddressEntity address) async {

@@ -106,7 +106,8 @@ class OrderModel {
       id: doc.id,
       userId: data['userId'] as String? ?? '',
       label: AddressLabel.fromString(data['addressLabel'] as String? ?? 'home'),
-      formattedAddress: data['formattedAddress'] as String? ?? 'Cl. 59 # 39W-24, Bucaramanga, Santander',
+      formattedAddress: data['formattedAddress'] as String? ??
+          (data['address'] is Map ? ((data['address'] as Map)['formattedAddress'] as String? ?? '') : ''),
       latitude: (data['latitude'] as num? ?? 7.09859).toDouble(),
       longitude: (data['longitude'] as num? ?? -73.15183).toDouble(),
       reference: data['reference'] as String?,

@@ -379,54 +379,8 @@ async function advanceStatus(orderId, nextStatus) {
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
 
-    // Enviar notificación en Firestore al cliente (para usuarios Google, Correo o Invitados)
-    if (order && order.userId && order.userId !== 'guest') {
-      const statusNotificationMap = {
-        'confirmed': {
-          title: '✅ ¡Pedido Confirmado!',
-          body: 'Tu pedido en La Diabla fue confirmado. ¡Empezamos a prepararlo! 👨‍🍳',
-          emoji: '✅'
-        },
-        'preparing': {
-          title: '🍳 ¡Tus platillos están en la plancha!',
-          body: 'Nuestros taqueros están preparando tu comida con el mejor sazón 🌶️',
-          emoji: '🍳'
-        },
-        'ready': {
-          title: '📦 ¡Pedido empacado y listo para despacho!',
-          body: 'Asignando el repartidor más cercano para llevarlo a tu puerta 🛵',
-          emoji: '📦'
-        },
-        'onTheWay': {
-          title: '🛵 ¡Tu pedido va en camino!',
-          body: 'El repartidor ya salió con tu comida caliente. ¡Ya casi llega! 🌶️',
-          emoji: '🛵'
-        },
-        'delivered': {
-          title: '✅ ¡Pedido Entregado con Éxito!',
-          body: '¡Buen provecho! Disfruta de la mejor comida mexicana de Bucaramanga 🌮⭐',
-          emoji: '🎉'
-        }
-      };
-
-      const notif = statusNotificationMap[nextStatus] || {
-        title: '🔥 Estado de tu pedido actualizado',
-        body: `Tu pedido #${orderId.substring(0, 6).toUpperCase()} pasó a ${statusBadges[nextStatus]?.label ?? nextStatus}`,
-        emoji: '🌮'
-      };
-
-      const notifDocId = `${orderId}_${nextStatus}`;
-      db.collection('users').doc(order.userId).collection('notifications').doc(notifDocId).set({
-        title: notif.title,
-        body: notif.body,
-        orderId: orderId,
-        status: nextStatus,
-        type: 'order_status',
-        emoji: notif.emoji,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        isRead: false
-      }, { merge: true }).catch(err => console.warn("Error enviando notif a Firestore:", err));
-    }
+    // La notificación push y el registro en el historial son gestionados automáticamente
+    // por la Cloud Function onOrderStatusChanged para garantizar exactamente 1 notificación única.
 
     showNotificationToast(`✅ Pedido actualizado a ${statusBadges[nextStatus]?.label ?? nextStatus}`);
   } catch (e) {

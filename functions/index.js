@@ -50,11 +50,14 @@ exports.onOrderStatusChanged = onDocumentUpdated("orders/{orderId}", async (even
     token: fcmToken,
     notification: { title: msg.title, body: msg.body },
     android: {
+      priority: "high",
       notification: {
         channelId: "la_diabla_orders",
-        priority: "high",
+        priority: "max",
+        visibility: "public",
         defaultSound: true,
         defaultVibrateTimings: true,
+        sound: "default",
       },
     },
     apns: {
@@ -65,6 +68,9 @@ exports.onOrderStatusChanged = onDocumentUpdated("orders/{orderId}", async (even
     data: {
       orderId: event.params.orderId,
       status: after.status,
+      type: "order_status",
+      title: msg.title,
+      body: msg.body,
       click_action: "FLUTTER_NOTIFICATION_CLICK",
     },
   };
@@ -98,52 +104,101 @@ exports.onNewOrderCreated = onDocumentCreated("orders/{orderId}", async (event) 
   if (order.status !== "pending") return null;
   if (order.paymentStatus === "failed") return null;
 
-  // Obtener todos los usuarios con rol repartidor que tengan FCM token
-  const driversSnap = await db.collection("users")
-    .where("role", "==", "driver")
-    .where("fcmToken", "!=", null)
-    .get();
-
-  if (driversSnap.empty) {
-    console.log("[onNewOrderCreated] No hay repartidores con FCM token");
-    return null;
-  }
-
-  // Filtrar repartidores: solo notificar a los que estén DISPONIBLES (estilo Rappi)
-  const tokens = driversSnap.docs
-    .filter(doc => doc.data().isAvailable !== false && doc.data().fcmToken)
-    .map(doc => doc.data().fcmToken);
-
   const shortId = event.params.orderId.substring(0, 6).toUpperCase();
   const address = order.formattedAddress || "Dirección del cliente";
   const total   = `$${(order.total || 0).toLocaleString("es-CO")} COP`;
+  const notifTitle = `🔔 Nuevo pedido disponible #${shortId}`;
+  const notifBody = `${total} — ${address}`;
 
-  const multicastMessage = {
-    tokens,
+  // 1. Enviar push broadcast inmediato al topic 'drivers' (recibido por todos los repartidores suscritos)
+  const topicMessage = {
+    topic: "drivers",
     notification: {
-      title: `🔔 Nuevo pedido #${shortId}`,
-      body: `${total} — ${address}`,
+      title: notifTitle,
+      body: notifBody,
     },
     android: {
+      priority: "high",
       notification: {
         channelId: "la_diabla_orders",
-        priority: "high",
+        priority: "max",
+        visibility: "public",
         defaultSound: true,
         defaultVibrateTimings: true,
+        sound: "default",
+      },
+    },
+    apns: {
+      payload: {
+        aps: { alert: { title: notifTitle, body: notifBody }, sound: "default", badge: 1 },
       },
     },
     data: {
       orderId: event.params.orderId,
       type: "new_order",
+      title: notifTitle,
+      body: notifBody,
       click_action: "FLUTTER_NOTIFICATION_CLICK",
     },
   };
 
   try {
-    const response = await messaging.sendEachForMulticast(multicastMessage);
-    console.log(`[onNewOrderCreated] Push enviado a ${response.successCount}/${tokens.length} repartidores`);
+    await messaging.send(topicMessage);
+    console.log(`[onNewOrderCreated] Push broadcast a topic 'drivers' enviado para pedido #${shortId}`);
   } catch (err) {
-    console.error(`[onNewOrderCreated] Error enviando push masivo: ${err}`);
+    console.error(`[onNewOrderCreated] Error enviando push a topic drivers: ${err}`);
+  }
+
+  // 2. Además, enviar a tokens directos de repartidores disponibles (sin índice compuesto)
+  try {
+    const driversSnap = await db.collection("users")
+      .where("role", "==", "driver")
+      .get();
+
+    if (!driversSnap.empty) {
+      const tokens = driversSnap.docs
+        .map(doc => doc.data())
+        .filter(d => d.isAvailable !== false && d.fcmToken && typeof d.fcmToken === "string" && d.fcmToken.length > 10)
+        .map(d => d.fcmToken);
+
+      if (tokens.length > 0) {
+        const uniqueTokens = [...new Set(tokens)];
+        const multicastMessage = {
+          tokens: uniqueTokens,
+          notification: {
+            title: notifTitle,
+            body: notifBody,
+          },
+          android: {
+            priority: "high",
+            notification: {
+              channelId: "la_diabla_orders",
+              priority: "max",
+              visibility: "public",
+              defaultSound: true,
+              defaultVibrateTimings: true,
+              sound: "default",
+            },
+          },
+          apns: {
+            payload: {
+              aps: { alert: { title: notifTitle, body: notifBody }, sound: "default", badge: 1 },
+            },
+          },
+          data: {
+            orderId: event.params.orderId,
+            type: "new_order",
+            title: notifTitle,
+            body: notifBody,
+            click_action: "FLUTTER_NOTIFICATION_CLICK",
+          },
+        };
+        const response = await messaging.sendEachForMulticast(multicastMessage);
+        console.log(`[onNewOrderCreated] Push directo enviado a ${response.successCount}/${uniqueTokens.length} repartidores`);
+      }
+    }
+  } catch (err) {
+    console.error(`[onNewOrderCreated] Error enviando push directo a repartidores: ${err}`);
   }
 
   return null;
