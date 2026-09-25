@@ -1528,32 +1528,36 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 8px 24px rgba(37, 211, 102, 0.45);
+      box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.8), 0 8px 28px rgba(37, 211, 102, 0.5);
       z-index: 998;
       text-decoration: none;
-      animation: whatsappPulse 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
-      transition: transform 0.25s, box-shadow 0.25s;
+      animation: whatsappPulse 1.8s ease-out infinite;
+      transition: transform 0.2s, box-shadow 0.2s;
     }
 
     @keyframes whatsappPulse {
       0% {
-        box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.7), 0 8px 24px rgba(37, 211, 102, 0.4);
         transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.85), 0 8px 28px rgba(37, 211, 102, 0.5);
       }
-      50% {
-        box-shadow: 0 0 0 16px rgba(37, 211, 102, 0), 0 12px 30px rgba(37, 211, 102, 0.55);
-        transform: scale(1.06);
+      40% {
+        transform: scale(1.1);
+        box-shadow: 0 0 0 14px rgba(37, 211, 102, 0.25), 0 10px 32px rgba(37, 211, 102, 0.65);
+      }
+      70% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 22px rgba(37, 211, 102, 0), 0 12px 36px rgba(37, 211, 102, 0.4);
       }
       100% {
-        box-shadow: 0 0 0 0 rgba(37, 211, 102, 0), 0 8px 24px rgba(37, 211, 102, 0.4);
         transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(37, 211, 102, 0), 0 8px 28px rgba(37, 211, 102, 0.5);
       }
     }
 
     .floating-whatsapp-btn:hover {
       animation: none;
-      transform: scale(1.12) translateY(-3px);
-      box-shadow: 0 16px 36px rgba(37, 211, 102, 0.7);
+      transform: scale(1.15) translateY(-4px);
+      box-shadow: 0 0 0 8px rgba(37, 211, 102, 0.2), 0 18px 40px rgba(37, 211, 102, 0.75);
     }
 
     /* ── FOOTER (ENRICHED BRANDING & PERFECT CONTRAST) ──────── */
