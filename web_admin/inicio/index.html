@@ -1497,7 +1497,7 @@
       transform: translateY(-2px);
     }
 
-    /* ── FLOATING WHATSAPP BUTTON (LIMPIO Y SIN NEÓN) ───────── */
+    /* ── FLOATING WHATSAPP BUTTON (ANIMADO Y SIN NEÓN) ───────── */
     .floating-whatsapp-btn {
       position: fixed;
       bottom: 28px;
@@ -1514,12 +1514,25 @@
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
       z-index: 998;
       text-decoration: none;
+      animation: whatsappFloat 2.6s infinite ease-in-out;
       transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
     }
 
+    @keyframes whatsappFloat {
+      0%, 100% {
+        transform: translateY(0) scale(1);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+      }
+      50% {
+        transform: translateY(-7px) scale(1.05);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+      }
+    }
+
     .floating-whatsapp-btn:hover {
-      transform: scale(1.08) translateY(-2px);
-      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+      animation-play-state: paused;
+      transform: scale(1.12) translateY(-4px);
+      box-shadow: 0 14px 28px rgba(0, 0, 0, 0.4);
     }
 
     /* ── FOOTER (ENRICHED BRANDING & PERFECT CONTRAST) ──────── */
