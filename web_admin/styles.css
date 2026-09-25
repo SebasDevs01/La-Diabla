@@ -223,29 +223,54 @@ header {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  object-fit: contain;
+  object-fit: cover;
   box-shadow: 0 4px 14px rgba(220, 38, 38, 0.5);
   border: 2px solid rgba(220, 38, 38, 0.6);
   background: #180905;
+  cursor: pointer;
+  user-select: none;
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
-  animation: logoFlamePulse 3s infinite ease-in-out;
+  animation: logoFlameGlow 2.8s infinite ease-in-out;
 }
 
-.logo-container:hover img,
-.brand-logo-link:hover .brand-logo-img {
-  transform: rotate(10deg) scale(1.12);
-  box-shadow: 0 6px 24px rgba(220, 38, 38, 0.85);
-}
-
-@keyframes logoFlamePulse {
+/* Brillo de llama suave en reposo */
+@keyframes logoFlameGlow {
   0%, 100% {
     box-shadow: 0 4px 14px rgba(220, 38, 38, 0.5);
-    transform: scale(1) rotate(0deg);
   }
   50% {
-    box-shadow: 0 6px 22px rgba(220, 38, 38, 0.9), 0 0 16px rgba(245, 158, 11, 0.65);
-    transform: scale(1.08) rotate(3deg);
+    box-shadow: 0 6px 22px rgba(220, 38, 38, 0.85), 0 0 16px rgba(245, 158, 11, 0.65);
   }
+}
+
+/* Reactivo al pasar el mouse (hover) */
+.logo-container:hover img,
+.brand-logo-link:hover .brand-logo-img,
+.brand-logo-img:hover {
+  transform: rotate(14deg) scale(1.15) !important;
+  box-shadow: 0 8px 25px rgba(220, 38, 38, 0.9), 0 0 18px rgba(245, 158, 11, 0.7) !important;
+}
+
+/* Reactivo INMEDIATO al dar click con el mouse (mousedown / active) */
+.logo-container:active img,
+.brand-logo-link:active .brand-logo-img,
+.brand-logo-img:active {
+  transform: scale(0.82) rotate(-16deg) !important;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.6) !important;
+  transition: transform 0.08s ease !important;
+}
+
+/* Animación elástica cuando se hace click */
+@keyframes logoClickWobble {
+  0% { transform: scale(0.82) rotate(-16deg); }
+  35% { transform: scale(1.28) rotate(22deg); }
+  60% { transform: scale(0.92) rotate(-8deg); }
+  80% { transform: scale(1.08) rotate(4deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.logo-wobble {
+  animation: logoClickWobble 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
 .logo-icon-wrap {

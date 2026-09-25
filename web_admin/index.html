@@ -128,24 +128,47 @@
       box-shadow: 0 4px 18px rgba(220, 38, 38, 0.5);
       border: 2px solid rgba(220, 38, 38, 0.6);
       background: #180905;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-      animation: logoFlamePulse 2.8s infinite ease-in-out !important;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+      animation: logoFlameGlow 2.8s infinite ease-in-out;
     }
 
-    .brand-logo-link:hover .brand-logo-img {
-      transform: rotate(12deg) scale(1.12);
-      box-shadow: 0 6px 24px rgba(220, 38, 38, 0.9);
-    }
-
-    @keyframes logoFlamePulse {
+    @keyframes logoFlameGlow {
       0%, 100% {
-        transform: scale(1) rotate(0deg);
-        box-shadow: 0 4px 14px rgba(220, 38, 38, 0.5);
+        box-shadow: 0 4px 18px rgba(220, 38, 38, 0.5);
       }
       50% {
-        transform: scale(1.08) rotate(3deg);
-        box-shadow: 0 6px 22px rgba(220, 38, 38, 0.9), 0 0 16px rgba(245, 158, 11, 0.65);
+        box-shadow: 0 6px 24px rgba(220, 38, 38, 0.85), 0 0 16px rgba(245, 158, 11, 0.65);
       }
+    }
+
+    /* Reactivo al pasar el mouse (hover) */
+    .brand-logo-link:hover .brand-logo-img,
+    .brand-logo-img:hover {
+      transform: rotate(14deg) scale(1.15) !important;
+      box-shadow: 0 8px 25px rgba(220, 38, 38, 0.9), 0 0 18px rgba(245, 158, 11, 0.7) !important;
+    }
+
+    /* Reactivo INMEDIATO cuando con el mouse le das click (active) */
+    .brand-logo-link:active .brand-logo-img,
+    .brand-logo-img:active {
+      transform: scale(0.82) rotate(-16deg) !important;
+      box-shadow: 0 2px 8px rgba(220, 38, 38, 0.6) !important;
+      transition: transform 0.08s ease !important;
+    }
+
+    /* Animación elástica al hacer click */
+    @keyframes logoClickWobble {
+      0% { transform: scale(0.82) rotate(-16deg); }
+      35% { transform: scale(1.28) rotate(22deg); }
+      60% { transform: scale(0.92) rotate(-8deg); }
+      80% { transform: scale(1.08) rotate(4deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+
+    .logo-wobble {
+      animation: logoClickWobble 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
     }
 
     .brand-logo-title {
@@ -3540,21 +3563,18 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       updateThemeToggleBtnLabel(document.documentElement.getAttribute('data-theme') || 'light');
-      updateMobileDockVisibility();
     });
 
-    // ── MOBILE DOCK SCROLL VISIBILITY ────────────────────────
-    function updateMobileDockVisibility() {
-      const dock = document.querySelector('.mobile-bottom-dock');
-      if (!dock) return;
-      if (window.scrollY > 90) {
-        dock.classList.add('dock-visible');
-      } else {
-        dock.classList.remove('dock-visible');
+    // ── ANIMACIÓN REACTIVA AL CLICK EN EL LOGO ───────────────
+    document.addEventListener('click', (e) => {
+      const logo = e.target.closest('.brand-logo-img, .logo-container img');
+      if (logo) {
+        logo.classList.remove('logo-wobble');
+        void logo.offsetWidth;
+        logo.classList.add('logo-wobble');
+        setTimeout(() => logo.classList.remove('logo-wobble'), 650);
       }
-    }
-    window.addEventListener('scroll', updateMobileDockVisibility, { passive: true });
-    window.addEventListener('resize', updateMobileDockVisibility, { passive: true });
+    });
 
     // ── MOBILE MENU TOGGLE ──────────────────────────────────
     function toggleMobileMenu() {
