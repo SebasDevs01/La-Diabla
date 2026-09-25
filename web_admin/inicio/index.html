@@ -135,9 +135,12 @@
     }
 
     @keyframes logoFlameGlow {
-      0%, 100% {
+
+      0%,
+      100% {
         box-shadow: 0 4px 18px rgba(220, 38, 38, 0.5);
       }
+
       50% {
         box-shadow: 0 6px 24px rgba(220, 38, 38, 0.85), 0 0 16px rgba(245, 158, 11, 0.65);
       }
@@ -160,11 +163,25 @@
 
     /* Animación elástica al hacer click */
     @keyframes logoClickWobble {
-      0% { transform: scale(0.82) rotate(-16deg); }
-      35% { transform: scale(1.28) rotate(22deg); }
-      60% { transform: scale(0.92) rotate(-8deg); }
-      80% { transform: scale(1.08) rotate(4deg); }
-      100% { transform: scale(1) rotate(0deg); }
+      0% {
+        transform: scale(0.82) rotate(-16deg);
+      }
+
+      35% {
+        transform: scale(1.28) rotate(22deg);
+      }
+
+      60% {
+        transform: scale(0.92) rotate(-8deg);
+      }
+
+      80% {
+        transform: scale(1.08) rotate(4deg);
+      }
+
+      100% {
+        transform: scale(1) rotate(0deg);
+      }
     }
 
     .logo-wobble {
@@ -1497,7 +1514,7 @@
       transform: translateY(-2px);
     }
 
-    /* ── FLOATING WHATSAPP BUTTON (ANIMADO Y SIN NEÓN) ───────── */
+    /* ── FLOATING WHATSAPP BUTTON (PALPITANTE CON NEÓN) ─────── */
     .floating-whatsapp-btn {
       position: fixed;
       bottom: 28px;
@@ -1505,34 +1522,38 @@
       left: auto;
       background: #25D366;
       color: #FFFFFF !important;
-      width: 58px;
-      height: 58px;
+      width: 62px;
+      height: 62px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+      box-shadow: 0 8px 24px rgba(37, 211, 102, 0.45);
       z-index: 998;
       text-decoration: none;
-      animation: whatsappFloat 2.6s infinite ease-in-out;
-      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+      animation: whatsappPulse 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
+      transition: transform 0.25s, box-shadow 0.25s;
     }
 
-    @keyframes whatsappFloat {
-      0%, 100% {
-        transform: translateY(0) scale(1);
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+    @keyframes whatsappPulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.7), 0 8px 24px rgba(37, 211, 102, 0.4);
+        transform: scale(1);
       }
       50% {
-        transform: translateY(-7px) scale(1.05);
-        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+        box-shadow: 0 0 0 16px rgba(37, 211, 102, 0), 0 12px 30px rgba(37, 211, 102, 0.55);
+        transform: scale(1.06);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(37, 211, 102, 0), 0 8px 24px rgba(37, 211, 102, 0.4);
+        transform: scale(1);
       }
     }
 
     .floating-whatsapp-btn:hover {
-      animation-play-state: paused;
-      transform: scale(1.12) translateY(-4px);
-      box-shadow: 0 14px 28px rgba(0, 0, 0, 0.4);
+      animation: none;
+      transform: scale(1.12) translateY(-3px);
+      box-shadow: 0 16px 36px rgba(37, 211, 102, 0.7);
     }
 
     /* ── FOOTER (ENRICHED BRANDING & PERFECT CONTRAST) ──────── */
@@ -2039,30 +2060,40 @@
       width: 9px;
       height: 9px;
     }
+
     ::-webkit-scrollbar-track {
       background: #FFFFFF !important;
     }
+
     ::-webkit-scrollbar-thumb {
       background: linear-gradient(180deg, #EF4444 0%, #DC2626 50%, #991B1B 100%) !important;
       border-radius: 10px;
       border: 1px solid rgba(255, 255, 255, 0.4);
     }
+
     ::-webkit-scrollbar-thumb:hover {
       background: linear-gradient(180deg, #F87171 0%, #EF4444 50%, #B91C1C 100%) !important;
     }
-    html, body, * {
+
+    html,
+    body,
+    * {
       scrollbar-color: #DC2626 #FFFFFF !important;
       scrollbar-width: thin;
     }
 
     /* Ocultar barra de scroll en modo móvil para máxima limpieza */
-    @media (max-width: 900px), (pointer: coarse) {
+    @media (max-width: 900px),
+    (pointer: coarse) {
       ::-webkit-scrollbar {
         width: 0px !important;
         height: 0px !important;
         display: none !important;
       }
-      html, body, * {
+
+      html,
+      body,
+      * {
         scrollbar-width: none !important;
         -ms-overflow-style: none !important;
       }
@@ -2073,12 +2104,15 @@
       scroll-behavior: smooth;
       background-color: var(--dark-bg, #FFFFFF);
     }
+
     [data-theme="light"] html {
       background-color: #FFFFFF;
     }
+
     [data-theme="dark"] html {
       background-color: #080302;
     }
+
     body {
       overflow-x: hidden;
       width: 100%;
@@ -2089,6 +2123,7 @@
       .navbar {
         padding: 0.85rem 1.2rem;
       }
+
       .nav-link-btn {
         padding: 8px 14px;
         font-size: 0.88rem;
@@ -2760,14 +2795,17 @@
         <div class="menu-card" data-category="tacos" data-keywords="tacos pastor birria carne limon cebolla cilantro"
           onclick="openDishModal('tacos')">
           <div class="menu-img-wrap">
-            <img src="https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=700&auto=format&fit=crop&q=80" alt="Tacos al Pastor & Birria" class="menu-img"
-              onerror="this.src='assets/logo/LaDiabla.png';">
-            <span class="menu-badge" style="border-color: #F59E0B !important; box-shadow: 0 4px 14px rgba(245,158,11,0.35);">⭐ Más Pedido</span>
+            <img src="https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=700&auto=format&fit=crop&q=80"
+              alt="Tacos al Pastor & Birria" class="menu-img" onerror="this.src='assets/logo/LaDiabla.png';">
+            <span class="menu-badge"
+              style="border-color: #F59E0B !important; box-shadow: 0 4px 14px rgba(245,158,11,0.35);">⭐ Más
+              Pedido</span>
           </div>
           <div class="menu-card-content">
             <h3 class="diabla-font menu-name">Tacos al Pastor &amp; Birria</h3>
             <p class="menu-desc">
-              Carne marinada al pastor con piña asada, cilantro, cebolla y tacos de birria con consomé caliente para sopear.
+              Carne marinada al pastor con piña asada, cilantro, cebolla y tacos de birria con consomé caliente para
+              sopear.
             </p>
             <div class="menu-card-footer">
               <div class="menu-price">
@@ -2780,8 +2818,8 @@
                   onclick="event.stopPropagation(); openDishModal('tacos');" title="Ver detalles del platillo">
                   <span class="material-symbols-rounded md-18">visibility</span>
                 </button>
-                <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20pedir%20Tacos%20al%20Pastor%20y%20Birria!" target="_blank" rel="noopener" class="btn-order-card"
-                  onclick="event.stopPropagation();">
+                <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20pedir%20Tacos%20al%20Pastor%20y%20Birria!"
+                  target="_blank" rel="noopener" class="btn-order-card" onclick="event.stopPropagation();">
                   <span class="material-symbols-rounded md-18">shopping_bag</span>
                   <span>Pedir</span>
                 </a>
@@ -2795,14 +2833,16 @@
           data-keywords="burrito burritos frijol arroz carne guacamole queso gigante"
           onclick="openDishModal('burritos')">
           <div class="menu-img-wrap">
-            <img src="https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=700&auto=format&fit=crop&q=80" alt="Burritos Diabólicos" class="menu-img"
-              onerror="this.src='assets/logo/LaDiabla.png';">
-            <span class="menu-badge" style="border-color: #EF4444 !important; box-shadow: 0 4px 14px rgba(239,68,68,0.45);">🔥 Gigante</span>
+            <img src="https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=700&auto=format&fit=crop&q=80"
+              alt="Burritos Diabólicos" class="menu-img" onerror="this.src='assets/logo/LaDiabla.png';">
+            <span class="menu-badge"
+              style="border-color: #EF4444 !important; box-shadow: 0 4px 14px rgba(239,68,68,0.45);">🔥 Gigante</span>
           </div>
           <div class="menu-card-content">
             <h3 class="diabla-font menu-name">Burritos Diabólicos</h3>
             <p class="menu-desc">
-              Tortilla de trigo gigante rellena de frijol refrito, arroz sazonado, carne asada, guacamole y abundante queso fundido.
+              Tortilla de trigo gigante rellena de frijol refrito, arroz sazonado, carne asada, guacamole y abundante
+              queso fundido.
             </p>
             <div class="menu-card-footer">
               <div class="menu-price">
@@ -2815,8 +2855,8 @@
                   onclick="event.stopPropagation(); openDishModal('burritos');" title="Ver detalles del platillo">
                   <span class="material-symbols-rounded md-18">visibility</span>
                 </button>
-                <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20pedir%20Burritos%20Diabólicos!" target="_blank" rel="noopener" class="btn-order-card"
-                  onclick="event.stopPropagation();">
+                <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20pedir%20Burritos%20Diabólicos!"
+                  target="_blank" rel="noopener" class="btn-order-card" onclick="event.stopPropagation();">
                   <span class="material-symbols-rounded md-18">shopping_bag</span>
                   <span>Pedir</span>
                 </a>
@@ -2830,14 +2870,17 @@
           data-keywords="quesadilla quesadillas queso oaxaca champiñon pollo crema fundida"
           onclick="openDishModal('quesadillas')">
           <div class="menu-img-wrap">
-            <img src="https://images.unsplash.com/photo-1618040996337-56904b7850b9?w=700&auto=format&fit=crop&q=80" alt="Quesadillas Fundidas" class="menu-img"
-              onerror="this.src='assets/logo/LaDiabla.png';">
-            <span class="menu-badge" style="border-color: #10B981 !important; box-shadow: 0 4px 14px rgba(16,185,129,0.35);">🧀 Extra Queso</span>
+            <img src="https://images.unsplash.com/photo-1618040996337-56904b7850b9?w=700&auto=format&fit=crop&q=80"
+              alt="Quesadillas Fundidas" class="menu-img" onerror="this.src='assets/logo/LaDiabla.png';">
+            <span class="menu-badge"
+              style="border-color: #10B981 !important; box-shadow: 0 4px 14px rgba(16,185,129,0.35);">🧀 Extra
+              Queso</span>
           </div>
           <div class="menu-card-content">
             <h3 class="diabla-font menu-name">Quesadillas Fundidas</h3>
             <p class="menu-desc">
-              Generosa porción de doble queso Oaxaca derretido, champiñones, birria desmechada o pollo al pastor con crema agria.
+              Generosa porción de doble queso Oaxaca derretido, champiñones, birria desmechada o pollo al pastor con
+              crema agria.
             </p>
             <div class="menu-card-footer">
               <div class="menu-price">
@@ -2850,8 +2893,8 @@
                   onclick="event.stopPropagation(); openDishModal('quesadillas');" title="Ver detalles del platillo">
                   <span class="material-symbols-rounded md-18">visibility</span>
                 </button>
-                <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20pedir%20Quesadillas%20Fundidas!" target="_blank" rel="noopener" class="btn-order-card"
-                  onclick="event.stopPropagation();">
+                <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20pedir%20Quesadillas%20Fundidas!"
+                  target="_blank" rel="noopener" class="btn-order-card" onclick="event.stopPropagation();">
                   <span class="material-symbols-rounded md-18">shopping_bag</span>
                   <span>Pedir</span>
                 </a>
@@ -2865,14 +2908,17 @@
           data-keywords="especiales parrillada volcanes gringas combos amigos familia"
           onclick="openDishModal('especiales')">
           <div class="menu-img-wrap">
-            <img src="https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=700&auto=format&fit=crop&q=80" alt="Especiales de la Diabla" class="menu-img"
-              onerror="this.src='assets/logo/LaDiabla.png';">
-            <span class="menu-badge" style="border-color: #A855F7 !important; box-shadow: 0 4px 14px rgba(168,85,247,0.35);">👑 Para Compartir</span>
+            <img src="https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=700&auto=format&fit=crop&q=80"
+              alt="Especiales de la Diabla" class="menu-img" onerror="this.src='assets/logo/LaDiabla.png';">
+            <span class="menu-badge"
+              style="border-color: #A855F7 !important; box-shadow: 0 4px 14px rgba(168,85,247,0.35);">👑 Para
+              Compartir</span>
           </div>
           <div class="menu-card-content">
             <h3 class="diabla-font menu-name">Especiales de la Diabla</h3>
             <p class="menu-desc">
-              Parrilladas mixtas, volcanes crujientes de queso, gringas de pastor y combos diabólicos para reuniones familiares.
+              Parrilladas mixtas, volcanes crujientes de queso, gringas de pastor y combos diabólicos para reuniones
+              familiares.
             </p>
             <div class="menu-card-footer">
               <div class="menu-price">
@@ -2885,8 +2931,8 @@
                   onclick="event.stopPropagation(); openDishModal('especiales');" title="Ver detalles del platillo">
                   <span class="material-symbols-rounded md-18">visibility</span>
                 </button>
-                <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20pedir%20Especiales%20de%20la%20Diabla!" target="_blank" rel="noopener" class="btn-order-card"
-                  onclick="event.stopPropagation();">
+                <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20pedir%20Especiales%20de%20la%20Diabla!"
+                  target="_blank" rel="noopener" class="btn-order-card" onclick="event.stopPropagation();">
                   <span class="material-symbols-rounded md-18">shopping_bag</span>
                   <span>Pedir</span>
                 </a>
@@ -2900,14 +2946,17 @@
           data-keywords="antojos nachos totopos cheddar jalapeño pico de gallo salsa brava"
           onclick="openDishModal('antojos')">
           <div class="menu-img-wrap">
-            <img src="https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?w=700&auto=format&fit=crop&q=80" alt="Antojos &amp; Totopos con Cheddar" class="menu-img"
-              onerror="this.src='assets/logo/LaDiabla.png';">
-            <span class="menu-badge" style="border-color: #F59E0B !important; box-shadow: 0 4px 14px rgba(245,158,11,0.35);">🍟 Crujientes</span>
+            <img src="https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?w=700&auto=format&fit=crop&q=80"
+              alt="Antojos &amp; Totopos con Cheddar" class="menu-img" onerror="this.src='assets/logo/LaDiabla.png';">
+            <span class="menu-badge"
+              style="border-color: #F59E0B !important; box-shadow: 0 4px 14px rgba(245,158,11,0.35);">🍟
+              Crujientes</span>
           </div>
           <div class="menu-card-content">
             <h3 class="diabla-font menu-name">Antojos &amp; Totopos</h3>
             <p class="menu-desc">
-              Nachos crocantes bañados en queso cheddar artesanal, jalapeños en escabeche, pico de gallo y salsa brava diabólica.
+              Nachos crocantes bañados en queso cheddar artesanal, jalapeños en escabeche, pico de gallo y salsa brava
+              diabólica.
             </p>
             <div class="menu-card-footer">
               <div class="menu-price">
@@ -2920,8 +2969,8 @@
                   onclick="event.stopPropagation(); openDishModal('antojos');" title="Ver detalles del platillo">
                   <span class="material-symbols-rounded md-18">visibility</span>
                 </button>
-                <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20pedir%20Antojos%20y%20Totopos!" target="_blank" rel="noopener" class="btn-order-card"
-                  onclick="event.stopPropagation();">
+                <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20pedir%20Antojos%20y%20Totopos!"
+                  target="_blank" rel="noopener" class="btn-order-card" onclick="event.stopPropagation();">
                   <span class="material-symbols-rounded md-18">shopping_bag</span>
                   <span>Pedir</span>
                 </a>
@@ -2935,14 +2984,16 @@
           data-keywords="bebidas jarritos horchata jamaica refresco agua canela mandarina tamarindo"
           onclick="openDishModal('bebidas')">
           <div class="menu-img-wrap">
-            <img src="https://images.unsplash.com/photo-1556881286-fc6915169721?w=700&auto=format&fit=crop&q=80" alt="Bebidas Mexicanas &amp; Jarritos" class="menu-img"
-              onerror="this.src='assets/logo/LaDiabla.png';">
-            <span class="menu-badge" style="border-color: #0EA5E9 !important; box-shadow: 0 4px 14px rgba(14,165,233,0.35);">❄️ Heladas</span>
+            <img src="https://images.unsplash.com/photo-1556881286-fc6915169721?w=700&auto=format&fit=crop&q=80"
+              alt="Bebidas Mexicanas &amp; Jarritos" class="menu-img" onerror="this.src='assets/logo/LaDiabla.png';">
+            <span class="menu-badge"
+              style="border-color: #0EA5E9 !important; box-shadow: 0 4px 14px rgba(14,165,233,0.35);">❄️ Heladas</span>
           </div>
           <div class="menu-card-content">
             <h3 class="diabla-font menu-name">Bebidas &amp; Jarritos</h3>
             <p class="menu-desc">
-              Agua fresca tradicional de Horchata con canela, Flor de Jamaica helada, Jarritos de mandarina y tamarindo mexicano.
+              Agua fresca tradicional de Horchata con canela, Flor de Jamaica helada, Jarritos de mandarina y tamarindo
+              mexicano.
             </p>
             <div class="menu-card-footer">
               <div class="menu-price">
@@ -2955,8 +3006,8 @@
                   onclick="event.stopPropagation(); openDishModal('bebidas');" title="Ver detalles del platillo">
                   <span class="material-symbols-rounded md-18">visibility</span>
                 </button>
-                <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20pedir%20Bebidas%20y%20Aguas%20Frescas!" target="_blank" rel="noopener" class="btn-order-card"
-                  onclick="event.stopPropagation();">
+                <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20pedir%20Bebidas%20y%20Aguas%20Frescas!"
+                  target="_blank" rel="noopener" class="btn-order-card" onclick="event.stopPropagation();">
                   <span class="material-symbols-rounded md-18">shopping_bag</span>
                   <span>Pedir</span>
                 </a>
@@ -3388,9 +3439,11 @@
 
   <!-- ── FLOATING WHATSAPP BUTTON (PALPITANTE A LA DERECHA) ─── -->
   <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20hacer%20un%20pedido!" target="_blank"
-    rel="noopener" class="floating-whatsapp-btn" title="Chatear por WhatsApp con La Diabla" aria-label="Chatear por WhatsApp">
+    rel="noopener" class="floating-whatsapp-btn" title="Chatear por WhatsApp con La Diabla"
+    aria-label="Chatear por WhatsApp">
     <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="#FFFFFF">
-      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+      <path
+        d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
     </svg>
   </a>
 

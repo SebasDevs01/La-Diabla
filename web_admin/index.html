@@ -1497,7 +1497,7 @@
       transform: translateY(-2px);
     }
 
-    /* ── FLOATING WHATSAPP BUTTON (ANIMADO Y SIN NEÓN) ───────── */
+    /* ── FLOATING WHATSAPP BUTTON (PALPITANTE CON NEÓN) ─────── */
     .floating-whatsapp-btn {
       position: fixed;
       bottom: 28px;
@@ -1505,34 +1505,38 @@
       left: auto;
       background: #25D366;
       color: #FFFFFF !important;
-      width: 58px;
-      height: 58px;
+      width: 62px;
+      height: 62px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+      box-shadow: 0 8px 24px rgba(37, 211, 102, 0.45);
       z-index: 998;
       text-decoration: none;
-      animation: whatsappFloat 2.6s infinite ease-in-out;
-      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+      animation: whatsappPulse 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
+      transition: transform 0.25s, box-shadow 0.25s;
     }
 
-    @keyframes whatsappFloat {
-      0%, 100% {
-        transform: translateY(0) scale(1);
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+    @keyframes whatsappPulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.7), 0 8px 24px rgba(37, 211, 102, 0.4);
+        transform: scale(1);
       }
       50% {
-        transform: translateY(-7px) scale(1.05);
-        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+        box-shadow: 0 0 0 16px rgba(37, 211, 102, 0), 0 12px 30px rgba(37, 211, 102, 0.55);
+        transform: scale(1.06);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(37, 211, 102, 0), 0 8px 24px rgba(37, 211, 102, 0.4);
+        transform: scale(1);
       }
     }
 
     .floating-whatsapp-btn:hover {
-      animation-play-state: paused;
-      transform: scale(1.12) translateY(-4px);
-      box-shadow: 0 14px 28px rgba(0, 0, 0, 0.4);
+      animation: none;
+      transform: scale(1.12) translateY(-3px);
+      box-shadow: 0 16px 36px rgba(37, 211, 102, 0.7);
     }
 
     /* ── FOOTER (ENRICHED BRANDING & PERFECT CONTRAST) ──────── */
