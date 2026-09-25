@@ -155,10 +155,19 @@ body {
   transition: background-color 0.35s ease, color 0.35s ease;
 }
 
-/* ── 4. SCROLLBAR ─────────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 10px; }
+/* ── 4. SCROLLBAR PERSONALIZADA ROJA ─────────────────────── */
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.06); }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #EF4444 0%, #DC2626 50%, #991B1B 100%) !important;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #F87171 0%, #EF4444 50%, #B91C1C 100%) !important; }
+html, body, * {
+  scrollbar-color: #DC2626 rgba(0, 0, 0, 0.06);
+  scrollbar-width: thin;
+}
 
 /* ── 5. TYPOGRAPHY ────────────────────────────────────────── */
 .diabla-font {
@@ -188,13 +197,43 @@ header {
   gap: 1rem;
 }
 
-/* Logo */
+/* Logo & Animated Brand Icon */
 .logo-container {
   display: flex;
   align-items: center;
   gap: 12px;
   text-decoration: none;
   color: var(--header-text);
+}
+
+.logo-container img,
+.brand-logo-img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: contain;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.5);
+  border: 2px solid rgba(220, 38, 38, 0.6);
+  background: #180905;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  animation: logoFlamePulse 3s infinite ease-in-out;
+}
+
+.logo-container:hover img,
+.brand-logo-link:hover .brand-logo-img {
+  transform: rotate(10deg) scale(1.12);
+  box-shadow: 0 6px 24px rgba(220, 38, 38, 0.85);
+}
+
+@keyframes logoFlamePulse {
+  0%, 100% {
+    box-shadow: 0 4px 14px rgba(220, 38, 38, 0.5);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 6px 22px rgba(220, 38, 38, 0.85), 0 0 14px rgba(245, 158, 11, 0.55);
+    transform: scale(1.04);
+  }
 }
 
 .logo-icon-wrap {
@@ -478,7 +517,7 @@ header {
   gap: 1rem;
 }
 
-.section-title {
+.dashboard-header .section-title {
   font-size: 1.65rem;
   letter-spacing: 1.5px;
   color: var(--text-main);
@@ -487,7 +526,7 @@ header {
   gap: 10px;
 }
 
-.section-subtitle {
+.dashboard-header .section-subtitle {
   color: var(--text-muted);
   font-size: 0.82rem;
   margin-top: 4px;
