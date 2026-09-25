@@ -2026,6 +2026,12 @@
     /* Global Viewport & Clean Scroll */
     html {
       scroll-behavior: smooth;
+      background-color: var(--dark-bg, #FFFFFF);
+    }
+    [data-theme="light"] html {
+      background-color: #FFFFFF;
+    }
+    [data-theme="dark"] html {
       background-color: #080302;
     }
     body {

@@ -45,6 +45,7 @@
   --accent-gold:      #D97706;
 
   --dark-bg:          #FFFFFF;
+  --bg-body:          #F8FAFC;
   --bg-gradient:      none;
 
   /* Header stays red in light mode — brand consistency */
@@ -84,6 +85,7 @@
   --accent-gold:      #FBBF24;
 
   --dark-bg:          #0C0504;
+  --bg-body:          #0C0504;
   --bg-gradient:      none;
 
   --header-bg:        rgba(10, 4, 3, 0.94);
@@ -141,7 +143,15 @@ body, input, button, select, textarea {
 
 html {
   scroll-behavior: smooth;
-  background-color: #080302;
+  background-color: var(--dark-bg, #FFFFFF);
+}
+
+[data-theme="light"] html {
+  background-color: #F8FAFC;
+}
+
+[data-theme="dark"] html {
+  background-color: #0C0504;
 }
 
 body {
