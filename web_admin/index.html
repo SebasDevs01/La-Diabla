@@ -128,11 +128,24 @@
       box-shadow: 0 4px 18px rgba(220, 38, 38, 0.5);
       border: 2px solid rgba(220, 38, 38, 0.6);
       background: #180905;
-      transition: transform 0.3s ease;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      animation: logoFlamePulse 2.8s infinite ease-in-out !important;
     }
 
     .brand-logo-link:hover .brand-logo-img {
-      transform: rotate(10deg) scale(1.08);
+      transform: rotate(12deg) scale(1.12);
+      box-shadow: 0 6px 24px rgba(220, 38, 38, 0.9);
+    }
+
+    @keyframes logoFlamePulse {
+      0%, 100% {
+        transform: scale(1) rotate(0deg);
+        box-shadow: 0 4px 14px rgba(220, 38, 38, 0.5);
+      }
+      50% {
+        transform: scale(1.08) rotate(3deg);
+        box-shadow: 0 6px 22px rgba(220, 38, 38, 0.9), 0 0 16px rgba(245, 158, 11, 0.65);
+      }
     }
 
     .brand-logo-title {
