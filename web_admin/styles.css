@@ -141,6 +141,8 @@ body, input, button, select, textarea {
 
 html {
   scroll-behavior: smooth;
+  background-color: #080302;
+  overscroll-behavior-y: none;
 }
 
 body {
