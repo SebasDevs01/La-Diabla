@@ -2059,6 +2059,19 @@
       scrollbar-width: thin;
     }
 
+    /* Ocultar barra de scroll en modo móvil para máxima limpieza */
+    @media (max-width: 900px), (pointer: coarse) {
+      ::-webkit-scrollbar {
+        width: 0px !important;
+        height: 0px !important;
+        display: none !important;
+      }
+      html, body, * {
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+      }
+    }
+
     /* Global Viewport & Clean Scroll */
     html {
       scroll-behavior: smooth;

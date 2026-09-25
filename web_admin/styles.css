@@ -181,6 +181,19 @@ html, body, * {
   scrollbar-width: thin;
 }
 
+/* Ocultar barra de scroll en modo móvil para un diseño más limpio */
+@media (max-width: 900px), (pointer: coarse) {
+  ::-webkit-scrollbar {
+    width: 0px !important;
+    height: 0px !important;
+    display: none !important;
+  }
+  html, body, * {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+}
+
 /* ── 5. TYPOGRAPHY ────────────────────────────────────────── */
 .diabla-font {
   font-family: 'Bangers', cursive, sans-serif;
