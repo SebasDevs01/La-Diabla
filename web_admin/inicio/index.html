@@ -490,7 +490,7 @@
       position: relative;
       z-index: 2;
       filter: drop-shadow(0 25px 45px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 40px rgba(220, 38, 38, 0.45));
-      animation: floatMascot 4.5s infinite ease-in-out;
+      animation: none !important;
     }
 
     @keyframes floatMascot {
@@ -1361,7 +1361,7 @@
     .delivery-rider-img {
       width: min(440px, 88vw);
       filter: drop-shadow(0 25px 40px rgba(220, 38, 38, 0.35));
-      animation: floatMascot 4s infinite ease-in-out;
+      animation: none !important;
     }
 
     /* ── DOWNLOAD CTA BANNER ───────────────────────────────── */
@@ -2002,24 +2002,24 @@
       line-height: 1.55;
     }
 
-    /* ── SCROLLBAR PERSONALIZADA ROJA ────────────────────────── */
+    /* ── SCROLLBAR PERSONALIZADA ROJA CON FONDO BLANCO ────────── */
     ::-webkit-scrollbar {
       width: 9px;
       height: 9px;
     }
     ::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.06);
+      background: #FFFFFF !important;
     }
     ::-webkit-scrollbar-thumb {
       background: linear-gradient(180deg, #EF4444 0%, #DC2626 50%, #991B1B 100%) !important;
       border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.4);
     }
     ::-webkit-scrollbar-thumb:hover {
       background: linear-gradient(180deg, #F87171 0%, #EF4444 50%, #B91C1C 100%) !important;
     }
     html, body, * {
-      scrollbar-color: #DC2626 rgba(0, 0, 0, 0.06);
+      scrollbar-color: #DC2626 #FFFFFF !important;
       scrollbar-width: thin;
     }
 
@@ -2137,18 +2137,32 @@
         -webkit-overflow-scrolling: touch;
       }
 
+      /* Quitar dock de menú inferior en móvil para un diseño limpio y profesional */
       .mobile-bottom-dock {
-        display: flex;
-        padding-bottom: max(8px, env(safe-area-inset-bottom));
-      }
-
-      body {
-        padding-bottom: max(74px, calc(64px + env(safe-area-inset-bottom)));
-      }
-
-      /* Hide redundant floating whatsapp on mobile to prevent blocking buttons & inputs */
-      .floating-whatsapp-btn {
         display: none !important;
+      }
+
+      /* Botón flotante de WhatsApp activo y visible en móvil */
+      .floating-whatsapp-btn {
+        display: flex !important;
+        bottom: 22px !important;
+        right: 20px !important;
+        width: 56px !important;
+        height: 56px !important;
+        z-index: 999 !important;
+      }
+
+      /* Quitar la moto y el diablo con celular en móvil/responsive */
+      .hero-visual-wrapper {
+        display: none !important;
+      }
+
+      .delivery-visual-box {
+        display: none !important;
+      }
+
+      .delivery-block {
+        grid-template-columns: 1fr !important;
       }
     }
 
@@ -3466,26 +3480,7 @@
     </div>
   </div>
 
-  <!-- ── 11. MOBILE BOTTOM DOCK (EASY 1-THUMB NAVIGATION) ──── -->
-  <nav class="mobile-bottom-dock" aria-label="Navegación Móvil">
-    <a href="#menu" class="dock-tab active">
-      <span class="material-symbols-rounded">restaurant_menu</span>
-      <span>Menú</span>
-    </a>
-    <a href="#rastreo" class="dock-tab">
-      <span class="material-symbols-rounded">near_me</span>
-      <span>Rastreo</span>
-    </a>
-    <a href="#cupones" class="dock-tab">
-      <span class="material-symbols-rounded">local_activity</span>
-      <span>Cupones</span>
-    </a>
-    <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20hacer%20un%20pedido!" target="_blank"
-      rel="noopener" class="dock-tab">
-      <span class="material-symbols-rounded">chat</span>
-      <span>WhatsApp</span>
-    </a>
-  </nav>
+
 
   <!-- Toast Notification element -->
   <div id="toastMessage">

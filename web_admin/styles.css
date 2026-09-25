@@ -155,17 +155,19 @@ body {
   transition: background-color 0.35s ease, color 0.35s ease;
 }
 
-/* ── 4. SCROLLBAR PERSONALIZADA ROJA ─────────────────────── */
+/* ── 4. SCROLLBAR PERSONALIZADA ROJA CON FONDO BLANCO ──────── */
 ::-webkit-scrollbar { width: 9px; height: 9px; }
-::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.06); }
+::-webkit-scrollbar-track { background: #FFFFFF !important; }
 ::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, #EF4444 0%, #DC2626 50%, #991B1B 100%) !important;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.4);
 }
-::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #F87171 0%, #EF4444 50%, #B91C1C 100%) !important; }
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #F87171 0%, #EF4444 50%, #B91C1C 100%) !important;
+}
 html, body, * {
-  scrollbar-color: #DC2626 rgba(0, 0, 0, 0.06);
+  scrollbar-color: #DC2626 #FFFFFF !important;
   scrollbar-width: thin;
 }
 
@@ -934,6 +936,76 @@ header {
   font-size: 0.85rem;
   margin-bottom: 1.1rem;
   font-weight: 600;
+}
+
+/* Password Eye Toggle & Login Card Styling */
+.login-card-logo-wrap {
+  margin: 0 auto 1.1rem;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(220,38,38,0.2) 0%, rgba(127,29,29,0.25) 100%);
+  border: 2px solid rgba(220,38,38,0.45);
+  box-shadow: 0 6px 20px rgba(220,38,38,0.3);
+}
+
+.login-card-logo-wrap img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: contain;
+}
+
+.input-password-wrap {
+  position: relative;
+}
+
+.input-password-wrap .form-input {
+  padding-right: 48px !important;
+}
+
+.btn-pw-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 8px;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 2;
+}
+
+.btn-pw-toggle:hover {
+  color: var(--primary, #DC2626);
+  background: rgba(220,38,38,0.12);
+}
+
+.btn-pw-toggle .material-symbols-rounded {
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.btn-pw-toggle:active .material-symbols-rounded {
+  transform: scale(0.85);
+}
+
+.eye-pop {
+  animation: eyeBounce 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes eyeBounce {
+  0% { transform: scale(0.7) rotate(-15deg); }
+  60% { transform: scale(1.15) rotate(5deg); }
+  100% { transform: scale(1) rotate(0deg); }
 }
 
 /* ── 17. TOAST SYSTEM ─────────────────────────────────────── */
