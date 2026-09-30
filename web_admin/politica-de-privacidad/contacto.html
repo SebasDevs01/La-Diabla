@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Política de Privacidad | La Diabla App Bucaramanga</title>
-  <meta name="description" content="Política de Privacidad oficial de La Diabla App conforme a normativas de Google Play Store y leyes de protección de datos (Habeas Data) en Colombia.">
+  <title>Información de Contacto | La Diabla App Bucaramanga</title>
+  <meta name="description" content="Información oficial de contacto, canales de soporte al cliente, WhatsApp, correo y ubicación de La Diabla Comida Mexicana Bucaramanga.">
   <meta name="theme-color" content="#DC2626">
 
   <!-- Immediate Theme Initializer to prevent flash -->
@@ -178,7 +178,7 @@
       }
     }
 
-    /* ── TABS DE POLÍTICAS (BARRA SUPERIOR) ── */
+    /* ── TABS DE POLÍTICAS ── */
     .policy-tabs-bar {
       background: var(--card-bg);
       border-bottom: 1px solid var(--card-border);
@@ -240,7 +240,7 @@
       box-shadow: 0 4px 14px var(--primary-glow);
     }
 
-    /* ── CONTENIDO DE POLÍTICA ── */
+    /* ── CONTENIDO ── */
     .policy-container {
       max-width: 960px;
       margin: 2.5rem auto 4rem;
@@ -341,161 +341,146 @@
       line-height: 1.75;
     }
 
-    .section-body ul {
-      margin: 0.8rem 0 0.8rem 1.4rem;
-      list-style-type: none;
+    .contact-channels-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.2rem;
+      margin: 1.5rem 0;
     }
 
-    .section-body ul li {
-      position: relative;
-      padding-left: 1.3rem;
-      margin-bottom: 0.55rem;
-    }
-
-    .section-body ul li::before {
-      content: '•';
-      position: absolute;
-      left: 0;
-      color: var(--primary);
-      font-size: 1.3rem;
-      line-height: 1;
-      top: -2px;
-    }
-
-    .highlight-box {
-      background: rgba(245, 158, 11, 0.1);
-      border-left: 4px solid var(--accent-gold);
-      padding: 1rem 1.3rem;
-      border-radius: 0 14px 14px 0;
-      margin: 1.2rem 0;
-      color: var(--text-main);
-      font-size: 0.94rem;
-      font-weight: 500;
-    }
-
-    .delete-account-card {
-      background: rgba(220, 38, 38, 0.06);
-      border: 1px dashed rgba(220, 38, 38, 0.45);
-      border-radius: 16px;
+    .channel-box {
+      background: var(--bg-body);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
       padding: 1.5rem;
-      margin-top: 1.8rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .channel-box:hover {
+      transform: translateY(-2px);
+      border-color: var(--primary);
+    }
+
+    .channel-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(220, 38, 38, 0.12);
+      color: var(--primary);
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 1rem;
+      justify-content: center;
+      flex-shrink: 0;
     }
 
-    .delete-account-info h4 {
+    .channel-info h4 {
       font-size: 1.05rem;
-      color: var(--primary);
       font-weight: 800;
-      margin-bottom: 0.3rem;
+      color: var(--text-main);
+      margin-bottom: 4px;
     }
 
-    .delete-account-info p {
-      font-size: 0.88rem;
+    .channel-info p {
+      font-size: 0.9rem;
       color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 8px;
     }
 
-    .btn-danger-outline {
+    .channel-action-btn {
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
-      background: rgba(220, 38, 38, 0.12);
-      border: 1px solid var(--primary);
-      color: var(--primary);
-      padding: 0.65rem 1.3rem;
-      border-radius: 12px;
+      gap: 6px;
       font-size: 0.88rem;
       font-weight: 800;
+      color: var(--primary);
       text-decoration: none;
-      transition: all 0.2s ease;
     }
 
-    .btn-danger-outline:hover {
-      background: var(--primary);
-      color: #FFFFFF !important;
-      box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
+    .channel-action-btn:hover {
+      text-decoration: underline;
     }
 
-    /* ── FOOTER (EXACTO DEL SITIO WEB) ── */
+    /* ── FOOTER (IDÉNTICO AL SITIO WEB PRINCIPAL) ── */
     .site-footer {
-      border-top: 1px solid rgba(220, 38, 38, 0.35);
-      background: #080302;
-      padding: 4.5rem 1.5rem 2.5rem;
+      background: #0D0403;
       color: #CBD5E1;
+      border-top: 1px solid rgba(220, 38, 38, 0.3);
+      padding: 4rem 1.5rem 2.5rem;
       position: relative;
+      margin-top: auto;
     }
 
     [data-theme="light"] .site-footer {
       background: #FFFFFF !important;
-      color: #475569 !important;
-      border-top: 1px solid rgba(220, 38, 38, 0.2) !important;
-      box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.04) !important;
+      border-top-color: rgba(220, 38, 38, 0.25) !important;
+      color: #334155 !important;
     }
 
     .footer-grid {
       max-width: 1400px;
       margin: 0 auto;
       display: grid;
-      grid-template-columns: 1.25fr 0.9fr 1.15fr 1.35fr;
+      grid-template-columns: 2fr 1fr 1.5fr 1.5fr;
       gap: 3rem;
       margin-bottom: 3rem;
     }
 
+    .footer-brand-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 1rem;
+    }
+
+    .footer-brand-desc {
+      font-size: 0.95rem;
+      color: #94A3B8;
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+      max-width: 340px;
+    }
+
+    [data-theme="light"] .footer-brand-desc {
+      color: #64748B !important;
+    }
+
     .footer-heading {
-      font-size: 1.05rem;
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.15rem;
       font-weight: 800;
       color: #FFFFFF;
-      margin-bottom: 1.4rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      position: relative;
-      display: inline-block;
-      padding-bottom: 6px;
-      border-bottom: 2px solid #DC2626;
+      margin-bottom: 1.2rem;
+      letter-spacing: 0.5px;
     }
 
     [data-theme="light"] .footer-heading {
       color: #0F172A !important;
     }
 
-    .footer-brand-desc {
-      font-size: 0.95rem;
-      line-height: 1.7;
-      margin: 1rem 0 1.5rem;
-      color: #CBD5E1;
-      max-width: 320px;
-    }
-
-    [data-theme="light"] .footer-brand-desc {
-      color: #475569 !important;
-    }
-
     .footer-links-list {
       list-style: none;
-      padding: 0;
-      margin: 0;
       display: flex;
       flex-direction: column;
-      gap: 0.85rem;
+      gap: 0.75rem;
     }
 
     .footer-links-list a {
-      color: #CBD5E1;
+      color: #94A3B8;
       text-decoration: none;
-      font-size: 0.94rem;
-      font-weight: 500;
-      transition: color 0.2s, transform 0.2s;
+      font-size: 0.92rem;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
+      transition: all 0.2s ease;
     }
 
     .footer-links-list a:hover {
-      color: #FF6B6B;
-      transform: translateX(5px);
+      color: #EF4444;
+      transform: translateX(4px);
     }
 
     [data-theme="light"] .footer-links-list a {
@@ -551,7 +536,6 @@
       color: #475569 !important;
     }
 
-    /* ── BARRA DE POLÍTICAS LEGALES EN EL FOOTER ── */
     .footer-legal-bar {
       width: 100%;
       max-width: 1400px;
@@ -629,7 +613,7 @@
 </head>
 <body>
 
-  <!-- ── 1. HEADER (IDÉNTICO AL SITIO WEB CON MODO OSCURO/CLARO) ── -->
+  <!-- ── 1. HEADER (IDÉNTICO AL SITIO WEB) ── -->
   <header>
     <div class="navbar">
       <a href="../index.html" class="brand-logo-link">
@@ -637,7 +621,7 @@
         <span class="brand-logo-title diabla-font">LA DIABLA</span>
       </a>
 
-      <!-- Desktop Navigation Links (Mismos iconos y estilos de index.html) -->
+      <!-- Desktop Navigation Links -->
       <nav class="nav-desktop-links" aria-label="Navegación principal">
         <a href="../index.html#menu" class="nav-link-btn">
           <span class="material-symbols-rounded md-20">restaurant_menu</span>
@@ -722,30 +706,30 @@
   <!-- ── 2. BARRA DE PÁGINAS DE POLÍTICAS (NAVEGACIÓN ENTRE PÁGINAS) ── -->
   <nav class="policy-tabs-bar" aria-label="Navegación de políticas">
     <ul class="policy-tabs-list">
-      <li><a href="index.html" class="policy-tab-item active">🔒 Política de Privacidad</a></li>
+      <li><a href="index.html" class="policy-tab-item">🔒 Política de Privacidad</a></li>
       <li><a href="reembolso.html" class="policy-tab-item">🔄 Política de Reembolso</a></li>
       <li><a href="terminos.html" class="policy-tab-item">📜 Términos del Servicio</a></li>
       <li><a href="envio.html" class="policy-tab-item">🛵 Política de Envío</a></li>
-      <li><a href="contacto.html" class="policy-tab-item">📞 Información de Contacto</a></li>
+      <li><a href="contacto.html" class="policy-tab-item active">📞 Información de Contacto</a></li>
     </ul>
   </nav>
 
-  <!-- ── 3. CONTENIDO: POLÍTICA DE PRIVACIDAD ── -->
+  <!-- ── 3. CONTENIDO: INFORMACIÓN DE CONTACTO ── -->
   <main class="policy-container">
     <div class="policy-hero">
       <div class="badge-pill">
-        <span class="material-symbols-rounded" style="font-size: 16px;">verified_user</span>
-        Google Play Store & Habeas Data
+        <span class="material-symbols-rounded" style="font-size: 16px;">support_agent</span>
+        Atención &amp; Soporte
       </div>
       <h1 class="policy-title">
-        Política de <span>Privacidad</span>
+        Información de <span>Contacto</span>
       </h1>
       <div class="policy-meta">
         <span>📅 Vigente: Septiembre 2026</span>
         <span>•</span>
-        <span>🛡️ Ley 1581 de 2012 de Colombia</span>
+        <span>📍 Bucaramanga, Santander, Colombia</span>
         <span>•</span>
-        <span>📱 La Diabla App v1.0.0</span>
+        <span>💬 Respuesta Inmediata</span>
       </div>
     </div>
 
@@ -753,111 +737,132 @@
       <div class="section-block">
         <h2 class="section-title">
           <span class="material-symbols-rounded" style="color:#DC2626;">badge</span>
-          1. Información que recopilamos
+          1. Identificación del Responsable
         </h2>
         <p class="section-body">
-          En <strong>La Diabla App</strong> recopilamos los datos estrictamente necesarios para procesar tus pedidos de comida y realizar la entrega efectiva a tu puerta:
+          La plataforma web y aplicación móvil <strong>La Diabla</strong> son operadas por el establecimiento gastronómico comercial <strong>La Diabla Comida Mexicana Bucaramanga</strong>, con sede principal en el departamento de Santander, Colombia.
         </p>
-        <div class="section-body">
-          <ul>
-            <li><strong>Datos de Identificación y Contacto:</strong> Nombre completo, correo electrónico y número de teléfono móvil para confirmación de pedidos y contacto directo del repartidor.</li>
-            <li><strong>Ubicación Geográfica Precisa (GPS):</strong> Ubicación y coordenadas de entrega, utilizadas únicamente mientras la aplicación está activa o durante el despacho de un pedido en curso para calcular distancias, rutas de entrega y costo del domicilio.</li>
-            <li><strong>Historial de Pedidos:</strong> Platillos seleccionados, notas culinarias especiales y direcciones de entrega frecuentes para agilizar tus futuras compras.</li>
-          </ul>
-        </div>
       </div>
 
       <div class="section-block">
         <h2 class="section-title">
-          <span class="material-symbols-rounded" style="color:#DC2626;">share_location</span>
-          2. Uso de la Información y Geolocalización
+          <span class="material-symbols-rounded" style="color:#DC2626;">headset_mic</span>
+          2. Canales Directos de Atención
         </h2>
         <p class="section-body">
-          La información recolectada se utiliza de forma confidencial y exclusivamente para:
+          Disponemos de múltiples canales directos para atender tus dudas, pedidos especiales, consultas de rastreo GPS o PQRS:
         </p>
-        <div class="section-body">
-          <ul>
-            <li>Asignar y despachar tu pedido a nuestra cocina y al repartidor más cercano.</li>
-            <li>Proporcionar seguimiento en tiempo real en el mapa interactivo de entrega GPS para que conozcas la ubicación estimada del repartidor.</li>
-            <li>Enviar notificaciones sobre el estado de tu comida (preparando, en camino, entregado).</li>
-            <li>Soporte al cliente directo vía WhatsApp y llamadas telefónicas en caso de novedades con la dirección.</li>
-          </ul>
-        </div>
-      </div>
 
-      <div class="section-block">
-        <h2 class="section-title">
-          <span class="material-symbols-rounded" style="color:#DC2626;">lock</span>
-          3. Seguridad en Pagos y Pasarelas
-        </h2>
-        <p class="section-body">
-          <strong>La Diabla App NO almacena</strong> contraseñas bancarias, tokens de autenticación ni números completos de tarjetas de crédito o débito en sus servidores.
-        </p>
-        <div class="highlight-box">
-          🛡️ <strong>Pasarela 100% Segura:</strong> Todas las transacciones digitales (Tarjetas de Crédito, Débito, PSE, Nequi y Daviplata) se procesan de forma encriptada a través de Mercado Pago Colombia bajo los más altos estándares internacionales <strong>PCI-DSS Nivel 1</strong>.
-        </div>
-      </div>
-
-      <div class="section-block">
-        <h2 class="section-title">
-          <span class="material-symbols-rounded" style="color:#DC2626;">delete_forever</span>
-          4. Eliminación de Datos y Derechos del Usuario
-        </h2>
-        <p class="section-body">
-          De conformidad con las normativas de protección de datos (Habeas Data de Colombia y los requisitos de eliminación de datos de cuenta de Google Play), todo usuario tiene derecho a:
-        </p>
-        <div class="section-body">
-          <ul>
-            <li>Acceder, actualizar o corregir su información personal en cualquier momento desde su perfil.</li>
-            <li>Solicitar la eliminación total y permanente de su cuenta y todos sus registros asociados.</li>
-          </ul>
-        </div>
-
-        <div class="delete-account-card">
-          <div class="delete-account-info">
-            <h4>¿Deseas solicitar la eliminación de tu cuenta?</h4>
-            <p>Puedes hacerlo desde la App en <em>Perfil &gt; Eliminar mi Cuenta</em> o escribiéndonos directamente.</p>
+        <div class="contact-channels-grid">
+          <!-- Canal 1: WhatsApp -->
+          <div class="channel-box">
+            <div class="channel-icon">
+              <span class="material-symbols-rounded">chat</span>
+            </div>
+            <div class="channel-info">
+              <h4>Línea WhatsApp</h4>
+              <p>Atención directa para pedidos, envíos y modificaciones en tiempo real.</p>
+              <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20necesito%20asistencia%20con%20mi%20pedido" target="_blank" rel="noopener" class="channel-action-btn">
+                <span>+57 317 116 6497</span>
+                <span class="material-symbols-rounded" style="font-size: 16px;">arrow_forward</span>
+              </a>
+            </div>
           </div>
-          <a href="mailto:soporte@ladiabla.app?subject=Solicitud%20de%20Eliminación%20de%20Cuenta%20La%20Diabla&body=Hola,%20solicito%20la%20eliminación%20de%20mi%20cuenta%20asociada%20al%20número%20telefónico:%20" class="btn-danger-outline">
-            <span class="material-symbols-rounded">delete_forever</span>
-            <span>Solicitar Eliminación</span>
-          </a>
+
+          <!-- Canal 2: Ubicación Física -->
+          <div class="channel-box">
+            <div class="channel-icon">
+              <span class="material-symbols-rounded">pin_drop</span>
+            </div>
+            <div class="channel-info">
+              <h4>Sede Gastronómica</h4>
+              <p>Cl. 59 # 39W-24, Estoraques 1<br>Bucaramanga, Santander, Colombia</p>
+              <span style="font-size: 0.85rem; font-weight: 700; color: #10B981;">● Punto de Despacho &amp; Cocina</span>
+            </div>
+          </div>
+
+          <!-- Canal 3: Correo Electrónico -->
+          <div class="channel-box">
+            <div class="channel-icon">
+              <span class="material-symbols-rounded">mail</span>
+            </div>
+            <div class="channel-info">
+              <h4>Soporte Digital &amp; PQRS</h4>
+              <p>Para solicitudes formales, reclamaciones o eliminación de datos personales.</p>
+              <a href="mailto:soporte@ladiabla.com" class="channel-action-btn">
+                <span>soporte@ladiabla.com</span>
+                <span class="material-symbols-rounded" style="font-size: 16px;">arrow_forward</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Canal 4: Horarios -->
+          <div class="channel-box">
+            <div class="channel-icon">
+              <span class="material-symbols-rounded">schedule</span>
+            </div>
+            <div class="channel-info">
+              <h4>Horarios de Servicio</h4>
+              <p>Todos los días de la semana de:<br><strong>11:30 AM a 11:00 PM</strong> (Jornada Continua)</p>
+              <span style="font-size: 0.85rem; font-weight: 700; color: #F59E0B;">● Domicilios y Recogida</span>
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="section-block">
         <h2 class="section-title">
-          <span class="material-symbols-rounded" style="color:#DC2626;">apartment</span>
-          5. Contacto del Responsable de Datos
+          <span class="material-symbols-rounded" style="color:#DC2626;">help_outline</span>
+          3. Peticiones, Quejas, Reclamos y Sugerencias (PQRS)
         </h2>
         <p class="section-body">
-          <strong>Razón Social:</strong> La Diabla Comida Mexicana<br>
-          <strong>Ubicación:</strong> Cl. 59 # 39W-24, Estoraques 1, Bucaramanga, Santander, Colombia.<br>
-          <strong>Correo Oficial:</strong> <a href="mailto:soporte@ladiabla.app" style="color:var(--primary); font-weight:700;">soporte@ladiabla.app</a><br>
-          <strong>WhatsApp de Atención:</strong> +57 317 116 6497 / +57 320 221 2856
+          Tu satisfacción es nuestra máxima prioridad. Para radicar cualquier manifestación formal respecto a la calidad del servicio, demora injustificada o entrega incorrecta:
+        </p>
+        <div class="section-body">
+          <ul>
+            <li>Envía un mensaje detallando tu número de pedido, fecha, fotografía del producto recibido (si aplica) y descripción de la novedad a <strong>soporte@ladiabla.com</strong> o vía WhatsApp al <strong>+57 317 116 6497</strong>.</li>
+            <li>Nuestro equipo acusará recibo y emitirá respuesta o solución dentro de las <strong>24 a 48 horas hábiles</strong> posteriores.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <h2 class="section-title">
+          <span class="material-symbols-rounded" style="color:#DC2626;">phonelink_setup</span>
+          4. Soporte Técnico de la Aplicación Móvil
+        </h2>
+        <p class="section-body">
+          Si experimentas problemas técnicos con la app (cierre inesperado, dificultad al iniciar sesión, cupones no reflejados o errores en la localización GPS), puedes contactar al área técnica reportando la versión de tu sistema operativo Android y la marca de tu dispositivo para brindarte soporte inmediato.
         </p>
       </div>
     </article>
   </main>
 
-  <!-- ── 4. FOOTER (EXACTO DEL SITIO WEB CON ENLACES A CADA PÁGINA) ── -->
+  <!-- ── 4. FOOTER (IDÉNTICO AL SITIO WEB) ── -->
   <footer class="site-footer">
     <div class="footer-grid">
-      <div>
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:1rem;">
-          <img src="../assets/logo/LaDiabla.png" alt="La Diabla" style="width:46px; height:46px; border-radius:50%; object-fit:contain;" onerror="this.src='../logo/LaDiabla.png';">
-          <span class="brand-logo-title diabla-font" style="font-size:1.9rem;">LA DIABLA</span>
+      <!-- Col 1: Brand & Bio -->
+      <div class="footer-col footer-col-brand">
+        <div class="footer-brand-header">
+          <img src="../assets/logo/LaDiabla.png" alt="La Diabla"
+            style="width: 46px; height: 46px; object-fit: contain; border-radius:50%; box-shadow:0 4px 14px rgba(220,38,38,0.4);"
+            onerror="this.src='../logo/LaDiabla.png';">
+          <span class="brand-logo-title diabla-font" style="font-size:1.9rem; color:#FFFFFF;">LA DIABLA</span>
         </div>
         <p class="footer-brand-desc">
-          El verdadero templo del sabor mexicano en Bucaramanga. Tacos al pastor, burritos gigantes, birria artesanal y salsas con el toque picante perfecto.
+          El verdadero templo del sabor mexicano en Bucaramanga. Tacos al pastor, burritos gigantes, birria artesanal y
+          salsas con el toque picante perfecto.
         </p>
-        <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20hacer%20un%20pedido!" target="_blank" rel="noopener" class="btn-primary" style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; font-size:0.9rem; font-weight:700; text-decoration:none; border-radius:14px; color:#FFFFFF;">
+        <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20hacer%20un%20pedido!" target="_blank"
+          rel="noopener" class="btn-primary"
+          style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; font-size:0.9rem; font-weight:700; text-decoration:none; border-radius:14px; color:#FFFFFF; box-shadow:0 4px 15px rgba(220,38,38,0.4);">
           <span class="material-symbols-rounded md-20">chat</span>
           <span>Pedir por WhatsApp</span>
         </a>
       </div>
 
-      <div>
+      <!-- Col 2: Enlaces Rápidos -->
+      <div class="footer-col footer-col-links">
         <h4 class="footer-heading">Navegación</h4>
         <ul class="footer-links-list">
           <li><a href="../index.html#menu"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span> Menú de Platillos</a></li>
@@ -865,26 +870,29 @@
           <li><a href="../index.html#cupones"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span> Cupones Activos</a></li>
           <li><a href="../index.html#testimonios"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span> Reseñas de Clientes</a></li>
           <li><a href="../index.html#faq"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span> Preguntas Frecuentes</a></li>
+          <li><a href="../app-release.apk" download="LaDiabla-App.apk"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span> Descargar App Android</a></li>
         </ul>
       </div>
 
-      <div>
+      <!-- Col 3: Ubicación & Cobertura -->
+      <div class="footer-col footer-col-info">
         <h4 class="footer-heading">Ubicación &amp; Horarios</h4>
-        <p style="font-size:0.94rem; line-height:1.6; margin-bottom:0.9rem;">
+        <p style="font-size: 0.94rem; line-height: 1.6; margin-bottom: 0.9rem;">
           📍 Cl. 59 # 39W-24, Estoraques 1<br>
           Bucaramanga, Santander, Colombia
         </p>
-        <p style="font-size:0.9rem; color:#FBBF24; font-weight:800; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.35); padding:6px 12px; border-radius:10px; display:inline-block;">
+        <p style="font-size: 0.9rem; color: #FBBF24; font-weight: 800; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.35); padding:6px 12px; border-radius:10px; display:inline-block;">
           🕒 Todos los días: 11:30 AM – 11:00 PM
         </p>
-        <p style="font-size:0.88rem; margin-top:0.8rem;">
+        <p style="font-size: 0.88rem; margin-top: 0.8rem; color:var(--text-muted);">
           🚀 Cobertura en Mutis, Real de Minas, Cabecera, Provenza y Zona Metropolitana.
         </p>
       </div>
 
-      <div>
+      <!-- Col 4: Métodos de Pago -->
+      <div class="footer-col footer-col-payments">
         <h4 class="footer-heading">Medios de Pago</h4>
-        <p style="font-size:0.92rem; line-height:1.5; margin-bottom:1.1rem;">
+        <p style="font-size: 0.92rem; line-height: 1.5; margin-bottom: 1.1rem; color:var(--text-muted);">
           Aceptamos todos los medios seguros en tu entrega o en la app:
         </p>
         <div class="footer-payment-pills">
