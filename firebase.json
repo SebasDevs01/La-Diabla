@@ -16,6 +16,18 @@
     ],
     "rewrites": [
       {
+        "source": "/politica-de-privacidad/**",
+        "destination": "/politica-de-privacidad/index.html"
+      },
+      {
+        "source": "/politicas/**",
+        "destination": "/politica-de-privacidad/index.html"
+      },
+      {
+        "source": "/privacidad/**",
+        "destination": "/politica-de-privacidad/index.html"
+      },
+      {
         "source": "/login/**",
         "destination": "/login/index.html"
       },
