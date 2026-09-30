@@ -55,6 +55,7 @@
       --bg-gradient-2: rgba(245, 158, 11, 0.08);
       --legal-dot-color: #64748B;
       --legal-link-color: #CBD5E1;
+      --legal-link-hover: #FFFFFF;
     }
 
     /* ── MODO CLARO (LIGHT MODE) ── */
@@ -63,7 +64,7 @@
       --bg-surface: #FFFFFF;
       --bg-card: #FFFFFF;
       --bg-card-hover: #FFF7ED;
-      --nav-bg: rgba(255, 255, 255, 0.94);
+      --nav-bg: rgba(255, 255, 255, 0.95);
       --tabs-bg: rgba(255, 255, 255, 0.96);
       --primary: #DC2626;
       --primary-light: #EF4444;
@@ -80,13 +81,14 @@
       --box-success: #DCFCE7;
       --box-success-text: #166534;
       --delete-card-bg: #FEF2F2;
-      --footer-bg: #110705;
+      --footer-bg: #FFFFFF;
       --theme-btn-bg: rgba(0, 0, 0, 0.05);
       --theme-btn-border: rgba(0, 0, 0, 0.12);
       --bg-gradient-1: rgba(220, 38, 38, 0.05);
       --bg-gradient-2: rgba(245, 158, 11, 0.05);
-      --legal-dot-color: #64748B;
-      --legal-link-color: #E2E8F0;
+      --legal-dot-color: #94A3B8;
+      --legal-link-color: #475569;
+      --legal-link-hover: #0F172A;
     }
 
     * {
@@ -142,6 +144,7 @@
       gap: 0.75rem;
       text-decoration: none;
       color: var(--text-headings);
+      flex-shrink: 0;
     }
 
     .brand-logo {
@@ -169,6 +172,7 @@
     [data-theme="dark"] .brand-title {
       background: linear-gradient(135deg, #FFF, #FED7AA);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
@@ -186,7 +190,7 @@
       gap: 0.65rem;
     }
 
-    /* Botón Selector de Tema (Idéntico al de las páginas principales) */
+    /* Botón Selector de Tema (Siempre accesible en el Header) */
     .btn-theme-toggle {
       display: inline-flex;
       align-items: center;
@@ -292,6 +296,7 @@
     .hero-title span {
       background: linear-gradient(135deg, #EF4444, #F59E0B);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
@@ -556,12 +561,13 @@
       box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
     }
 
-    /* ── FOOTER LEGAL (MATCHING EXACT DESIGN REQUEST) ── */
+    /* ── FOOTER LEGAL (PERFECTLY ALIGNED & RESPONSIVE) ── */
     .site-footer {
       background: var(--footer-bg);
       border-top: 1px solid var(--border-color);
       padding: 2.5rem 1.5rem 2rem;
       margin-top: auto;
+      transition: background 0.3s ease;
     }
 
     .footer-container {
@@ -576,9 +582,15 @@
       justify-content: center;
       align-items: center;
       flex-wrap: wrap;
-      gap: 0.4rem 0.6rem;
+      gap: 0.5rem 1.2rem;
       margin-bottom: 1.5rem;
       font-size: 0.92rem;
+    }
+
+    .footer-legal-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
     }
 
     .footer-legal-bar .legal-dot {
@@ -592,10 +604,11 @@
       text-decoration: none;
       transition: all 0.2s ease;
       cursor: pointer;
+      white-space: nowrap;
     }
 
     .footer-legal-bar a:hover {
-      color: #FFFFFF;
+      color: var(--legal-link-hover);
       text-decoration: underline;
       text-underline-offset: 4px;
     }
@@ -606,17 +619,45 @@
     }
 
     @media (max-width: 640px) {
-      .policy-card {
-        padding: 1.5rem 1.2rem;
+      .legal-nav {
+        padding: 0.65rem 0.9rem;
       }
-      .footer-legal-bar {
-        font-size: 0.82rem;
+      .brand-logo {
+        width: 36px;
+        height: 36px;
+      }
+      .brand-title {
+        font-size: 1.15rem;
       }
       .brand-subtitle {
         display: none;
       }
-      .btn-theme-toggle span:not(.material-symbols-rounded) {
+      .nav-actions {
+        gap: 0.4rem;
+      }
+      .btn-theme-toggle {
+        padding: 0.45rem 0.65rem;
+      }
+      .btn-theme-toggle #themeLabel {
         display: none;
+      }
+      .btn-back {
+        padding: 0.45rem 0.75rem;
+        font-size: 0.82rem;
+      }
+      .btn-back span:not(.material-symbols-rounded) {
+        display: none;
+      }
+      .btn-primary {
+        padding: 0.45rem 0.75rem;
+        font-size: 0.82rem;
+      }
+      .policy-card {
+        padding: 1.5rem 1.15rem;
+      }
+      .footer-legal-bar {
+        font-size: 0.83rem;
+        gap: 0.4rem 0.75rem;
       }
     }
   </style>
@@ -635,13 +676,13 @@
       </a>
 
       <div class="nav-actions">
-        <!-- Botón Cambiar Tema Oscuro / Claro en la página -->
+        <!-- Botón Cambiar Tema Oscuro / Claro en el Header -->
         <button onclick="toggleWebTheme()" id="themeToggleBtn" class="btn-theme-toggle" title="Cambiar Tema">
           <span class="material-symbols-rounded" id="themeIcon">dark_mode</span>
           <span id="themeLabel">Oscuro</span>
         </button>
 
-        <a href="../" class="btn-back">
+        <a href="../" class="btn-back" title="Volver al Menú">
           <span class="material-symbols-rounded">arrow_back</span>
           <span>Volver al Menú</span>
         </a>
@@ -911,21 +952,31 @@
 
   </main>
 
-  <!-- ── 5. FOOTER CON EL FORMATO EXACTO SOLICITADO ── -->
+  <!-- ── 5. FOOTER CON EL FORMATO EXACTO SOLICITADO Y ALINEADO ── -->
   <footer class="site-footer">
     <div class="footer-container">
       <nav class="footer-legal-bar" aria-label="Enlaces de políticas legales">
-        <span class="legal-dot">·</span>
-        <a href="#reembolso">Política de reembolso</a>
-        <span class="legal-dot">·</span>
-        <a href="#terminos">Términos del servicio</a>
-        <span class="legal-dot">·</span>
-        <a href="#privacidad">Política de privacidad</a>
-        <span class="legal-dot">·</span>
-        <a href="#envio">Política de envío</a>
-        <span class="legal-dot">·</span>
-        <a href="#contacto">Información de contacto</a>
-        <span class="legal-dot">·</span>
+        <span class="footer-legal-item">
+          <span class="legal-dot">·</span>
+          <a href="#reembolso">Política de reembolso</a>
+        </span>
+        <span class="footer-legal-item">
+          <span class="legal-dot">·</span>
+          <a href="#terminos">Términos del servicio</a>
+        </span>
+        <span class="footer-legal-item">
+          <span class="legal-dot">·</span>
+          <a href="#privacidad">Política de privacidad</a>
+        </span>
+        <span class="footer-legal-item">
+          <span class="legal-dot">·</span>
+          <a href="#envio">Política de envío</a>
+        </span>
+        <span class="footer-legal-item">
+          <span class="legal-dot">·</span>
+          <a href="#contacto">Información de contacto</a>
+          <span class="legal-dot">·</span>
+        </span>
       </nav>
 
       <p class="footer-copy">

@@ -1670,21 +1670,27 @@
       color: #CBD5E1;
     }
 
-    /* ── FOOTER LEGAL BAR (ESTILO EXACTO SOLICITADO) ── */
+    /* ── FOOTER LEGAL BAR (ALINEADO Y RESPONSIVO) ── */
     .footer-legal-bar {
       width: 100%;
       max-width: 1400px;
       margin: 1.5rem auto 0;
-      padding: 1.2rem 1rem 0;
+      padding: 1.4rem 1rem 0;
       border-top: 1px solid rgba(255, 255, 255, 0.08);
       display: flex;
       justify-content: center;
       align-items: center;
       flex-wrap: wrap;
-      gap: 0.4rem 0.8rem;
+      gap: 0.5rem 1.2rem;
       font-size: 0.9rem;
       color: #94A3B8;
       text-align: center;
+    }
+
+    .footer-legal-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
     }
 
     .footer-legal-bar .legal-dot {
@@ -1694,10 +1700,10 @@
     }
 
     .footer-legal-bar a {
-      color: #E2E8F0;
+      color: #CBD5E1;
       text-decoration: none;
       transition: all 0.2s ease;
-      cursor: pointer;
+      white-space: nowrap;
     }
 
     .footer-legal-bar a:hover {
@@ -1706,60 +1712,62 @@
       text-underline-offset: 4px;
     }
 
-    /* Modal Embebido de Políticas Legales */
-    .policy-modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.84);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      z-index: 10000;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem;
-      opacity: 0;
-      transition: opacity 0.3s ease;
+    /* ── ADAPTACIÓN DE TEMA CLARO PARA EL FOOTER ── */
+    [data-theme="light"] .site-footer {
+      background: #FFFFFF !important;
+      color: #475569 !important;
+      border-top: 1px solid rgba(220, 38, 38, 0.2) !important;
+      box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.04) !important;
+    }
+    [data-theme="light"] .footer-heading {
+      color: #0F172A !important;
+    }
+    [data-theme="light"] .footer-brand-desc,
+    [data-theme="light"] .footer-links-list a,
+    [data-theme="light"] .footer-bottom,
+    [data-theme="light"] .footer-bottom a {
+      color: #475569 !important;
+    }
+    [data-theme="light"] .footer-links-list a:hover,
+    [data-theme="light"] .footer-bottom a:hover {
+      color: #DC2626 !important;
+    }
+    [data-theme="light"] .footer-legal-bar {
+      border-top-color: rgba(0, 0, 0, 0.08) !important;
+    }
+    [data-theme="light"] .footer-legal-item a {
+      color: #475569 !important;
+    }
+    [data-theme="light"] .footer-legal-item a:hover {
+      color: #0F172A !important;
+    }
+    [data-theme="light"] .footer-legal-item .legal-dot {
+      color: #94A3B8 !important;
+    }
+    [data-theme="light"] .footer-payment-pill {
+      background: rgba(0, 0, 0, 0.04) !important;
+      border-color: rgba(0, 0, 0, 0.1) !important;
+      color: #1E293B !important;
+    }
+    [data-theme="light"] .btn-theme-mobile {
+      color: #1E293B !important;
+      background: rgba(0, 0, 0, 0.05) !important;
+      border-color: rgba(0, 0, 0, 0.12) !important;
     }
 
-    .policy-modal-overlay.active {
-      display: flex;
-      opacity: 1;
+    @media (max-width: 1024px) {
+      .btn-theme-mobile {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+      }
     }
 
-    .policy-modal-container {
-      background: #140906;
-      border: 1px solid rgba(220, 38, 38, 0.45);
-      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9);
-      border-radius: 20px;
-      width: 100%;
-      max-width: 960px;
-      height: 88vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      transform: scale(0.95);
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .policy-modal-overlay.active .policy-modal-container {
-      transform: scale(1);
-    }
-
-    .policy-modal-header {
-      padding: 1rem 1.4rem;
-      background: #1A0D09;
-      border-bottom: 1px solid rgba(220, 38, 38, 0.3);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .policy-modal-iframe {
-      width: 100%;
-      flex: 1;
-      border: none;
-      background: #0A0402;
+    @media (max-width: 640px) {
+      .footer-legal-bar {
+        font-size: 0.83rem;
+        gap: 0.4rem 0.75rem;
+      }
     }
 
     /* ── TOAST CONTAINER ────────────────────────────────────── */
@@ -2715,8 +2723,11 @@
         </a>
       </nav>
 
-      <!-- Mobile Hamburger Button -->
+      <!-- Mobile Header Actions (Theme Toggle + Hamburger) -->
       <div style="display:flex; align-items:center; gap:8px;">
+        <button onclick="toggleWebTheme()" class="btn-theme-mobile" style="display:none; color:#FFFFFF; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.25); padding:7px 11px; border-radius:12px; cursor:pointer;" title="Cambiar Tema" id="mobileThemeToggleBtn">
+          <span class="material-symbols-rounded md-20" id="themeIconMobile">dark_mode</span>
+        </button>
         <button class="hamburger-btn" onclick="toggleMobileMenu()" aria-label="Abrir menú" id="mobileMenuBtn">
           <span class="material-symbols-rounded md-28" id="hamburgerIcon">menu</span>
         </button>
@@ -3632,19 +3643,29 @@
       </div>
     </div>
 
-    <!-- ── BARRA DE POLÍTICAS LEGALES (EXACTO SOLICITADO) ── -->
+    <!-- ── BARRA DE POLÍTICAS LEGALES (ALINEADA Y RESPONSIVA) ── -->
     <nav class="footer-legal-bar" aria-label="Políticas y Términos Legales">
-      <span class="legal-dot">·</span>
-      <a href="../politicas-de-privacidad/#reembolso">Política de reembolso</a>
-      <span class="legal-dot">·</span>
-      <a href="../politicas-de-privacidad/#terminos">Términos del servicio</a>
-      <span class="legal-dot">·</span>
-      <a href="../politicas-de-privacidad/#privacidad">Política de privacidad</a>
-      <span class="legal-dot">·</span>
-      <a href="../politicas-de-privacidad/#envio">Política de envío</a>
-      <span class="legal-dot">·</span>
-      <a href="../politicas-de-privacidad/#contacto">Información de contacto</a>
-      <span class="legal-dot">·</span>
+      <span class="footer-legal-item">
+        <span class="legal-dot">·</span>
+        <a href="../politicas-de-privacidad/#reembolso">Política de reembolso</a>
+      </span>
+      <span class="footer-legal-item">
+        <span class="legal-dot">·</span>
+        <a href="../politicas-de-privacidad/#terminos">Términos del servicio</a>
+      </span>
+      <span class="footer-legal-item">
+        <span class="legal-dot">·</span>
+        <a href="../politicas-de-privacidad/#privacidad">Política de privacidad</a>
+      </span>
+      <span class="footer-legal-item">
+        <span class="legal-dot">·</span>
+        <a href="../politicas-de-privacidad/#envio">Política de envío</a>
+      </span>
+      <span class="footer-legal-item">
+        <span class="legal-dot">·</span>
+        <a href="../politicas-de-privacidad/#contacto">Información de contacto</a>
+        <span class="legal-dot">·</span>
+      </span>
     </nav>
   </footer>
 
@@ -3728,9 +3749,13 @@
 
     function updateThemeToggleBtnLabel(theme) {
       const icon = document.getElementById('themeIcon');
+      const iconMobile = document.getElementById('themeIconMobile');
       const label = document.getElementById('themeLabel');
       if (icon) {
         icon.textContent = theme === 'dark' ? 'light_mode' : 'dark_mode';
+      }
+      if (iconMobile) {
+        iconMobile.textContent = theme === 'dark' ? 'light_mode' : 'dark_mode';
       }
       if (label) {
         label.textContent = theme === 'dark' ? 'Claro' : 'Oscuro';
