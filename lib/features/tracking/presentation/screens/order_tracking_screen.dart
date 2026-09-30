@@ -271,9 +271,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       body: orderAsync.when(
         skipLoadingOnReload: true,
         skipLoadingOnRefresh: true,
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
+        // Mostrar skeleton ligero en lugar de spinner bloqueante para evitar "freeze"
+        loading: () => _buildLoadingSkeleton(isDark),
         error: (err, _) => DiablaOfflineView(
           title: 'Ups, algo salió mal.',
           subtitle: 'No pudimos cargar la información de este pedido. Comprueba tu conexión a internet.',
@@ -289,6 +288,61 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           }
           return _buildTrackingContent(order, isDark);
         },
+      ),
+    );
+  }
+
+  /// Skeleton ligero de carga que evita el "freeze" visual al navegar
+  Widget _buildLoadingSkeleton(bool isDark) {
+    final baseColor = isDark ? const Color(0xFF2C1B14) : Colors.grey.shade200;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          Container(
+            height: 48,
+            decoration: BoxDecoration(
+              color: baseColor,
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            height: 70,
+            decoration: BoxDecoration(
+              color: const Color(0xFFDC2626).withAlpha(80),
+              borderRadius: BorderRadius.circular(18),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            height: 90,
+            decoration: BoxDecoration(
+              color: baseColor,
+              borderRadius: BorderRadius.circular(18),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            height: 340,
+            decoration: BoxDecoration(
+              color: baseColor,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            height: 80,
+            decoration: BoxDecoration(
+              color: baseColor,
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -678,82 +732,67 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                   ),
                 ),
 
-                // Badge Flotante con ETA — compacto, parte inferior del mapa
-                Positioned(
-                  bottom: 50,
-                  left: 12,
-                  right: 56,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E1712).withAlpha(230) : Colors.white.withAlpha(235),
-                      borderRadius: BorderRadius.circular(30),
-                      boxShadow: const [
-                        BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-                      ],
-                      border: Border.all(
-                        color: isDelivered
-                            ? const Color(0xFF16A34A).withAlpha(150)
-                            : (isHeadingToKitchen
-                                ? const Color(0xFFF59E0B).withAlpha(180)
-                                : const Color(0xFFDC2626).withAlpha(120)),
-                        width: 1.2,
+                // Badge Flotante con ETA — solo visible cuando NO está entregado
+                if (!isDelivered)
+                  Positioned(
+                    bottom: 50,
+                    left: 12,
+                    right: 56,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E1712).withAlpha(230) : Colors.white.withAlpha(235),
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+                        ],
+                        border: Border.all(
+                          color: isHeadingToKitchen
+                              ? const Color(0xFFF59E0B).withAlpha(180)
+                              : const Color(0xFFDC2626).withAlpha(120),
+                          width: 1.2,
+                        ),
                       ),
-                    ),
-                    child: isDelivered
-                        ? const Row(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
                             children: [
-                              Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 19),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  '¡Pedido Entregado con éxito! 🎉',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: isHeadingToKitchen
-                                          ? const Color(0xFFF59E0B)
-                                          : const Color(0xFF16A34A),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    isHeadingToKitchen
-                                        ? (_kitchenEtaText.isNotEmpty ? '📦 Cocina: $_kitchenEtaText' : '📦 Recogiendo pedido...')
-                                        : (_etaText.isNotEmpty ? '🛵 Llegada: $_etaText' : '🛵 Calculando ruta...'),
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                isHeadingToKitchen
-                                    ? '${distanceToKitchenKm.toStringAsFixed(1)} km'
-                                    : '${distanceToDestKm.toStringAsFixed(1)} km',
-                                style: TextStyle(
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
                                   color: isHeadingToKitchen
                                       ? const Color(0xFFF59E0B)
-                                      : const Color(0xFFDC2626),
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 12.5,
+                                      : const Color(0xFF16A34A),
                                 ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                isHeadingToKitchen
+                                    ? (_kitchenEtaText.isNotEmpty ? '📦 Cocina: $_kitchenEtaText' : '📦 Recogiendo pedido...')
+                                    : (_etaText.isNotEmpty ? '🛵 Llegada: $_etaText' : '🛵 Calculando ruta...'),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                               ),
                             ],
                           ),
+                          Text(
+                            isHeadingToKitchen
+                                ? '${distanceToKitchenKm.toStringAsFixed(1)} km'
+                                : '${distanceToDestKm.toStringAsFixed(1)} km',
+                            style: TextStyle(
+                              color: isHeadingToKitchen
+                                  ? const Color(0xFFF59E0B)
+                                  : const Color(0xFFDC2626),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 12.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
 
                 // Botón de centrar mapa en el repartidor
                 Positioned(
@@ -785,45 +824,111 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                 ),
 
                 // Badge de fase (Recogiendo/En Camino) — esquina superior izquierda
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: isHeadingToKitchen
-                          ? const Color(0xFFF59E0B).withAlpha(220)
-                          : const Color(0xFFDC2626).withAlpha(220),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: const [
-                        BoxShadow(color: Colors.black38, blurRadius: 4, offset: Offset(0, 2)),
-                      ],
+                // Solo visible cuando el pedido NO fue entregado
+                if (!isDelivered)
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: isHeadingToKitchen
+                            ? const Color(0xFFF59E0B).withAlpha(220)
+                            : const Color(0xFFDC2626).withAlpha(220),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black38, blurRadius: 4, offset: Offset(0, 2)),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isHeadingToKitchen ? Icons.storefront_rounded : Icons.navigation_rounded,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            isHeadingToKitchen ? 'Recogiendo pedido' : 'En camino a ti',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // ── Banner de entrega exitosa — DEBAJO del mapa, bien visible ──────────
+          if (isDelivered)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF16A34A), Color(0xFF15803D)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF16A34A).withAlpha(80),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(30),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Center(
+                      child: Text('🎉', style: TextStyle(fontSize: 24)),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          isHeadingToKitchen ? Icons.storefront_rounded : Icons.navigation_rounded,
-                          color: Colors.white,
-                          size: 14,
-                        ),
-                        const SizedBox(width: 5),
                         Text(
-                          isHeadingToKitchen ? 'Recogiendo pedido' : 'En camino a ti',
-                          style: const TextStyle(
+                          '¡PEDIDO ENTREGADO CON ÉXITO!',
+                          style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w900,
-                            fontSize: 11,
+                            fontSize: 13.5,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        SizedBox(height: 3),
+                        Text(
+                          'Tu comida fue entregada en tu dirección. ¡Buen provecho! 🌶️',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11.5,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ],
+                  const Icon(Icons.check_circle_rounded, color: Colors.white, size: 28),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 8),
 
           // Comprobante de Entrega fotográfico registrado por el repartidor
           if (order.deliveryProofUrl != null && order.deliveryProofUrl!.isNotEmpty) ...[
