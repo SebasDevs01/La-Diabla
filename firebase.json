@@ -20,6 +20,22 @@
         "destination": "/politica-de-privacidad/index.html"
       },
       {
+        "source": "/politica-de-privacidad/reembolso",
+        "destination": "/politica-de-privacidad/reembolso.html"
+      },
+      {
+        "source": "/politica-de-privacidad/terminos",
+        "destination": "/politica-de-privacidad/terminos.html"
+      },
+      {
+        "source": "/politica-de-privacidad/envio",
+        "destination": "/politica-de-privacidad/envio.html"
+      },
+      {
+        "source": "/politica-de-privacidad/contacto",
+        "destination": "/politica-de-privacidad/contacto.html"
+      },
+      {
         "source": "/login/**",
         "destination": "/login/index.html"
       },
