@@ -3583,15 +3583,15 @@
     <!-- ── BARRA DE POLÍTICAS LEGALES (EXACTO SOLICITADO) ── -->
     <nav class="footer-legal-bar" aria-label="Políticas y Términos Legales">
       <span class="legal-dot">·</span>
-      <a href="politica-de-privacidad/#reembolso" onclick="openEmbeddedPolicy(event, 'reembolso')">Política de reembolso</a>
+      <a href="politicas-de-privacidad/#reembolso">Política de reembolso</a>
       <span class="legal-dot">·</span>
-      <a href="politica-de-privacidad/#terminos" onclick="openEmbeddedPolicy(event, 'terminos')">Términos del servicio</a>
+      <a href="politicas-de-privacidad/#terminos">Términos del servicio</a>
       <span class="legal-dot">·</span>
-      <a href="politica-de-privacidad/#privacidad" onclick="openEmbeddedPolicy(event, 'privacidad')">Política de privacidad</a>
+      <a href="politicas-de-privacidad/#privacidad">Política de privacidad</a>
       <span class="legal-dot">·</span>
-      <a href="politica-de-privacidad/#envio" onclick="openEmbeddedPolicy(event, 'envio')">Política de envío</a>
+      <a href="politicas-de-privacidad/#envio">Política de envío</a>
       <span class="legal-dot">·</span>
-      <a href="politica-de-privacidad/#contacto" onclick="openEmbeddedPolicy(event, 'contacto')">Información de contacto</a>
+      <a href="politicas-de-privacidad/#contacto">Información de contacto</a>
       <span class="legal-dot">·</span>
     </nav>
   </footer>
@@ -3942,64 +3942,7 @@
         showToast('¡Enlace del menú copiado al portapapeles!');
       }
     }
-
-    /* ── EMBEDDED POLICY MODAL LOGIC ── */
-    function openEmbeddedPolicy(e, sectionId) {
-      if (e && e.preventDefault) e.preventDefault();
-      const modal = document.getElementById('embeddedPolicyModal');
-      const iframe = document.getElementById('policyIframe');
-      const extLink = document.getElementById('btnPolicyExternal');
-      const targetUrl = `politica-de-privacidad/#${sectionId || 'privacidad'}`;
-      if (iframe) iframe.src = targetUrl;
-      if (extLink) extLink.href = targetUrl;
-      if (modal) {
-        modal.classList.add('active');
-        document.body.style.overflow = 'hidden';
-      }
-    }
-
-    function closeEmbeddedPolicy(e) {
-      if (e && e.target && e.target !== e.currentTarget && !e.target.closest('button')) return;
-      const modal = document.getElementById('embeddedPolicyModal');
-      const iframe = document.getElementById('policyIframe');
-      if (modal) {
-        modal.classList.remove('active');
-        document.body.style.overflow = '';
-        if (iframe) setTimeout(() => { iframe.src = 'about:blank'; }, 250);
-      }
-    }
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        const pModal = document.getElementById('embeddedPolicyModal');
-        if (pModal && pModal.classList.contains('active')) {
-          closeEmbeddedPolicy();
-        }
-      }
-    });
   </script>
-
-  <!-- ── 11. MODAL EMBEBIDO DE POLÍTICAS LEGALES ──── -->
-  <div id="embeddedPolicyModal" class="policy-modal-overlay" onclick="closeEmbeddedPolicy(event)">
-    <div class="policy-modal-container" onclick="event.stopPropagation()">
-      <div class="policy-modal-header">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span class="material-symbols-rounded" style="color:#EF4444;">verified_user</span>
-          <span style="font-weight:700; font-size:1rem; color:#FFFFFF;">Políticas y Términos Legales · La Diabla</span>
-        </div>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <a id="btnPolicyExternal" href="politica-de-privacidad/" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:4px; font-size:0.82rem; color:#F59E0B; text-decoration:none; padding:4px 10px; border-radius:8px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.25);">
-            <span class="material-symbols-rounded" style="font-size:16px;">open_in_new</span>
-            <span>Abrir en nueva pestaña</span>
-          </a>
-          <button onclick="closeEmbeddedPolicy()" style="background:transparent; border:none; color:#CBD5E1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:4px; border-radius:8px;">
-            <span class="material-symbols-rounded" style="font-size:24px;">close</span>
-          </button>
-        </div>
-      </div>
-      <iframe id="policyIframe" class="policy-modal-iframe" src="about:blank" title="Políticas de La Diabla"></iframe>
-    </div>
-  </div>
 
 </body>
 
