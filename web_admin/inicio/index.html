@@ -1656,6 +1656,10 @@
       transform: translateX(5px);
     }
 
+    .site-footer a:visited {
+      color: inherit;
+    }
+
     .footer-bottom {
       max-width: 1400px;
       margin: 0 auto;
@@ -1667,7 +1671,19 @@
       flex-wrap: wrap;
       gap: 1rem;
       font-size: 0.88rem;
-      color: #CBD5E1;
+      color: #FFFFFF;
+    }
+
+    .footer-bottom a,
+    .footer-bottom a:visited {
+      color: #FFFFFF !important;
+      text-decoration: none;
+      transition: color 0.2s ease, opacity 0.2s ease;
+    }
+
+    .footer-bottom a:hover {
+      color: #FF6B6B !important;
+      text-decoration: underline;
     }
 
     /* ── FOOTER LEGAL BAR (ALINEADO Y RESPONSIVO) ── */
@@ -1683,7 +1699,7 @@
       flex-wrap: wrap;
       gap: 0.5rem 1.2rem;
       font-size: 0.9rem;
-      color: #94A3B8;
+      color: #FFFFFF;
       text-align: center;
     }
 
@@ -1694,20 +1710,21 @@
     }
 
     .footer-legal-bar .legal-dot {
-      color: #64748B;
+      color: rgba(255, 255, 255, 0.4);
       user-select: none;
       font-weight: 700;
     }
 
-    .footer-legal-bar a {
-      color: #CBD5E1;
+    .footer-legal-bar a,
+    .footer-legal-bar a:visited {
+      color: #FFFFFF !important;
       text-decoration: none;
       transition: all 0.2s ease;
       white-space: nowrap;
     }
 
     .footer-legal-bar a:hover {
-      color: #FFFFFF;
+      color: #FF6B6B !important;
       text-decoration: underline;
       text-underline-offset: 4px;
     }
@@ -3601,9 +3618,9 @@
       </div>
       <div style="display:flex; gap:1.2rem;">
         <a href="login.html"
-          style="color:#CBD5E1; text-decoration:none; font-size:0.88rem; transition:color 0.2s;">Admin Login</a>
-        <span style="opacity:0.4;">·</span>
-        <a href="#menu" style="color:#CBD5E1; text-decoration:none; font-size:0.88rem; transition:color 0.2s;">Volver al
+          style="color:#FFFFFF; text-decoration:none; font-size:0.88rem; transition:color 0.2s;">Admin Login</a>
+        <span style="opacity:0.4; color:#FFFFFF;">·</span>
+        <a href="#menu" style="color:#FFFFFF; text-decoration:none; font-size:0.88rem; transition:color 0.2s;">Volver al
           inicio ↑</a>
       </div>
     </div>
