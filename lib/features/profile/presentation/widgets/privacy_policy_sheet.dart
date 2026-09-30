@@ -1,4 +1,4 @@
-﻿// lib/features/profile/presentation/widgets/privacy_policy_sheet.dart
+// lib/features/profile/presentation/widgets/privacy_policy_sheet.dart
 import 'package:flutter/material.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
@@ -112,8 +112,8 @@ class PrivacyPolicySheet extends StatelessWidget {
                   title: '5. Contacto del Responsable de Datos',
                   body:
                       'La Diabla Comida Mexicana — Bucaramanga, Santander, Colombia.\n'
-                      'WhatsApp Oficial de Soporte: +57 320 221 2856\n'
-                      'Correo: soporte@ladiabla.app',
+                      'WhatsApp Oficial de Soporte: +57 317 116 6497\n'
+                      'Correo: appladiabla@gmail.com',
                   isDark: isDark,
                 ),
                 const SizedBox(height: 10),
