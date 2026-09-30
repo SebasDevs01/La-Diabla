@@ -1,13 +1,13 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Política de Envío | La Diabla App Bucaramanga</title>
-  <meta name="description" content="Política oficial de envíos, tiempos de entrega, cobertura y rastreo satelital GPS en La Diabla Comida Mexicana Bucaramanga.">
+  <title>Eliminación de Cuenta y Datos | La Diabla App</title>
+  <meta name="description" content="Procedimiento oficial para solicitar la eliminación de cuenta y supresión de datos personales en La Diabla App (SebasDevs01). Cumplimiento de políticas de Google Play.">
   <meta name="theme-color" content="#DC2626">
 
-  <!-- Immediate Theme Initializer to prevent flash -->
+  <!-- Immediate Theme Initializer -->
   <script>
     (function () {
       const savedTheme = localStorage.getItem('diabla_web_theme') || 'light';
@@ -18,19 +18,16 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="../assets/logo/LaDiabla.png">
 
-  <!-- Google Fonts: Bangers, Outfit & Plus Jakarta Sans -->
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-  <!-- Google Material Symbols Rounded (Mismo set e iconos del sitio principal) -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
 
-  <!-- Estilos Globales de La Diabla -->
+  <!-- Estilos Globales -->
   <link rel="stylesheet" href="../styles.css">
 
   <style>
-    /* ── BASE STYLES & DIABLA TYPOGRAPHY ── */
     .diabla-font {
       font-family: 'Bangers', cursive, sans-serif;
       letter-spacing: 1.5px;
@@ -47,7 +44,6 @@
       transition: background-color 0.3s ease, color 0.3s ease;
     }
 
-    /* ── NAVBAR (EXACTO DEL SITIO WEB PRINCIPAL) ── */
     header {
       position: sticky;
       top: 0;
@@ -98,90 +94,74 @@
     .brand-logo-title {
       font-size: 1.95rem;
       line-height: 1;
-      color: #FFFFFF;
-      letter-spacing: 2px;
+      color: var(--text-main);
+      transition: color 0.2s ease;
     }
 
     .nav-desktop-links {
       display: flex;
       align-items: center;
-      gap: 0.85rem;
+      gap: 0.5rem;
     }
 
     .nav-link-btn {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 9px 18px;
+      padding: 8px 14px;
       border-radius: 12px;
-      font-size: 0.92rem;
-      font-weight: 700;
-      color: #FFFFFF !important;
+      color: var(--text-muted);
       text-decoration: none;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      transition: all 0.25s ease;
+      font-size: 0.92rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
     }
 
     .nav-link-btn:hover {
-      color: #FFFFFF !important;
-      background: rgba(220, 38, 38, 0.35);
-      border-color: rgba(255, 255, 255, 0.4);
+      color: var(--text-main);
+      background: var(--card-bg);
+    }
+
+    .btn-icon-text {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 0.88rem;
+      transition: all 0.2s ease;
+    }
+
+    .btn-icon-text:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
 
     .hamburger-btn {
       display: none;
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      color: #FFFFFF;
-      border-radius: 12px;
-      padding: 8px;
+      background: transparent;
+      border: none;
+      color: var(--text-main);
       cursor: pointer;
-      align-items: center;
-      justify-content: center;
+      padding: 6px;
     }
 
     .mobile-drawer {
       display: none;
-      position: fixed;
-      top: 68px;
-      left: 0;
-      width: 100%;
-      background: var(--header-bg);
-      backdrop-filter: blur(28px);
-      -webkit-backdrop-filter: blur(28px);
-      border-bottom: 1px solid var(--header-border);
-      padding: 1.5rem 1.25rem;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
-      z-index: 999;
       flex-direction: column;
-      gap: 0.85rem;
+      gap: 0.6rem;
+      padding: 1rem 1.5rem 1.5rem;
+      background: var(--bg-body);
+      border-bottom: 1px solid var(--border-color);
     }
 
     .mobile-drawer.open {
       display: flex;
     }
 
-    @media (max-width: 1024px) {
-      .nav-desktop-links {
-        display: none !important;
-      }
-      .hamburger-btn {
-        display: inline-flex !important;
-      }
-      .btn-theme-mobile {
-        display: inline-flex !important;
-        align-items: center;
-        justify-content: center;
-      }
-    }
-
-    /* ── CONTENIDO ── */
+    /* ── CONTENIDO PRINCIPAL ── */
     .policy-container {
-      max-width: 960px;
-      margin: 2.5rem auto 4rem;
+      max-width: 1000px;
+      margin: 2.5rem auto 5rem;
       padding: 0 1.5rem;
       flex: 1;
       width: 100%;
@@ -189,73 +169,59 @@
 
     .policy-hero {
       text-align: center;
-      margin-bottom: 2.5rem;
+      margin-bottom: 3rem;
     }
 
     .badge-pill {
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
-      padding: 0.35rem 0.95rem;
+      gap: 8px;
+      padding: 6px 16px;
       border-radius: 999px;
       background: rgba(220, 38, 38, 0.12);
-      border: 1px solid rgba(220, 38, 38, 0.35);
-      color: var(--primary);
-      font-size: 0.82rem;
+      border: 1px solid rgba(220, 38, 38, 0.3);
+      color: #DC2626;
+      font-size: 0.84rem;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.8px;
+      letter-spacing: 1px;
       margin-bottom: 1rem;
     }
 
     .policy-title {
-      font-family: 'Outfit', sans-serif;
-      font-size: clamp(2rem, 4.5vw, 3rem);
+      font-size: clamp(2rem, 4vw, 2.8rem);
       font-weight: 900;
       color: var(--text-main);
-      margin-bottom: 0.8rem;
       line-height: 1.15;
+      margin-bottom: 1rem;
     }
 
     .policy-title span {
-      background: linear-gradient(135deg, #EF4444, #F59E0B);
+      background: linear-gradient(135deg, #DC2626, #F59E0B);
       -webkit-background-clip: text;
-      background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
     .policy-meta {
-      font-size: 0.86rem;
-      color: var(--text-dim);
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.8rem;
+      gap: 1rem;
+      color: var(--text-muted);
+      font-size: 0.88rem;
       flex-wrap: wrap;
     }
 
     .policy-card {
       background: var(--card-bg);
-      border: 1px solid var(--card-border);
+      border: 1px solid var(--border-color);
       border-radius: 24px;
       padding: 2.5rem;
-      box-shadow: var(--card-shadow);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .policy-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 5px;
-      height: 100%;
-      background: linear-gradient(to bottom, #DC2626, #F59E0B);
+      box-shadow: var(--shadow-card);
     }
 
     .section-block {
-      margin-bottom: 2rem;
+      margin-bottom: 2.5rem;
     }
 
     .section-block:last-child {
@@ -263,139 +229,121 @@
     }
 
     .section-title {
-      font-family: 'Outfit', sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 12px;
       font-size: 1.25rem;
       font-weight: 800;
       color: var(--text-main);
-      margin-bottom: 0.75rem;
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.6rem;
     }
 
     .section-body {
-      color: var(--text-muted);
+      color: var(--text-secondary);
       font-size: 0.98rem;
       line-height: 1.75;
     }
 
-    .section-body ul {
-      margin: 0.8rem 0 0.8rem 1.4rem;
-      list-style-type: none;
+    .section-body p {
+      margin-bottom: 1rem;
     }
 
-    .section-body ul li {
-      position: relative;
-      padding-left: 1.4rem;
-      margin-bottom: 0.45rem;
-    }
-
-    .section-body ul li::before {
-      content: '🛵';
-      position: absolute;
-      left: 0;
-      font-size: 0.85rem;
-    }
-
-    .highlight-box {
-      background: rgba(220, 38, 38, 0.08);
-      border: 1px solid rgba(220, 38, 38, 0.25);
+    .step-card {
+      background: rgba(220, 38, 38, 0.05);
+      border: 1px solid rgba(220, 38, 38, 0.2);
       border-radius: 16px;
-      padding: 1.25rem;
-      margin: 1.2rem 0;
-      color: var(--text-main);
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
+      padding: 1.5rem;
+      margin: 1rem 0;
     }
 
-    /* ── FOOTER (IDÉNTICO AL SITIO WEB PRINCIPAL) ── */
+    .step-badge {
+      display: inline-block;
+      background: #DC2626;
+      color: #FFFFFF;
+      font-weight: 800;
+      font-size: 0.8rem;
+      padding: 4px 10px;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      font-size: 0.94rem;
+    }
+
+    .data-table th, .data-table td {
+      border: 1px solid var(--border-color);
+      padding: 12px 16px;
+      text-align: left;
+    }
+
+    .data-table th {
+      background: rgba(220, 38, 38, 0.1);
+      color: var(--text-main);
+      font-weight: 800;
+    }
+
+    .data-table td {
+      color: var(--text-secondary);
+    }
+
+    /* ── FOOTER ── */
     .site-footer {
-      background: #0D0403;
+      border-top: 1px solid rgba(220, 38, 38, 0.35);
+      background: #080302;
+      padding: 4.5rem 1.5rem 2.5rem;
       color: #CBD5E1;
-      border-top: 1px solid rgba(220, 38, 38, 0.3);
-      padding: 4rem 1.5rem 2.5rem;
       position: relative;
-      margin-top: auto;
+    }
+
+    .site-footer a:visited {
+      color: inherit;
     }
 
     .footer-grid {
       max-width: 1400px;
       margin: 0 auto;
       display: grid;
-      grid-template-columns: 2fr 1fr 1.5fr 1.5fr;
+      grid-template-columns: 1.25fr 0.9fr 1.15fr 1.35fr;
       gap: 3rem;
       margin-bottom: 3rem;
     }
 
-    .footer-brand-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 1rem;
-    }
-
-    .footer-brand-desc {
-      font-size: 0.95rem;
-      color: #94A3B8;
-      line-height: 1.6;
-      margin-bottom: 1.5rem;
-      max-width: 340px;
-    }
-
     .footer-heading {
-      font-family: 'Outfit', sans-serif;
-      font-size: 1.15rem;
+      font-size: 1.05rem;
       font-weight: 800;
       color: #FFFFFF;
-      margin-bottom: 1.2rem;
-      letter-spacing: 0.5px;
+      margin-bottom: 1.4rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      display: inline-block;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #DC2626;
     }
 
     .footer-links-list {
       list-style: none;
+      padding: 0;
+      margin: 0;
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
+      gap: 0.85rem;
     }
 
-    .footer-links-list a {
-      color: #94A3B8;
+    .footer-links-list a, .footer-links-list a:visited {
+      color: #CBD5E1;
       text-decoration: none;
-      font-size: 0.92rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s ease;
+      font-size: 0.94rem;
+      transition: color 0.2s;
     }
 
     .footer-links-list a:hover {
-      color: #EF4444;
-      transform: translateX(4px);
-    }
-
-    .footer-payment-pills {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .footer-payment-pill {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      padding: 6px 12px;
-      border-radius: 12px;
-      font-size: 0.82rem;
-      font-weight: 700;
-      color: #FFFFFF;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .site-footer a:visited {
-      color: inherit;
+      color: #FF6B6B;
     }
 
     .footer-bottom {
@@ -412,11 +360,9 @@
       color: #FFFFFF;
     }
 
-    .footer-bottom a,
-    .footer-bottom a:visited {
+    .footer-bottom a, .footer-bottom a:visited {
       color: #FFFFFF !important;
       text-decoration: none;
-      transition: color 0.2s ease, opacity 0.2s ease;
     }
 
     .footer-bottom a:hover {
@@ -436,7 +382,7 @@
       flex-wrap: wrap;
       gap: 0.5rem 1.2rem;
       font-size: 0.9rem;
-      color: #94A3B8;
+      color: #FFFFFF;
       text-align: center;
     }
 
@@ -447,13 +393,12 @@
     }
 
     .footer-legal-bar .legal-dot {
-      color: #64748B;
+      color: rgba(255, 255, 255, 0.4);
       user-select: none;
       font-weight: 700;
     }
 
-    .footer-legal-bar a,
-    .footer-legal-bar a:visited {
+    .footer-legal-bar a, .footer-legal-bar a:visited {
       color: #FFFFFF !important;
       text-decoration: none;
       transition: all 0.2s ease;
@@ -467,52 +412,47 @@
     }
 
     @media (max-width: 1024px) {
-      .footer-grid {
-        grid-template-columns: 1fr;
-        gap: 2.2rem;
-      }
+      .footer-grid { grid-template-columns: 1fr 1fr; gap: 2.5rem; }
+      .nav-desktop-links { display: none; }
+      .hamburger-btn, .btn-theme-mobile { display: inline-flex; }
     }
 
-    @media (max-width: 640px) {
-      .policy-card {
-        padding: 1.5rem 1.2rem;
-      }
-      .footer-legal-bar {
-        font-size: 0.83rem;
-        gap: 0.4rem 0.75rem;
-      }
+    @media (max-width: 768px) {
+      .footer-grid { grid-template-columns: 1fr; }
+      .policy-card { padding: 1.5rem; border-radius: 18px; }
+      .footer-bottom { flex-direction: column; text-align: center; }
     }
   </style>
 </head>
 <body>
 
-  <!-- ── 1. HEADER (IDÉNTICO AL SITIO WEB) ── -->
+  <!-- ── 1. HEADER ── -->
   <header>
     <div class="navbar">
-      <a href="../index.html" class="brand-logo-link">
+      <a href="/" class="brand-logo-link">
         <img src="../assets/logo/LaDiabla.png" alt="La Diabla" class="brand-logo-img" onerror="this.src='../logo/LaDiabla.png';">
         <span class="brand-logo-title diabla-font">LA DIABLA</span>
       </a>
 
       <!-- Desktop Navigation Links -->
       <nav class="nav-desktop-links" aria-label="Navegación principal">
-        <a href="../index.html#menu" class="nav-link-btn">
+        <a href="/#menu" class="nav-link-btn">
           <span class="material-symbols-rounded md-20">restaurant_menu</span>
           <span>Menú</span>
         </a>
-        <a href="../index.html#rastreo" class="nav-link-btn">
+        <a href="/#rastreo" class="nav-link-btn">
           <span class="material-symbols-rounded md-20">near_me</span>
           <span>Rastreo GPS</span>
         </a>
-        <a href="../index.html#cupones" class="nav-link-btn">
+        <a href="/#cupones" class="nav-link-btn">
           <span class="material-symbols-rounded md-20">local_activity</span>
           <span>Cupones</span>
         </a>
-        <a href="../index.html#testimonios" class="nav-link-btn">
+        <a href="/#testimonios" class="nav-link-btn">
           <span class="material-symbols-rounded md-20">reviews</span>
           <span>Reseñas</span>
         </a>
-        <a href="../index.html#faq" class="nav-link-btn">
+        <a href="/#faq" class="nav-link-btn">
           <span class="material-symbols-rounded md-20">help</span>
           <span>FAQ</span>
         </a>
@@ -522,14 +462,14 @@
           <span class="material-symbols-rounded md-20" id="themeIcon">dark_mode</span>
           <span id="themeLabel">Oscuro</span>
         </button>
-        <a href="../login/index.html" class="btn-primary"
+        <a href="/login/" class="btn-primary"
           style="padding: 9px 20px; font-size: 0.92rem; text-decoration:none; border-radius:14px; font-weight:800; color:#FFFFFF;">
           <span class="material-symbols-rounded md-20">admin_panel_settings</span>
           <span>Admin</span>
         </a>
       </nav>
 
-      <!-- Mobile Header Actions (Theme Toggle + Hamburger) -->
+      <!-- Mobile Header Actions -->
       <div style="display:flex; align-items:center; gap:8px;">
         <button onclick="toggleWebTheme()" class="btn-theme-mobile" style="display:none; color:#FFFFFF; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.25); padding:7px 11px; border-radius:12px; cursor:pointer;" title="Cambiar Tema" id="mobileThemeToggleBtn">
           <span class="material-symbols-rounded md-20" id="themeIconMobile">dark_mode</span>
@@ -542,23 +482,23 @@
 
     <!-- Mobile Navigation Drawer -->
     <div class="mobile-drawer" id="mobileDrawer">
-      <a href="../index.html#menu" class="nav-link-btn" onclick="closeMobileMenu()">
+      <a href="/#menu" class="nav-link-btn" onclick="closeMobileMenu()">
         <span class="material-symbols-rounded md-20">restaurant_menu</span>
         <span>Menú de Platillos</span>
       </a>
-      <a href="../index.html#rastreo" class="nav-link-btn" onclick="closeMobileMenu()">
+      <a href="/#rastreo" class="nav-link-btn" onclick="closeMobileMenu()">
         <span class="material-symbols-rounded md-20">near_me</span>
         <span>Rastreo GPS en Vivo</span>
       </a>
-      <a href="../index.html#cupones" class="nav-link-btn" onclick="closeMobileMenu()">
+      <a href="/#cupones" class="nav-link-btn" onclick="closeMobileMenu()">
         <span class="material-symbols-rounded md-20">local_activity</span>
         <span>Cupones &amp; Descuentos</span>
       </a>
-      <a href="../index.html#testimonios" class="nav-link-btn" onclick="closeMobileMenu()">
+      <a href="/#testimonios" class="nav-link-btn" onclick="closeMobileMenu()">
         <span class="material-symbols-rounded md-20">reviews</span>
         <span>Reseñas de Clientes</span>
       </a>
-      <a href="../index.html#faq" class="nav-link-btn" onclick="closeMobileMenu()">
+      <a href="/#faq" class="nav-link-btn" onclick="closeMobileMenu()">
         <span class="material-symbols-rounded md-20">help</span>
         <span>Preguntas Frecuentes</span>
       </a>
@@ -567,7 +507,7 @@
           <span class="material-symbols-rounded md-20">contrast</span>
           <span>Cambiar Tema</span>
         </button>
-        <a href="../login/index.html" class="btn-primary"
+        <a href="/login/" class="btn-primary"
           style="flex:1; justify-content:center; padding:12px; font-size:0.95rem; text-decoration:none; border-radius:12px; display:inline-flex; align-items:center; gap:8px; color:#FFFFFF;">
           <span class="material-symbols-rounded md-20">admin_panel_settings</span>
           <span>Admin</span>
@@ -576,146 +516,158 @@
     </div>
   </header>
 
-  <!-- ── 3. CONTENIDO: POLÍTICA DE ENVÍO ── -->
+  <!-- ── 2. CONTENIDO PRINCIPAL: ELIMINACIÓN DE CUENTA Y DATOS ── -->
   <main class="policy-container">
     <div class="policy-hero">
       <div class="badge-pill">
-        <span class="material-symbols-rounded" style="font-size: 16px;">two_wheeler</span>
-        Despacho &amp; Domicilios
+        <span class="material-symbols-rounded" style="font-size: 16px;">verified_user</span>
+        Google Play Policy Compliance
       </div>
       <h1 class="policy-title">
-        Política de <span>Envío y Entrega</span>
+        Eliminación de Cuenta y <span>Datos Personales</span>
       </h1>
       <div class="policy-meta">
-        <span>📅 Vigente: Septiembre 2026</span>
+        <span>📱 App: La Diabla</span>
         <span>•</span>
-        <span>🛵 Entregas en Bucaramanga y Área Metropolitana</span>
+        <span>👨‍💻 Desarrollador: SebasDevs01</span>
         <span>•</span>
-        <span>📍 Despacho Directo &amp; GPS</span>
+        <span>📅 Actualizado: 2026</span>
       </div>
     </div>
 
     <article class="policy-card">
+
+      <!-- Sección 1: Identificación -->
       <div class="section-block">
         <h2 class="section-title">
-          <span class="material-symbols-rounded" style="color:#DC2626;">location_on</span>
-          1. Zonas de Cobertura en Bucaramanga
+          <span class="material-symbols-rounded" style="color:#DC2626;">badge</span>
+          1. Identificación de la Aplicación y Desarrollador
         </h2>
-        <p class="section-body">
-          En <strong>La Diabla Comida Mexicana</strong> operamos con nuestra propia flota de repartidores domiciliarios y aliados estratégicos para garantizar entregas rápidas y alimentos calientes en las siguientes zonas:
-        </p>
         <div class="section-body">
+          <p>Esta política de eliminación de cuentas y supresión de datos personales rige para la aplicación móvil y servicios de:</p>
           <ul>
-            <li><strong>Zona Principal Bucaramanga:</strong> Barrio Mutis, Estoraques, Real de Minas, La Victoria, San Francisco, Cabecera del Llano, Sotomayor, Centro y Provenza.</li>
-            <li><strong>Área Metropolitana Ampliada:</strong> Cañaveral, Floridablanca, Ciudad Valencia, Ruitoque Bajo y sectores autorizados de Girón (sujeto a disponibilidad y tarifa por distancia).</li>
+            <li><strong>Nombre de la aplicación en Google Play:</strong> La Diabla (La Diabla App)</li>
+            <li><strong>Desarrollador / Propietario en Play Store:</strong> SebasDevs01 / La Diabla Comida Mexicana Bucaramanga</li>
+            <li><strong>País de operación:</strong> Colombia</li>
+            <li><strong>Canal oficial de soporte de datos:</strong> <a href="mailto:soporte@ladiabla.com" style="color:#DC2626; font-weight:700;">soporte@ladiabla.com</a></li>
           </ul>
         </div>
       </div>
 
+      <!-- Sección 2: Pasos para solicitar la eliminación -->
       <div class="section-block">
         <h2 class="section-title">
-          <span class="material-symbols-rounded" style="color:#DC2626;">timer</span>
-          2. Tiempos Estimados de Preparación y Entrega
+          <span class="material-symbols-rounded" style="color:#DC2626;">delete_forever</span>
+          2. Pasos para Solicitar la Eliminación de tu Cuenta y Datos
         </h2>
-        <p class="section-body">
-          Nuestros platillos son preparados al momento con ingredientes frescos para mantener la temperatura, textura crocante y el auténtico sabor mexicano:
-        </p>
         <div class="section-body">
-          <ul>
-            <li><strong>Tiempo estándar de entrega:</strong> Entre <strong>30 y 55 minutos</strong> a partir de la confirmación del pedido en nuestro sistema.</li>
-            <li><strong>Horas pico (Viernes, Sábados y Domingos 7:00 PM - 9:30 PM):</strong> El tiempo estimado puede extenderse entre 45 y 70 minutos. La aplicación notificará el tiempo estimado actualizado en vivo.</li>
-            <li><strong>Factores climáticos o de tráfico:</strong> En caso de lluvias torrenciales o congestiones viales severas en Bucaramanga, la velocidad de los motorizados se ajusta para salvaguardar su seguridad y la integridad del pedido.</li>
-          </ul>
-        </div>
-      </div>
+          <p>Los usuarios de <strong>La Diabla</strong> disponen de dos métodos sencillos y transparentes para solicitar y ejecutar la eliminación definitiva de su cuenta y todos sus datos personales asociados:</p>
 
-      <div class="section-block">
-        <h2 class="section-title">
-          <span class="material-symbols-rounded" style="color:#DC2626;">near_me</span>
-          3. Rastreo Satelital por GPS en Vivo
-        </h2>
-        <p class="section-body">
-          A través de <strong>La Diabla App</strong> o desde el enlace de seguimiento web, los clientes pueden monitorear el estado exacto de su orden en tiempo real:
-        </p>
-        <div class="highlight-box">
-          <span class="material-symbols-rounded" style="color:#DC2626; font-size:26px; flex-shrink:0;">satellite_alt</span>
-          <div style="font-size:0.94rem; line-height:1.6;">
-            <strong>Seguimiento transparente etapa por etapa:</strong>
-            <br>1. Pedido Recibido ➔ 2. En Cocina Preparándose ➔ 3. Repartidor Asignado en Camino ➔ 4. En la Puerta / Entregado. Podrás visualizar el mapa interactivo con la ubicación satelital del repartidor.
+          <div class="step-card">
+            <span class="step-badge">Opción 1 · Autoservicio Inmediato en la App Móvil</span>
+            <p><strong>Si tienes la aplicación instalada en tu dispositivo Android:</strong></p>
+            <ol style="margin-left: 1.2rem; line-height: 1.8;">
+              <li>Abre la aplicación <strong>La Diabla</strong> en tu teléfono.</li>
+              <li>Inicia sesión con tu cuenta (correo o Google).</li>
+              <li>Toca el icono de <strong>Perfil</strong> en la barra de navegación inferior.</li>
+              <li>Desplázate hacia abajo hasta la sección de seguridad o configuración.</li>
+              <li>Pulsa en el botón rojo <strong>"Eliminar mi cuenta"</strong>.</li>
+              <li>Confirma la acción en el cuadro de diálogo. El sistema eliminará inmediatamente tu cuenta de autenticación y datos vinculados.</li>
+            </ol>
+          </div>
+
+          <div class="step-card" style="background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2);">
+            <span class="step-badge" style="background: #10B981;">Opción 2 · Solicitud Web o por Correo (Sin tener la app instalada)</span>
+            <p><strong>Si ya desinstalaste la app o prefieres solicitar el borrado vía web:</strong></p>
+            <ol style="margin-left: 1.2rem; line-height: 1.8;">
+              <li>Envía un correo electrónico a <a href="mailto:soporte@ladiabla.com" style="color:#10B981; font-weight:700;">soporte@ladiabla.com</a> con el asunto: <code>Solicitud de Eliminación de Cuenta y Datos - La Diabla</code>.</li>
+              <li>Indica en el mensaje el correo electrónico con el que te registraste en la app y tu número telefónico registrado.</li>
+              <li>También puedes solicitarlo por WhatsApp a nuestra línea directa de atención: <strong>+57 317 116 6497</strong>.</li>
+              <li>Nuestro equipo de soporte procesará la baja y confirmará la eliminación definitiva en un plazo máximo de <strong>24 a 48 horas hábiles</strong>.</li>
+            </ol>
           </div>
         </div>
       </div>
 
+      <!-- Sección 3: Tipos de datos que se eliminan -->
       <div class="section-block">
         <h2 class="section-title">
-          <span class="material-symbols-rounded" style="color:#DC2626;">payments</span>
-          4. Costo y Tarifas del Servicio de Domicilio
+          <span class="material-symbols-rounded" style="color:#DC2626;">fact_check</span>
+          3. Tipos de Datos que se Borran Permanentemente
         </h2>
-        <p class="section-body">
-          El valor del domicilio se calcula de manera automatizada y transparente antes de finalizar la compra, basándose en la distancia kilométrica entre nuestra sede operativa (Cl. 59 # 39W-24, Bucaramanga) y la dirección de entrega del cliente. El costo del flete aparece desglosado claramente en el resumen de la orden antes de autorizar el pago.
-        </p>
+        <div class="section-body">
+          <p>Al procesarse la eliminación de tu cuenta, los siguientes datos personales son suprimidos de forma irreversible de nuestras bases de datos de Firebase:</p>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Categoría de Datos</th>
+                <th>Datos Específicos Suprimidos</th>
+                <th>Plazo de Eliminación</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Datos de Identidad</strong></td>
+                <td>Nombre completo, correo electrónico, UID de Firebase Authentication, foto de perfil.</td>
+                <td>Inmediato (0 a 48 horas)</td>
+              </tr>
+              <tr>
+                <td><strong>Datos de Contacto</strong></td>
+                <td>Número de teléfono móvil, credenciales OAuth (Google Sign-In).</td>
+                <td>Inmediato</td>
+              </tr>
+              <tr>
+                <td><strong>Ubicación y Direcciones</strong></td>
+                <td>Direcciones de entrega guardadas, coordenadas GPS históricas y puntos de referencia.</td>
+                <td>Inmediato</td>
+              </tr>
+              <tr>
+                <td><strong>Mensajes y Chats</strong></td>
+                <td>Historial de chats, mensajes de texto y notas de voz intercambiados con repartidores.</td>
+                <td>Inmediato</td>
+              </tr>
+              <tr>
+                <td><strong>Identificadores de Dispositivo</strong></td>
+                <td>Tokens FCM de notificaciones push y tokens de sesión activa.</td>
+                <td>Inmediato</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
+      <!-- Sección 4: Tipos de datos conservados y retención -->
       <div class="section-block">
         <h2 class="section-title">
-          <span class="material-symbols-rounded" style="color:#DC2626;">takeout_dining</span>
-          5. Embalaje y Conservación Térmica
+          <span class="material-symbols-rounded" style="color:#DC2626;">history_toggle_off</span>
+          4. Datos que se Conservan y Períodos de Retención
         </h2>
-        <p class="section-body">
-          Para asegurar que los tacos, burritos, quesadillas y consomés de birria lleguen en perfectas condiciones:
-        </p>
         <div class="section-body">
+          <p>Para estricto cumplimiento de la normativa legal, tributaria y contable vigente en la República de Colombia:</p>
           <ul>
-            <li>Utilizamos <strong>cajas térmicas herméticas</strong> con sellos de seguridad anti-manipulación.</li>
-            <li>Las salsas picantes, cremas y limones se empaquetan en recipientes sellados independientes para evitar que las tortillas se humedezcan durante el trayecto.</li>
-            <li>Las bebidas frías o Jarritos se transportan en compartimentos térmicos aislados para evitar cambios de temperatura con los platillos calientes.</li>
+            <li><strong>Registros contables y fiscales de pedidos pagados:</strong> La información puramente transaccional (número de factura, fecha, monto pagado e impuestos) se conserva durante el período legal exigido por el <em>Estatuto Tributario de Colombia / DIAN</em> (hasta un período de <strong>5 años</strong>).</li>
+            <li><strong>Anonimización total:</strong> Estos registros quedan completamente disociados y anonimizados de cualquier dato de contacto o identidad personal del usuario eliminado.</li>
+            <li><strong>Cero fines comerciales:</strong> Ningún dato conservado por mandato fiscal es utilizado para mercadeo, perfiles de usuario ni transferido a terceros.</li>
           </ul>
         </div>
       </div>
 
-      <div class="section-block">
-        <h2 class="section-title">
-          <span class="material-symbols-rounded" style="color:#DC2626;">meeting_room</span>
-          6. Protocolo de Recepción y Espera en Destino
-        </h2>
-        <p class="section-body">
-          Al llegar a la dirección indicada por el usuario, el repartidor anunciará su llegada mediante llamada telefónica, notificación push o a través de la portería del conjunto/edificio:
-        </p>
-        <div class="section-body">
-          <ul>
-            <li>El repartidor esperará un tiempo máximo de <strong>10 minutos</strong> en el punto de entrega.</li>
-            <li>Si tras múltiples intentos de llamada y mensajes el cliente no atiende o no se encuentra disponible, el pedido regresará a la sede por motivos de inocuidad alimentaria y el cobro del flete no será reembolsable.</li>
-            <li>Recomendamos revisar que los sellos de seguridad del empaque permanezcan intactos al momento de recibir la orden.</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="section-block">
-        <h2 class="section-title">
-          <span class="material-symbols-rounded" style="color:#DC2626;">support_agent</span>
-          7. Novedades y Cambios de Dirección
-        </h2>
-        <p class="section-body">
-          Si requieres cambiar tu dirección de entrega o corregir una indicación especial (número de apartamento o torre), contáctanos inmediatamente a través de nuestra línea de WhatsApp <strong>+57 317 116 6497</strong> antes de que el repartidor inicie el desplazamiento.
-        </p>
-      </div>
     </article>
   </main>
 
-  <!-- ── 4. FOOTER (IDÉNTICO AL SITIO WEB) ── -->
+  <!-- ── 3. FOOTER ── -->
   <footer class="site-footer">
     <div class="footer-grid">
-      <!-- Col 1: Brand & Bio -->
       <div class="footer-col footer-col-brand">
-        <div class="footer-brand-header">
+        <div class="footer-brand-header" style="display:flex; align-items:center; gap:12px; margin-bottom:1rem;">
           <img src="../assets/logo/LaDiabla.png" alt="La Diabla"
             style="width: 46px; height: 46px; object-fit: contain; border-radius:50%; box-shadow:0 4px 14px rgba(220,38,38,0.4);"
             onerror="this.src='../logo/LaDiabla.png';">
           <span class="brand-logo-title diabla-font" style="font-size:1.9rem; color:#FFFFFF;">LA DIABLA</span>
         </div>
-        <p class="footer-brand-desc">
-          El verdadero templo del sabor mexicano en Bucaramanga. Tacos al pastor, burritos gigantes, birria artesanal y
-          salsas con el toque picante perfecto.
+        <p class="footer-brand-desc" style="color:#CBD5E1; font-size:0.95rem; line-height:1.7; margin-bottom:1.5rem;">
+          El verdadero templo del sabor mexicano en Bucaramanga. Tacos al pastor, burritos gigantes, birria artesanal y salsas con el toque picante perfecto.
         </p>
         <a href="https://wa.me/573171166497?text=Hola%20La%20Diabla,%20quiero%20hacer%20un%20pedido!" target="_blank"
           rel="noopener" class="btn-primary"
@@ -725,45 +677,39 @@
         </a>
       </div>
 
-      <!-- Col 2: Enlaces Rápidos -->
       <div class="footer-col footer-col-links">
         <h4 class="footer-heading">Navegación</h4>
         <ul class="footer-links-list">
-          <li><a href="../index.html#menu"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span> Menú de Platillos</a></li>
-          <li><a href="../index.html#rastreo"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span> Rastreo GPS en Vivo</a></li>
-          <li><a href="../index.html#cupones"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span> Cupones Activos</a></li>
-          <li><a href="../index.html#testimonios"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span> Reseñas de Clientes</a></li>
-          <li><a href="../index.html#faq"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span> Preguntas Frecuentes</a></li>
-          <li><a href="../app-release.apk" download="LaDiabla-App.apk"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span> Descargar App Android</a></li>
+          <li><a href="/#menu"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span> Menú de Platillos</a></li>
+          <li><a href="/#rastreo"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span> Rastreo GPS en Vivo</a></li>
+          <li><a href="/#cupones"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span> Cupones Activos</a></li>
+          <li><a href="/#testimonios"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span> Reseñas de Clientes</a></li>
+          <li><a href="/#faq"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span> Preguntas Frecuentes</a></li>
+          <li><a href="/app-release.apk" download="LaDiabla-App.apk"><span class="material-symbols-rounded md-16" style="color:#EF4444;">chevron_right</span> Descargar App Android</a></li>
         </ul>
       </div>
 
-      <!-- Col 3: Ubicación & Cobertura -->
       <div class="footer-col footer-col-info">
         <h4 class="footer-heading">Ubicación &amp; Horarios</h4>
-        <p style="font-size: 0.94rem; line-height: 1.6; margin-bottom: 0.9rem;">
+        <p style="font-size: 0.94rem; line-height: 1.6; margin-bottom: 0.9rem; color:#F8FAFC;">
           📍 Cl. 59 # 39W-24, Estoraques 1<br>
           Bucaramanga, Santander, Colombia
         </p>
         <p style="font-size: 0.9rem; color: #FBBF24; font-weight: 800; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.35); padding:6px 12px; border-radius:10px; display:inline-block;">
           🕒 Todos los días: 11:30 AM – 11:00 PM
         </p>
-        <p style="font-size: 0.88rem; margin-top: 0.8rem; color:var(--text-muted);">
-          🚀 Cobertura en Mutis, Real de Minas, Cabecera, Provenza y Zona Metropolitana.
-        </p>
       </div>
 
-      <!-- Col 4: Métodos de Pago -->
       <div class="footer-col footer-col-payments">
         <h4 class="footer-heading">Medios de Pago</h4>
-        <p style="font-size: 0.92rem; line-height: 1.5; margin-bottom: 1.1rem; color:var(--text-muted);">
+        <p style="font-size: 0.92rem; line-height: 1.5; margin-bottom: 1.1rem; color:#CBD5E1;">
           Aceptamos todos los medios seguros en tu entrega o en la app:
         </p>
-        <div class="footer-payment-pills">
-          <span class="footer-payment-pill">🟣 Nequi</span>
-          <span class="footer-payment-pill">🔴 Daviplata</span>
-          <span class="footer-payment-pill">💳 PSE / Tarjetas</span>
-          <span class="footer-payment-pill">💵 Efectivo</span>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          <span style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18); padding:6px 12px; border-radius:12px; font-size:0.82rem; font-weight:700; color:#FFFFFF;">🟣 Nequi</span>
+          <span style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18); padding:6px 12px; border-radius:12px; font-size:0.82rem; font-weight:700; color:#FFFFFF;">🔴 Daviplata</span>
+          <span style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18); padding:6px 12px; border-radius:12px; font-size:0.82rem; font-weight:700; color:#FFFFFF;">💳 PSE / Tarjetas</span>
+          <span style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18); padding:6px 12px; border-radius:12px; font-size:0.82rem; font-weight:700; color:#FFFFFF;">💵 Efectivo</span>
         </div>
       </div>
     </div>
@@ -773,13 +719,13 @@
         © 2026 La Diabla App · Todos los derechos reservados · Hecho con sabor y pasión 🌶️
       </div>
       <div style="display:flex; gap:1.2rem;">
-        <a href="../login/index.html" style="color:#FFFFFF; text-decoration:none; font-size:0.88rem; transition:color 0.2s;">Admin Login</a>
+        <a href="/login/" style="color:#FFFFFF; text-decoration:none; font-size:0.88rem; transition:color 0.2s;">Admin Login</a>
         <span style="opacity:0.4; color:#FFFFFF;">·</span>
-        <a href="../index.html" style="color:#FFFFFF; text-decoration:none; font-size:0.88rem; transition:color 0.2s;">Volver al inicio ↑</a>
+        <a href="/" style="color:#FFFFFF; text-decoration:none; font-size:0.88rem; transition:color 0.2s;">Volver al inicio ↑</a>
       </div>
     </div>
 
-    <!-- ── BARRA DE POLÍTICAS LEGALES (CADA UNA EN SU PÁGINA) ── -->
+    <!-- Barra Legal -->
     <nav class="footer-legal-bar" aria-label="Políticas y Términos Legales">
       <span class="footer-legal-item">
         <span class="legal-dot">·</span>
@@ -830,9 +776,10 @@
     function toggleMobileMenu() {
       const drawer = document.getElementById('mobileDrawer');
       const icon = document.getElementById('hamburgerIcon');
-      if (drawer) {
-        drawer.classList.toggle('open');
-        if (icon) icon.textContent = drawer.classList.contains('open') ? 'close' : 'menu';
+      if (!drawer) return;
+      drawer.classList.toggle('open');
+      if (icon) {
+        icon.textContent = drawer.classList.contains('open') ? 'close' : 'menu';
       }
     }
 
@@ -843,9 +790,9 @@
       if (icon) icon.textContent = 'menu';
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
-      const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-      updateThemeToggleBtnLabel(currentTheme);
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedTheme = localStorage.getItem('diabla_web_theme') || 'light';
+      updateThemeToggleBtnLabel(savedTheme);
     });
   </script>
 </body>

@@ -50,7 +50,15 @@
         "destination": "/politica-de-privacidad/index.html"
       },
       {
+        "source": "/politica-de-privacidad/index.html",
+        "destination": "/politica-de-privacidad/index.html"
+      },
+      {
         "source": "/politica-de-privacidad/reembolso",
+        "destination": "/politica-de-privacidad/reembolso.html"
+      },
+      {
+        "source": "/politica-de-privacidad/reembolso.html",
         "destination": "/politica-de-privacidad/reembolso.html"
       },
       {
@@ -58,12 +66,72 @@
         "destination": "/politica-de-privacidad/terminos.html"
       },
       {
+        "source": "/politica-de-privacidad/terminos.html",
+        "destination": "/politica-de-privacidad/terminos.html"
+      },
+      {
         "source": "/politica-de-privacidad/envio",
+        "destination": "/politica-de-privacidad/envio.html"
+      },
+      {
+        "source": "/politica-de-privacidad/envio.html",
         "destination": "/politica-de-privacidad/envio.html"
       },
       {
         "source": "/politica-de-privacidad/contacto",
         "destination": "/politica-de-privacidad/contacto.html"
+      },
+      {
+        "source": "/politica-de-privacidad/contacto.html",
+        "destination": "/politica-de-privacidad/contacto.html"
+      },
+      {
+        "source": "/politica-de-privacidad/eliminacion-de-cuenta",
+        "destination": "/politica-de-privacidad/eliminacion-de-cuenta.html"
+      },
+      {
+        "source": "/politica-de-privacidad/eliminacion-de-cuenta.html",
+        "destination": "/politica-de-privacidad/eliminacion-de-cuenta.html"
+      },
+      {
+        "source": "/contacto",
+        "destination": "/politica-de-privacidad/contacto.html"
+      },
+      {
+        "source": "/contacto.html",
+        "destination": "/politica-de-privacidad/contacto.html"
+      },
+      {
+        "source": "/terminos",
+        "destination": "/politica-de-privacidad/terminos.html"
+      },
+      {
+        "source": "/terminos.html",
+        "destination": "/politica-de-privacidad/terminos.html"
+      },
+      {
+        "source": "/reembolso",
+        "destination": "/politica-de-privacidad/reembolso.html"
+      },
+      {
+        "source": "/reembolso.html",
+        "destination": "/politica-de-privacidad/reembolso.html"
+      },
+      {
+        "source": "/envio",
+        "destination": "/politica-de-privacidad/envio.html"
+      },
+      {
+        "source": "/envio.html",
+        "destination": "/politica-de-privacidad/envio.html"
+      },
+      {
+        "source": "/eliminacion-de-cuenta",
+        "destination": "/politica-de-privacidad/eliminacion-de-cuenta.html"
+      },
+      {
+        "source": "/eliminacion-de-cuenta.html",
+        "destination": "/politica-de-privacidad/eliminacion-de-cuenta.html"
       },
       {
         "source": "/login/**",
