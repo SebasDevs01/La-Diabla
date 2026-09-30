@@ -85,11 +85,12 @@ class DriverOperationalNotifier extends StateNotifier<DriverOperationalState> {
       final hasLocation = serviceEnabled &&
           (permission == LocationPermission.always ||
               permission == LocationPermission.whileInUse);
-      final hasBackground = permission == LocationPermission.always;
 
       state = state.copyWith(
         isLocationEnabled: hasLocation,
-        isBackgroundLocationEnabled: hasBackground,
+        // isBackgroundLocationEnabled always true: GPS is kept active by the
+        // Foreground Service (persistent notification + floating bubble).
+        isBackgroundLocationEnabled: true,
       );
       _recalculateOperationalStatus();
     } catch (_) {}

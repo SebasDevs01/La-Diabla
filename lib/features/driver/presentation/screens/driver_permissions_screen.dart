@@ -20,7 +20,6 @@ class DriverPermissionsScreen extends ConsumerStatefulWidget {
 class _DriverPermissionsScreenState
     extends ConsumerState<DriverPermissionsScreen> with WidgetsBindingObserver {
   bool _fineLocationGranted = false;
-  bool _backgroundLocationGranted = false;
   bool _notificationsGranted = false;
   bool _overlayGranted = false;
   int _batteryLevel = 100;
@@ -51,9 +50,8 @@ class _DriverPermissionsScreenState
 
     try {
       final locPermission = await Geolocator.checkPermission();
-      final fineLoc = locPermission == LocationPermission.always ||
-          locPermission == LocationPermission.whileInUse;
-      final bgLoc = locPermission == LocationPermission.always;
+      final fineLoc = locPermission == LocationPermission.whileInUse ||
+          locPermission == LocationPermission.always;
       final overlay = await FloatingBubbleService.instance.hasOverlayPermission();
       final battery = await BatteryService.instance.getBatteryLevel();
 
@@ -64,7 +62,6 @@ class _DriverPermissionsScreenState
       if (mounted) {
         setState(() {
           _fineLocationGranted = fineLoc;
-          _backgroundLocationGranted = bgLoc;
           _notificationsGranted = notifGranted;
           _overlayGranted = overlay;
           _batteryLevel = battery;
@@ -83,7 +80,6 @@ class _DriverPermissionsScreenState
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final opState = ref.watch(driverOperationalProvider);
     final allReady = _fineLocationGranted &&
-        _backgroundLocationGranted &&
         !opState.isBatteryLow;
 
     return Scaffold(
@@ -236,21 +232,9 @@ class _DriverPermissionsScreenState
                   },
                 ),
 
-                // 2. Ubicación en segundo plano
-                _buildPermissionCard(
-                  isDark: isDark,
-                  icon: Icons.share_location_rounded,
-                  title: 'Ubicación en segundo plano',
-                  description:
-                      'Permite transmitir tu posición GPS mientras usas Waze o tienes el teléfono bloqueado ("Permitir todo el tiempo").',
-                  isGranted: _backgroundLocationGranted,
-                  onAction: () async {
-                    await PermissionService.showBackgroundLocationRationaleDialog(
-                        context);
-                    await Geolocator.openAppSettings();
-                    _checkAllPermissions();
-                  },
-                ),
+                // Nota: El GPS del repartidor se mantiene activo durante la entrega
+                // gracias al Foreground Service (notificación fija + burbuja flotante).
+                // No se requiere el permiso restrictivo ACCESS_BACKGROUND_LOCATION.
 
                 // 3. Notificación permanente y alertas
                 _buildPermissionCard(

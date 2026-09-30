@@ -2,8 +2,6 @@
     <!-- Location permissions for geolocator and Maps -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-    <!-- Background location for driver GPS tracking -->
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Notification & Vibration permissions for Android 13+ (Play Store requirement) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
