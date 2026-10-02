@@ -35,23 +35,33 @@ class _OrderSupportSheetState extends State<OrderSupportSheet> {
   bool _isTyping = false;
 
   final List<String> _quickIssues = [
-    '🛵 Mi pedido está demorado',
-    '💳 Me cobraron doble en la tarjeta',
-    '📦 Llegó incompleto o equivocado',
-    '🚫 Mi pedido fue cancelado',
-    '❓ Mi pedido no ha llegado',
+    '🛵 ¿Cuánto demora mi pedido?',
+    '💳 Me cobraron doble en el banco',
+    '📦 Llegó incompleto o frío',
+    '🚫 Cancelación o reembolso',
+    '📍 Cambiar dirección de entrega',
+    '💰 ¿Qué métodos de pago reciben?',
+    '🕒 ¿Cuáles son sus horarios?',
   ];
 
   @override
   void initState() {
     super.initState();
-    final initialId = widget.orderId ?? 'LD-7824';
+    final hasOrder = widget.orderId != null && widget.orderId!.trim().isNotEmpty;
+    final shortId = hasOrder && widget.orderId!.length > 6
+        ? widget.orderId!.substring(widget.orderId!.length - 6).toUpperCase()
+        : widget.orderId;
+
     _messages.add(
       _SupportMessage(
         isUser: false,
-        text: '¡Hola! 🌶️ Soy tu **Asistente de Soporte La Diabla**.\n\n'
-            'Estoy aquí para resolver de inmediato cualquier novedad con tu pedido **#$initialId** o cualquier otra inquietud.\n\n'
-            '¿Qué inconveniente presentas?',
+        text: hasOrder
+            ? '¡Hola! 🌶️ Soy tu **Asistente de Soporte La Diabla**.\n\n'
+                'Estoy aquí para resolver de inmediato cualquier novedad o seguimiento con tu pedido **#$shortId**.\n\n'
+                '¿En qué te podemos colaborar hoy?'
+            : '¡Hola! 🌶️ Soy tu **Asistente de Soporte La Diabla**.\n\n'
+                'Estoy disponible para atenderte en tiempo real sobre tiempos de entrega en Bucaramanga, aclaración de cobros en bancos/tarjetas, garantías de platillos o cualquier duda del restaurante.\n\n'
+                '¿Qué inquietud presentas hoy?',
       ),
     );
   }
@@ -84,16 +94,16 @@ class _OrderSupportSheetState extends State<OrderSupportSheet> {
     _textController.clear();
     _scrollToBottom();
 
-    // Delay mínimo para sensación de respuesta real (700ms)
+    // Delay mínimo para sensación de respuesta real (600ms)
     final start = DateTime.now();
-    final responseText = AiAssistantService.instance.getSupportResponse(
+    final responseText = await AiAssistantService.instance.getSupportResponse(
       query: text.trim(),
       orderId: widget.orderId,
       order: widget.order,
     );
     final elapsed = DateTime.now().difference(start).inMilliseconds;
-    if (elapsed < 700) {
-      await Future.delayed(Duration(milliseconds: 700 - elapsed));
+    if (elapsed < 600) {
+      await Future.delayed(Duration(milliseconds: 600 - elapsed));
     }
 
     if (!mounted) return;

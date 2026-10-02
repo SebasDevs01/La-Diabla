@@ -16,6 +16,7 @@ class ProductModel extends ProductEntity {
     super.ingredients,
     super.extras,
     super.images,
+    super.origin,
     super.createdAt,
     super.updatedAt,
   });
@@ -40,6 +41,8 @@ class ProductModel extends ProductEntity {
         ? parsedImages
         : (effectiveImageUrl.isNotEmpty ? [effectiveImageUrl] : <String>[]);
 
+    final originVal = (map['origin'] as String? ?? (map['origen'] as String? ?? '')).trim();
+
     return ProductModel(
       id: id,
       name: map['name'] as String? ?? '',
@@ -55,6 +58,7 @@ class ProductModel extends ProductEntity {
           .map((e) => ExtraModel.fromMap(Map<String, dynamic>.from(e)))
           .toList(),
       images: finalImages,
+      origin: originVal.isNotEmpty ? originVal : null,
       createdAt: map['createdAt'] != null
           ? (map['createdAt'] is int
               ? DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int)
@@ -88,6 +92,7 @@ class ProductModel extends ProductEntity {
       'available': available,
       'ingredients': ingredients,
       'extras': extras.map((e) => ExtraModel.fromEntity(e).toMap()).toList(),
+      'origin': origin ?? '',
       'createdAt': createdAt?.millisecondsSinceEpoch,
       'updatedAt':
           updatedAt?.millisecondsSinceEpoch ??
@@ -108,6 +113,7 @@ class ProductModel extends ProductEntity {
       ingredients: entity.ingredients,
       extras: entity.extras,
       images: entity.images,
+      origin: entity.origin,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     );

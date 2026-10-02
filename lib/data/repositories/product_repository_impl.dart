@@ -50,39 +50,13 @@ class ProductRepositoryImpl implements ProductRepository {
 
   @override
   Future<void> createProduct(ProductEntity product) async {
-    final model = ProductModel(
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      imageUrl: product.imageUrl,
-      categoryId: product.categoryId,
-      spicyLevel: product.spicyLevel,
-      available: product.available,
-      ingredients: product.ingredients,
-      extras: product.extras,
-      createdAt: product.createdAt ?? DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
+    final model = ProductModel.fromEntity(product);
     await _remoteDataSource.createProduct(model);
   }
 
   @override
   Future<void> updateProduct(ProductEntity product) async {
-    final model = ProductModel(
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      imageUrl: product.imageUrl,
-      categoryId: product.categoryId,
-      spicyLevel: product.spicyLevel,
-      available: product.available,
-      ingredients: product.ingredients,
-      extras: product.extras,
-      createdAt: product.createdAt,
-      updatedAt: DateTime.now(),
-    );
+    final model = ProductModel.fromEntity(product);
     await _remoteDataSource.updateProduct(model);
   }
 

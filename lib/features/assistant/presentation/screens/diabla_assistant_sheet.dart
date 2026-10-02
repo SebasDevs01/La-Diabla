@@ -9,6 +9,7 @@ import '../../../../core/utils/price_formatter.dart';
 import '../../../../domain/entities/product_entity.dart';
 import '../../../auth/providers/auth_notifier.dart';
 import '../../../cart/providers/cart_notifier.dart';
+import '../../../home/providers/home_provider.dart';
 
 class DiablaAssistantSheet extends ConsumerStatefulWidget {
   const DiablaAssistantSheet({super.key});
@@ -46,13 +47,14 @@ class _DiablaAssistantSheetState extends ConsumerState<DiablaAssistantSheet> {
   String _userName = '';
 
   final List<String> _quickPrompts = [
-    '🌮 ¡Tengo mucha hambre!',
-    '🦐 ¿Qué mariscos tienen?',
-    '🌶️ Algo no tan picante',
+    '🌮 ¿Qué me recomiendas hoy?',
+    '📜 ¿Qué es la Birria y cuál es su origen?',
+    '🥑 Algo que no pique por favor',
+    '🧀 Platillos con mucho queso derretido',
+    '🦐 ¿Qué opciones de mariscos tienen?',
     '🔥 ¿Cuál es el más picante?',
-    '💰 ¿Qué es lo más barato?',
-    '🎁 ¿Hay promociones hoy?',
-    '🥤 ¿Qué bebidas y postres hay?',
+    '💰 ¿Qué hay bueno por menos de \$20.000?',
+    '🥤 Bebidas mexicanas y postres',
   ];
 
   @override
@@ -105,11 +107,20 @@ class _DiablaAssistantSheetState extends ConsumerState<DiablaAssistantSheet> {
     _textController.clear();
     _scrollToBottom();
 
+    // Obtener catálogo en vivo sincronizado con Firestore y Web Admin
+    List<ProductEntity>? liveCatalog = ref.read(productsProvider).value;
+    if (liveCatalog == null || liveCatalog.isEmpty) {
+      try {
+        liveCatalog = await ref.read(productRepositoryProvider).getProducts();
+      } catch (_) {}
+    }
+
     // Delay mínimo de 600ms para sensación de procesamiento real
     final start = DateTime.now();
     final result = await AiAssistantService.instance.getFoodRecommendation(
       query: userText.trim(),
       userName: _userName,
+      catalog: liveCatalog,
     );
     final elapsed = DateTime.now().difference(start).inMilliseconds;
     if (elapsed < 600) {

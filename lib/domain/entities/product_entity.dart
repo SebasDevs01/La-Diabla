@@ -16,6 +16,7 @@ class ProductEntity extends Equatable {
     this.ingredients = const [],
     this.extras = const [],
     this.images = const [],
+    this.origin,
     this.createdAt,
     this.updatedAt,
   });
@@ -33,6 +34,7 @@ class ProductEntity extends Equatable {
   final List<String> ingredients;
   final List<ExtraEntity> extras;
   final List<String> images;
+  final String? origin;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -60,6 +62,7 @@ class ProductEntity extends Equatable {
     List<String>? ingredients,
     List<ExtraEntity>? extras,
     List<String>? images,
+    String? origin,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -75,6 +78,7 @@ class ProductEntity extends Equatable {
       ingredients: ingredients ?? this.ingredients,
       extras: extras ?? this.extras,
       images: images ?? this.images,
+      origin: origin ?? this.origin,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -83,6 +87,6 @@ class ProductEntity extends Equatable {
   @override
   List<Object?> get props => [
     id, name, description, price, imageUrl, categoryId,
-    spicyLevel, available, ingredients, extras, images,
+    spicyLevel, available, ingredients, extras, images, origin,
   ];
 }

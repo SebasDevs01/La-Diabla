@@ -1158,6 +1158,7 @@ function openProductModal(productId = null) {
   const priceInput = document.getElementById('pmPrice');
   const catInput = document.getElementById('pmCategory');
   const descInput = document.getElementById('pmDesc');
+  const originInput = document.getElementById('pmOrigin');
   const ingInput = document.getElementById('pmIngredientInput');
   const urlInput = document.getElementById('pmImageUrl');
   const filesInput = document.getElementById('pmImageFiles');
@@ -1178,6 +1179,7 @@ function openProductModal(productId = null) {
       if (priceInput) priceInput.value = prod.price || '';
       if (catInput) catInput.value = prod.categoryId || 'tacos';
       if (descInput) descInput.value = prod.description || '';
+      if (originInput) originInput.value = prod.origin || prod.origen || '';
       if (availInput) availInput.checked = prod.available !== false;
       selectSpicyLevel(prod.spicyLevel || 0);
 
@@ -1220,6 +1222,7 @@ function openProductModal(productId = null) {
     if (priceInput) priceInput.value = '';
     if (catInput) catInput.value = 'tacos';
     if (descInput) descInput.value = '';
+    if (originInput) originInput.value = '';
     if (availInput) availInput.checked = true;
     selectSpicyLevel(0);
     currentModalImages = [];
@@ -1822,12 +1825,14 @@ async function saveProduct() {
     }
 
     const primaryImageUrl = finalImagesUrls[0];
+    const origin = (document.getElementById('pmOrigin')?.value || '').trim();
     const now = Date.now();
 
     const productPayload = {
       id: docId,
       name: name,
       description: description,
+      origin: origin,
       price: price,
       imageUrl: primaryImageUrl,
       images: finalImagesUrls,

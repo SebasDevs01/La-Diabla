@@ -5,13 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../app/theme/theme_provider.dart';
 import '../../../auth/providers/auth_notifier.dart';
 import '../../../favorites/presentation/widgets/favorites_sheet.dart';
+import '../../../orders/presentation/widgets/order_support_sheet.dart';
 import '../../../orders/providers/orders_provider.dart';
 import '../widgets/privacy_policy_sheet.dart';
 
@@ -1045,22 +1045,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  // ─── SOPORTE Y WHATSAPP ───────────────────────────────────────────────────
+  // ─── SOPORTE Y ASISTENTE IA ──────────────────────────────────────────────
   Future<void> _contactSupport(BuildContext context) async {
-    final uri = Uri.parse('https://wa.me/573171166497?text=Hola%20La%20Diabla%20🌶️,%20necesito%20soporte%20con%20mi%20cuenta%20o%20pedido.');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('WhatsApp de soporte: +57 320 221 2856'),
-            backgroundColor: Color(0xFF16A34A),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => const OrderSupportSheet(),
+    );
   }
 
   // ─── SELECTOR DE TEMA ──────────────────────────────────────────────────────
