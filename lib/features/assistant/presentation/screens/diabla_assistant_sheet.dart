@@ -115,12 +115,21 @@ class _DiablaAssistantSheetState extends ConsumerState<DiablaAssistantSheet> {
       } catch (_) {}
     }
 
+    final historyList = _messages
+        .take(_messages.length - 1)
+        .map((m) => {
+              'role': m.isUser ? 'user' : 'model',
+              'text': m.text,
+            })
+        .toList();
+
     // Delay mínimo de 600ms para sensación de procesamiento real
     final start = DateTime.now();
     final result = await AiAssistantService.instance.getFoodRecommendation(
       query: userText.trim(),
       userName: _userName,
       catalog: liveCatalog,
+      history: historyList,
     );
     final elapsed = DateTime.now().difference(start).inMilliseconds;
     if (elapsed < 600) {

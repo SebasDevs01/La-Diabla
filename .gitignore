@@ -47,3 +47,11 @@ app.*.map.json
 # Versioned release packages
 LaDiabla-v*.aab
 LaDiabla-v*.apk
+
+# Environment variables & secrets
+.env
+.env.*
+*.env
+*.env.*
+functions/.env
+functions/.env.*

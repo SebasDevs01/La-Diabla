@@ -1,5 +1,6 @@
 // lib/core/services/ai_assistant_service.dart
 
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../../domain/entities/order_entity.dart';
@@ -21,8 +22,8 @@ class AiAssistantService {
   AiAssistantService._();
   static final AiAssistantService instance = AiAssistantService._();
 
-  /// Endpoint gratuito para LLM rápido y sin API key obligatoria
-  static const String _freeLlmEndpoint = 'https://text.pollinations.ai/';
+  static const String _cloudFunctionsEndpoint =
+      'https://us-central1-ladiabla-11718.cloudfunctions.net/askDiablaAi';
 
   // ═══════════════════════════════════════════════════════════════════════════
   // 🌮 1. LA DIABLA IA — CHEF Y ASESOR GASTRONÓMICO EN VIVO
@@ -31,6 +32,7 @@ class AiAssistantService {
     required String query,
     String userName = '',
     List<ProductEntity>? catalog,
+    List<Map<String, String>>? history,
   }) async {
     final liveCatalog = (catalog != null && catalog.isNotEmpty)
         ? catalog.where((p) => p.available).toList()
@@ -39,78 +41,74 @@ class AiAssistantService {
     final cleanQuery = query.trim();
     final greetingName = userName.isNotEmpty ? ' $userName' : '';
 
-    // 1. Intentar consultar LLM dinámico con el menú activo inyectado
+    // 1. Intentar consultar Cloud Functions (Backend Seguro) o Gemini Directo
     try {
-      final aiResponse = await _fetchFreeAiRecommendation(cleanQuery, greetingName, liveCatalog)
-          .timeout(const Duration(milliseconds: 4000));
-      if (aiResponse != null && aiResponse.message.trim().isNotEmpty && aiResponse.products.isNotEmpty) {
+      final aiResponse = await _fetchAiChefRecommendation(
+        query: cleanQuery,
+        userName: userName,
+        greetingName: greetingName,
+        catalog: liveCatalog,
+        history: history,
+      ).timeout(const Duration(milliseconds: 6500));
+
+      if (aiResponse != null && aiResponse.message.trim().isNotEmpty) {
         return aiResponse;
       }
     } catch (e) {
       debugPrint('ℹ️ La Diabla IA: usando motor de conocimiento gastronómico local sincronizado ($e)');
     }
 
-    // 2. Motor de Conocimiento Gastronómico Local de Alta Fidelidad
+    // 2. Fallback al motor local gastronómico si falla la conexión
     return _localGastronomicReasoning(cleanQuery, greetingName, liveCatalog);
   }
 
-  Future<AiRecommendationResult?> _fetchFreeAiRecommendation(
-    String query,
-    String greetingName,
-    List<ProductEntity> products,
-  ) async {
-    // Tomar los platillos actuales para contexto enriquecido
-    final menuSummary = products.take(25).map((p) {
-      final ingStr = p.ingredients.isNotEmpty ? ' (Ingredientes: ${p.ingredients.join(", ")})' : '';
-      final originStr = (p.origin != null && p.origin!.isNotEmpty) ? ' [Origen: ${p.origin}]' : '';
-      return '- ID:${p.id} | ${p.name} | \$${p.price.toInt()} COP | Picante:${p.spicyLevel}/3 | Cat:${p.categoryId}$ingStr$originStr';
-    }).join('\n');
+  Future<AiRecommendationResult?> _fetchAiChefRecommendation({
+    required String query,
+    required String userName,
+    required String greetingName,
+    required List<ProductEntity> catalog,
+    List<Map<String, String>>? history,
+  }) async {
+    // ── Nivel 1: Firebase Cloud Function ──
+    try {
+      final catalogPayload = catalog.take(25).map((p) => {
+        'id': p.id,
+        'name': p.name,
+        'price': p.price,
+        'categoryId': p.categoryId,
+        'spicyLevel': p.spicyLevel,
+        'ingredients': p.ingredients,
+      }).toList();
 
-    final prompt = '''
-Eres "La Diabla IA", chef mexicana apasionada, carismática y auténtica del restaurante "La Diabla" en Bucaramanga.
-El cliente$greetingName te pregunta o comenta: "$query".
+      final res = await http.post(
+        Uri.parse(_cloudFunctionsEndpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'type': 'chef',
+          'query': query,
+          'userName': userName,
+          'history': history ?? [],
+          'catalog': catalogPayload,
+        }),
+      ).timeout(const Duration(milliseconds: 4000));
 
-Catálogo real y sincronizado disponible en el restaurante actualmente:
-$menuSummary
-
-Instrucciones:
-1. Si el cliente pregunta qué es un platillo, qué tiene o cuál es su origen, explícaselo con detalle culinario mexicano, mencionando sus ingredientes reales y su historia gastronómica.
-2. Si pide recomendación, sugiere opciones del menú disponible que se ajusten a su antojo, presupuesto o nivel de picante.
-3. Habla en español con tono cálido, emojis mexicanos (🌮, 🌶️, 🔥, 🥑, 🧀) y sazón auténtico.
-4. Al final de tu respuesta, en una línea EXACTA por separado, escribe:
-IDs:[id1, id2]
-(poniendo entre corchetes los IDs de los platillos que mencionaste o recomiendas, máximo 3).
-''';
-
-    final uri = Uri.parse('$_freeLlmEndpoint${Uri.encodeComponent(prompt)}?model=openai');
-    final res = await http.get(uri);
-    if (res.statusCode == 200 && res.body.isNotEmpty && !res.body.contains('budget') && !res.body.contains('error')) {
-      final text = res.body.trim();
-      final idRegex = RegExp(r'IDs:\s*\[(.*?)\]', caseSensitive: false);
-      final match = idRegex.firstMatch(text);
-
-      List<ProductEntity> matchedProducts = [];
-      String cleanMessage = text;
-
-      if (match != null) {
-        final idListStr = match.group(1) ?? '';
-        final ids = idListStr
-            .split(',')
-            .map((s) => s.trim().replaceAll("'", '').replaceAll('"', ''))
-            .where((s) => s.isNotEmpty)
-            .toList();
-
-        matchedProducts = products.where((p) => ids.contains(p.id)).toList();
-        cleanMessage = text.replaceAll(match.group(0)!, '').trim();
+      if (res.statusCode == 200 && res.body.isNotEmpty) {
+        final data = jsonDecode(res.body);
+        if (data['success'] == true && data['message'] != null) {
+          final message = data['message'].toString().trim();
+          List<ProductEntity> matchedProducts = [];
+          if (data['productIds'] is List) {
+            final List ids = data['productIds'];
+            matchedProducts = catalog.where((p) => ids.contains(p.id)).toList();
+          }
+          if (matchedProducts.isEmpty) {
+            matchedProducts = _findRelevantProductsFromQuery(query, catalog);
+          }
+          return AiRecommendationResult(message: message, products: matchedProducts);
+        }
       }
-
-      if (matchedProducts.isEmpty) {
-        matchedProducts = _findRelevantProductsFromQuery(query, products);
-      }
-
-      if (cleanMessage.isNotEmpty) {
-        return AiRecommendationResult(message: cleanMessage, products: matchedProducts);
-      }
+    } catch (cfErr) {
+      debugPrint('ℹ️ Cloud Function chef fallback a motor local: $cfErr');
     }
     return null;
   }
@@ -411,8 +409,72 @@ IDs:[id1, id2]
     required String query,
     String? orderId,
     OrderEntity? order,
+    String userName = '',
+    List<Map<String, String>>? history,
   }) async {
-    final q = query.trim().toLowerCase();
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return '¿En qué te podemos colaborar hoy?';
+
+    // 1. Intentar consultar Cloud Functions (Backend Seguro) o Gemini Directo
+    try {
+      final aiResponse = await _fetchAiSupportResponse(
+        query: cleanQuery,
+        orderId: orderId,
+        order: order,
+        userName: userName,
+        history: history,
+      ).timeout(const Duration(milliseconds: 6500));
+
+      if (aiResponse != null && aiResponse.trim().isNotEmpty) {
+        return aiResponse.trim();
+      }
+    } catch (e) {
+      debugPrint('ℹ️ Soporte IA fallback a motor local: $e');
+    }
+
+    // 2. Fallback al motor local si no hay conexión o falla la nube
+    return _localSupportReasoning(cleanQuery, orderId, order);
+  }
+
+  Future<String?> _fetchAiSupportResponse({
+    required String query,
+    String? orderId,
+    OrderEntity? order,
+    String userName = '',
+    List<Map<String, String>>? history,
+  }) async {
+    // ── Nivel 1: Firebase Cloud Function (Consulta en vivo a Firestore) ──
+    try {
+      final res = await http.post(
+        Uri.parse(_cloudFunctionsEndpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'type': 'support',
+          'query': query,
+          'userName': userName,
+          'orderId': orderId ?? order?.id,
+          'history': history ?? [],
+        }),
+      ).timeout(const Duration(milliseconds: 4000));
+
+      if (res.statusCode == 200 && res.body.isNotEmpty) {
+        final data = jsonDecode(res.body);
+        if (data['success'] == true && data['message'] != null) {
+          return data['message'].toString();
+        }
+      }
+    } catch (cfErr) {
+      debugPrint('ℹ️ Cloud Function soporte fallback a motor local: $cfErr');
+    }
+    return null;
+  }
+
+  String _localSupportReasoning(
+    String query,
+    String? orderId,
+    OrderEntity? order,
+  ) {
+    final q = query.toLowerCase();
     final shortId = (orderId != null && orderId.length > 6)
         ? orderId.substring(orderId.length - 6).toUpperCase()
         : (orderId ?? '');

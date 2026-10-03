@@ -1,6 +1,7 @@
 // lib/features/orders/presentation/widgets/order_support_sheet.dart
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/services/ai_assistant_service.dart';
@@ -94,12 +95,23 @@ class _OrderSupportSheetState extends State<OrderSupportSheet> {
     _textController.clear();
     _scrollToBottom();
 
+    final authName = FirebaseAuth.instance.currentUser?.displayName ?? '';
+    final historyList = _messages
+        .take(_messages.length - 1)
+        .map((m) => {
+              'role': m.isUser ? 'user' : 'model',
+              'text': m.text,
+            })
+        .toList();
+
     // Delay mínimo para sensación de respuesta real (600ms)
     final start = DateTime.now();
     final responseText = await AiAssistantService.instance.getSupportResponse(
       query: text.trim(),
       orderId: widget.orderId,
       order: widget.order,
+      userName: authName,
+      history: historyList,
     );
     final elapsed = DateTime.now().difference(start).inMilliseconds;
     if (elapsed < 600) {
