@@ -141,7 +141,9 @@ class AiAssistantService {
     }
 
     // ─── A. Saludo casual / Cómo vas ───────────────────────────────────────
-    if (RegExp(r'^(hola|buenas|hey|buen d|que tal|quiubo|ola|como vas|cómo vas|que haces|qué haces|como estas|cómo estás)').hasMatch(q) && q.length < 35) {
+    final isGreeting = q.length < 70 &&
+        RegExp(r'(^hola|^buenas|^hey|^buen d|^que tal|^qu\u00e9 tal|^quiubo|^como vas|^c\u00f3mo vas|^que haces|^qu\u00e9 haces|^como est|^c\u00f3mo est|^que m\u00e1s|^que mas|^epa |^khe|^ *hi *$|^holis)').hasMatch(q);
+    if (isGreeting) {
       final featured = catalog.where((p) => p.spicyLevel > 0).take(2).toList();
       return AiRecommendationResult(
         message: '¡Hola$greetingName! 🔥 Aquí con los comales prendidos y el sazón a mil en La Diabla 🌶️\n\n¿Qué antojito se te pasa por la mente hoy?',
@@ -392,6 +394,13 @@ class AiAssistantService {
       botText = '¡Te tengo justo lo que buscas$greetingName! 🌮🔥 Revisé nuestro menú en cocina y estos platillos son exactamente lo que necesitas para calmar ese antojo hoy:';
     }
 
+    // Si nada encaja bien, respuesta abierta con sugerencias del menú
+    if (finalProducts.isEmpty) {
+      return AiRecommendationResult(
+        message: '¡Aquí contigo$greetingName! 🌶️ No tengo claro qué buscas exactamente, pero te puedo recomendar algo del menú o contarte lo que quieras sobre La Diabla. ¿Qué se te antoja?',
+        products: catalog.take(2).toList(),
+      );
+    }
     return AiRecommendationResult(message: botText, products: finalProducts);
   }
 
@@ -575,9 +584,10 @@ class AiAssistantService {
           'Atendemos de Lunes a Domingo de **11:30 AM a 10:30 PM** en jornada continua en Bucaramanga, Floridablanca, Cañaveral y Girón.';
     }
 
-    // 7. Respuesta por defecto
-    final orderReference = shortId.isNotEmpty ? ' para tu pedido **#$shortId**' : '';
-    return '👋 ¡Hola! Soy tu asistente de soporte La Diabla$orderReference.\n\n'
-        '¿En qué inquietud sobre tiempos de entrega, cobros bancarios o novedades con tu pedido te puedo colaborar? Si prefieres hablar con una persona, pulsa WhatsApp abajo.';
+    // 7. Respuesta abierta por defecto — no genérica
+    if (shortId.isNotEmpty) {
+      return '¡Hola${ userName.isNotEmpty ? " $userName" : ""}! 🌶️ Estoy aquí para ayudarte con tu pedido #$shortId o cualquier duda que tengas. ¿Qué necesitas?';
+    }
+    return '¡Hola! Soy Sofía de La Diabla 🌶️ ¿En qué te ayudo hoy? Puedo decirte el estado de tu pedido, resolver dudas sobre pagos o entregas, lo que necesites.';
   }
 }
