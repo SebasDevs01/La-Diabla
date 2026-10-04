@@ -398,7 +398,7 @@ class AiAssistantService {
     if (finalProducts.isEmpty) {
       return AiRecommendationResult(
         message: '¡Aquí contigo$greetingName! 🌶️ No tengo claro qué buscas exactamente, pero te puedo recomendar algo del menú o contarte lo que quieras sobre La Diabla. ¿Qué se te antoja?',
-        products: catalog.take(2).toList(),
+        products: products.take(2).toList(),
       );
     }
     return AiRecommendationResult(message: botText, products: finalProducts);
@@ -586,7 +586,7 @@ class AiAssistantService {
 
     // 7. Respuesta abierta por defecto — no genérica
     if (shortId.isNotEmpty) {
-      return '¡Hola${ userName.isNotEmpty ? " $userName" : ""}! 🌶️ Estoy aquí para ayudarte con tu pedido #$shortId o cualquier duda que tengas. ¿Qué necesitas?';
+      return '¡Hola! 🌶️ Estoy aquí para ayudarte con tu pedido #$shortId o cualquier duda que tengas. ¿Qué necesitas?';
     }
     return '¡Hola! Soy Sofía de La Diabla 🌶️ ¿En qué te ayudo hoy? Puedo decirte el estado de tu pedido, resolver dudas sobre pagos o entregas, lo que necesites.';
   }
