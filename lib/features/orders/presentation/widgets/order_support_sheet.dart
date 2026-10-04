@@ -34,6 +34,7 @@ class _OrderSupportSheetState extends State<OrderSupportSheet> {
   final _scrollController = ScrollController();
   final List<_SupportMessage> _messages = [];
   bool _isTyping = false;
+  String _userName = '';
 
   final List<String> _quickIssues = [
     '🛵 ¿Cuánto demora mi pedido?',
@@ -48,23 +49,38 @@ class _OrderSupportSheetState extends State<OrderSupportSheet> {
   @override
   void initState() {
     super.initState();
+    _loadUserAndGreet();
+  }
+
+  Future<void> _loadUserAndGreet() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    String name = currentUser?.displayName?.trim() ?? '';
+    if (name.isNotEmpty) {
+      name = name.split(' ').first;
+      name = name[0].toUpperCase() + name.substring(1);
+    }
+    if (mounted) setState(() => _userName = name);
+
     final hasOrder = widget.orderId != null && widget.orderId!.trim().isNotEmpty;
     final shortId = hasOrder && widget.orderId!.length > 6
         ? widget.orderId!.substring(widget.orderId!.length - 6).toUpperCase()
         : widget.orderId;
+    final greet = name.isNotEmpty ? '¡Hola **$name**! 🌶️' : '¡Hola! 🌶️';
 
-    _messages.add(
-      _SupportMessage(
-        isUser: false,
-        text: hasOrder
-            ? '¡Hola! 🌶️ Soy tu **Asistente de Soporte La Diabla**.\n\n'
-                'Estoy aquí para resolver de inmediato cualquier novedad o seguimiento con tu pedido **#$shortId**.\n\n'
-                '¿En qué te podemos colaborar hoy?'
-            : '¡Hola! 🌶️ Soy tu **Asistente de Soporte La Diabla**.\n\n'
-                'Estoy disponible para atenderte en tiempo real sobre tiempos de entrega en Bucaramanga, aclaración de cobros en bancos/tarjetas, garantías de platillos o cualquier duda del restaurante.\n\n'
-                '¿Qué inquietud presentas hoy?',
-      ),
-    );
+    if (mounted) {
+      setState(() {
+        _messages.add(
+          _SupportMessage(
+            isUser: false,
+            text: hasOrder
+                ? '$greet Soy **Sofía**, tu asistente de soporte de La Diabla.\n\n'
+                    'Estoy aquí para ayudarte con tu pedido **#$shortId**. ¿Qué necesitas?'
+                : '$greet Soy **Sofía** de La Diabla.\n\n'
+                    'Puedo ayudarte con tu pedido, tiempos de entrega, cobros o cualquier cosa que necesites. ¿En qué te colaboro?',
+          ),
+        );
+      });
+    }
   }
 
   @override
@@ -96,7 +112,7 @@ class _OrderSupportSheetState extends State<OrderSupportSheet> {
     _scrollToBottom();
 
     final currentUser = FirebaseAuth.instance.currentUser;
-    final authName = currentUser?.displayName ?? '';
+    final authName = _userName.isNotEmpty ? _userName : (currentUser?.displayName ?? '');
     final authUid = currentUser?.uid;
     final historyList = _messages
         .take(_messages.length - 1)
@@ -395,7 +411,7 @@ class _OrderSupportSheetState extends State<OrderSupportSheet> {
                     textInputAction: TextInputAction.send,
                     onSubmitted: _sendMessage,
                     decoration: InputDecoration(
-                      hintText: 'Cuéntanos qué pasó con tu pedido...',
+                      hintText: 'Escríbenos tu duda o novedad...',
                       hintStyle: const TextStyle(fontSize: 13),
                       filled: true,
                       fillColor: isDark ? AppColors.surfaceDark : Colors.grey.shade100,
