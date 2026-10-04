@@ -95,7 +95,9 @@ class _OrderSupportSheetState extends State<OrderSupportSheet> {
     _textController.clear();
     _scrollToBottom();
 
-    final authName = FirebaseAuth.instance.currentUser?.displayName ?? '';
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final authName = currentUser?.displayName ?? '';
+    final authUid = currentUser?.uid;
     final historyList = _messages
         .take(_messages.length - 1)
         .map((m) => {
@@ -111,6 +113,7 @@ class _OrderSupportSheetState extends State<OrderSupportSheet> {
       orderId: widget.orderId,
       order: widget.order,
       userName: authName,
+      userId: authUid,
       history: historyList,
     );
     final elapsed = DateTime.now().difference(start).inMilliseconds;

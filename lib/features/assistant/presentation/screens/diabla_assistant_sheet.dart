@@ -1,6 +1,7 @@
 // lib/features/assistant/presentation/screens/diabla_assistant_sheet.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
@@ -538,63 +539,95 @@ class _AnimatedAddCardState extends State<_AnimatedAddCard>
       ),
       child: Row(
         children: [
-          // Imagen del platillo
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.network(
-              product.imageUrl,
-              width: 52,
-              height: 52,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                width: 52,
-                height: 52,
-                color: Colors.grey.shade200,
-                child: const Icon(Icons.fastfood, size: 22, color: Colors.grey),
+          // Área interactiva: Tocar para ver información e ingredientes del platillo
+          Expanded(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () => context.push('/product/${product.id}'),
+              child: Row(
+                children: [
+                  // Imagen del platillo
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      product.imageUrl,
+                      width: 52,
+                      height: 52,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 52,
+                        height: 52,
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.fastfood, size: 22, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Nombre, precio e indicador de ver ingredientes
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          product.name,
+                          style: TextStyle(
+                            fontFamily: AppTypography.bodyFamily,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: isDark ? Colors.white : const Color(0xFF1E0E0B),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Text(
+                              PriceFormatter.formatSmart(product.price),
+                              style: const TextStyle(
+                                fontFamily: AppTypography.displayFamily,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFFDC2626),
+                                fontSize: 13.5,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            if (product.spicyLevel > 0)
+                              Text(
+                                '🌶️' * product.spicyLevel,
+                                style: const TextStyle(fontSize: 10),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Text(
+                              'Ver ingredientes',
+                              style: TextStyle(
+                                fontFamily: AppTypography.bodyFamily,
+                                fontSize: 10.5,
+                                color: isDark ? const Color(0xFFFF8A80) : const Color(0xFFDC2626),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 8.5,
+                              color: isDark ? const Color(0xFFFF8A80) : const Color(0xFFDC2626),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(width: 10),
-          // Nombre y precio
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product.name,
-                  style: TextStyle(
-                    fontFamily: AppTypography.bodyFamily,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: isDark ? Colors.white : const Color(0xFF1E0E0B),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Text(
-                      PriceFormatter.formatSmart(product.price),
-                      style: const TextStyle(
-                        fontFamily: AppTypography.displayFamily,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFFDC2626),
-                        fontSize: 13.5,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    if (product.spicyLevel > 0)
-                      Text(
-                        '🌶️' * product.spicyLevel,
-                        style: const TextStyle(fontSize: 10),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          // Botón animado con feedback visual
+          const SizedBox(width: 8),
+          // Botón animado con feedback visual para agregar directamente al carrito
           ScaleTransition(
             scale: _scaleAnim,
             child: AnimatedContainer(

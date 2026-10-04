@@ -49,7 +49,7 @@ class AiAssistantService {
         greetingName: greetingName,
         catalog: liveCatalog,
         history: history,
-      ).timeout(const Duration(milliseconds: 6500));
+      ).timeout(const Duration(milliseconds: 15000));
 
       if (aiResponse != null && aiResponse.message.trim().isNotEmpty) {
         return aiResponse;
@@ -90,7 +90,7 @@ class AiAssistantService {
           'history': history ?? [],
           'catalog': catalogPayload,
         }),
-      ).timeout(const Duration(milliseconds: 4000));
+      ).timeout(const Duration(milliseconds: 14000));
 
       if (res.statusCode == 200 && res.body.isNotEmpty) {
         final data = jsonDecode(res.body);
@@ -123,14 +123,29 @@ class AiAssistantService {
   ) {
     final q = rawQuery.toLowerCase().trim();
 
-    // ─── A. Saludo casual ──────────────────────────────────────────────────
-    if (RegExp(r'^(hola|buenas|hey|buen d|que tal|quiubo|ola|menu|menú|carta)').hasMatch(q) && q.length < 25) {
-      final featured = catalog.where((p) => p.spicyLevel > 0).take(3).toList();
+    // ─── 0. Desarrollador / Creador ─────────────────────────────────────────
+    if (q.contains('desarrollador') || q.contains('programador') || q.contains('quien hizo') || q.contains('quién hizo') || q.contains('creador') || q.contains('sebas')) {
+      return const AiRecommendationResult(
+        message: '¡Toda la tecnología y la app de **La Diabla** fue desarrollada y diseñada por **Sebastián (SebasDevs / @SebasDevs01)**! 👨‍💻🔥\n\nEs nuestro desarrollador estrella que hace que tus pedidos lleguen volando a tu puerta.',
+        products: [],
+      );
+    }
+
+    // ─── 0.1 Bebidas / Productos no disponibles ────────────────────────────
+    if (q.contains('bebida') || q.contains('gaseosa') || q.contains('refresco') || q.contains('tomar') || q.contains('jugo') || q.contains('cerveza')) {
+      final tacos = catalog.where((p) => p.name.toLowerCase().contains('taco') || p.name.toLowerCase().contains('birria')).take(2).toList();
       return AiRecommendationResult(
-        message: '¡Hola$greetingName! 🔥 Soy **La Diabla IA** 🌶️, tu chef y guía gastronómica personal.\n\n'
-            'Tengo todo el menú sincronizado al segundo con nuestra cocina: sé qué lleva cada platillo, sus ingredientes secretos, su historia tradicional mexicana y qué marida mejor con tu antojo.\n\n'
-            '¿Qué se te antoja hoy? Puedes preguntarme "¿Qué es la Birria?", "¿Qué tiene la Gringa?", pedirme algo sin picante o decirme tu presupuesto y te armo el pedido ideal. 🌮✨',
-        products: featured.isNotEmpty ? featured : catalog.take(3).toList(),
+        message: 'Por ahora en nuestra cocina nos enfocamos 100% en los tacos y platillos mexicanos calientes al comal 🔥\n\nNo tenemos bebidas en la carta en este momento, ¡pero te invito a probar nuestros tacos al pastor o birria que están brutales!',
+        products: tacos,
+      );
+    }
+
+    // ─── A. Saludo casual / Cómo vas ───────────────────────────────────────
+    if (RegExp(r'^(hola|buenas|hey|buen d|que tal|quiubo|ola|como vas|cómo vas|que haces|qué haces|como estas|cómo estás)').hasMatch(q) && q.length < 35) {
+      final featured = catalog.where((p) => p.spicyLevel > 0).take(2).toList();
+      return AiRecommendationResult(
+        message: '¡Hola$greetingName! 🔥 Aquí con los comales prendidos y el sazón a mil en La Diabla 🌶️\n\n¿Qué antojito se te pasa por la mente hoy?',
+        products: featured.isNotEmpty ? featured : catalog.take(2).toList(),
       );
     }
 
@@ -410,20 +425,22 @@ class AiAssistantService {
     String? orderId,
     OrderEntity? order,
     String userName = '',
+    String? userId,
     List<Map<String, String>>? history,
   }) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return '¿En qué te podemos colaborar hoy?';
 
-    // 1. Intentar consultar Cloud Functions (Backend Seguro) o Gemini Directo
+    // 1. Intentar consultar Cloud Functions (Backend Seguro)
     try {
       final aiResponse = await _fetchAiSupportResponse(
         query: cleanQuery,
         orderId: orderId,
         order: order,
         userName: userName,
+        userId: userId,
         history: history,
-      ).timeout(const Duration(milliseconds: 6500));
+      ).timeout(const Duration(milliseconds: 15000));
 
       if (aiResponse != null && aiResponse.trim().isNotEmpty) {
         return aiResponse.trim();
@@ -441,6 +458,7 @@ class AiAssistantService {
     String? orderId,
     OrderEntity? order,
     String userName = '',
+    String? userId,
     List<Map<String, String>>? history,
   }) async {
     // ── Nivel 1: Firebase Cloud Function (Consulta en vivo a Firestore) ──
@@ -452,10 +470,11 @@ class AiAssistantService {
           'type': 'support',
           'query': query,
           'userName': userName,
+          'userId': userId,
           'orderId': orderId ?? order?.id,
           'history': history ?? [],
         }),
-      ).timeout(const Duration(milliseconds: 4000));
+      ).timeout(const Duration(milliseconds: 14000));
 
       if (res.statusCode == 200 && res.body.isNotEmpty) {
         final data = jsonDecode(res.body);
@@ -479,6 +498,29 @@ class AiAssistantService {
         ? orderId.substring(orderId.length - 6).toUpperCase()
         : (orderId ?? '');
 
+    // ── 0. Preguntas sobre el desarrollador ──
+    if (q.contains('desarrollador') || q.contains('programador') || q.contains('quien hizo') || q.contains('quién hizo') || q.contains('creador') || q.contains('sebas')) {
+      return '¡Hola! La app y plataforma digital de **La Diabla** fue desarrollada y diseñada por **Sebastián (SebasDevs / @SebasDevs01)**, nuestro desarrollador de software 🚀';
+    }
+
+    // ── 0.1 Consulta de último pedido o repartidor ──
+    if (q.contains('ultimo pedido') || q.contains('último pedido') || q.contains('resumen') || q.contains('quien me entrego') || q.contains('quién me entregó') || q.contains('repartidor')) {
+      if (order != null) {
+        final itemsStr = order.items.map((i) => '${i.quantity}x ${i.product.name}').join(', ');
+        final driver = order.driverName ?? (order.driverId != null ? 'Conductor asignado' : 'Sin repartidor asignado');
+        return '📋 **Resumen de tu pedido #${order.id.length > 6 ? order.id.substring(order.id.length - 6).toUpperCase() : order.id}:**\n'
+            '• **Platillos:** $itemsStr\n'
+            '• **Total:** \$${order.total.toInt()} COP | **Estado:** ${order.status.name}\n'
+            '• **Repartidor:** $driver 🛵';
+      }
+      return 'Para ver el resumen de tu último pedido y el repartidor asignado, puedes consultarlo directamente en la pestaña **"Mis Pedidos"** o escribirnos a WhatsApp si necesitas ayuda inmediata.';
+    }
+
+    // ── 0.2 Saludos casuales / Cómo vas ──
+    if (RegExp(r'^(hola|buenas|hey|buen d|que tal|quiubo|ola|como vas|cómo vas|como estas|cómo estás)').hasMatch(q) && q.length < 35) {
+      return '¡Hola! Todo excelente por acá en La Diabla 🌶️ ¿En qué te podemos colaborar hoy con tus pedidos o entregas?';
+    }
+
     final status = order?.status;
     final isDelivered = status == OrderStatus.delivered;
     final isOnTheWay = status == OrderStatus.onTheWay;
@@ -488,76 +530,54 @@ class AiAssistantService {
     if (q.contains('demor') || q.contains('tard') || q.contains('cuanto falta') || q.contains('cuánto falta') || q.contains('donde viene') || q.contains('dónde viene') || q.contains('no llega') || q.contains('tiempo')) {
       if (shortId.isNotEmpty) {
         if (isDelivered) {
-          return '🛵 **Tu pedido #$shortId figura como ENTREGADO:**\n\n'
-              'Nuestro sistema registra que el repartidor finalizó la entrega en tu dirección. Si no lo has recibido personalmente, por favor verifica en portería o recepción del edificio.\n\n'
-              'Si aún no lo tienes, presiona el botón de WhatsApp abajo para comunicarte con nuestro equipo en tiempo real.';
+          return '🛵 **Tu pedido #$shortId figura como ENTREGADO:**\n'
+              'Si no lo has recibido personalmente, por favor verifica en portería o recepción. Si necesitas soporte, pulsa WhatsApp abajo.';
         }
         if (isOnTheWay) {
-          return '🛵 **Tu pedido #$shortId va en camino:**\n\n'
-              'El repartidor ya retiró tus platillos de la cocina y se desplaza hacia tu ubicación con empaque térmico especial.\n\n'
-              '⏱️ **Tiempo estimado:** 5 a 12 minutos. Puedes seguir el mapa GPS en tiempo real en la pantalla de seguimiento.';
+          return '🛵 **Tu pedido #$shortId va en camino:**\n'
+              'El repartidor se desplaza hacia tu dirección con maletín térmico. Tiempo estimado: 5 a 12 minutos.';
         }
         if (isPreparing) {
-          return '👨‍🍳 **Tu pedido #$shortId está en el fuego en cocina:**\n\n'
-              'Nuestros cocineros están horneando y empacando todo fresco. Apenas quede empacado, el repartidor iniciará el recorrido de inmediato.\n\n'
-              '⏱️ **Tiempo estimado para despacho:** 8 a 15 minutos.';
+          return '👨‍🍳 **Tu pedido #$shortId está en preparación en cocina:**\n'
+              'Nuestros cocineros lo están alistando fresco. Despacho estimado en 8 a 15 minutos.';
         }
       }
-      return '🛵 **Tiempos de Entrega & Domicilios La Diabla:**\n\n'
-          '• **Tiempo promedio estándar:** 30 a 45 minutos en el área metropolitana de Bucaramanga, Floridablanca, Cañaveral y Girón.\n'
-          '• Si tu pedido ya está confirmado, puedes ver el estado exacto en la sección de **"Mis Pedidos"** o rastrear la moto en el mapa GPS.\n\n'
-          '¿Tienes un número de pedido o deseas asistencia directa con el supervisor de turno? Pulsa el botón de WhatsApp abajo.';
+      return '🛵 **Tiempos de entrega:** En promedio de 30 a 45 minutos en Bucaramanga y área metropolitana. Puedes ver el estado exacto en "Mis Pedidos" o pulsar WhatsApp para hablar con un asesor.';
     }
 
     // 2. Cobros, Bancos, Tarjetas, Nequi y Daviplata
     if (q.contains('cobro') || q.contains('tarjeta') || q.contains('doble') || q.contains('banco') || q.contains('nequi') || q.contains('daviplata') || q.contains('dinero') || q.contains('plata') || q.contains('pago')) {
-      return '💳 **Aclaración sobre Cobros y Pasarelas de Pago:**\n\n'
-          '• **¿Ves dos movimientos en tu banco o app bancaria?** Las entidades financieras en Colombia generan una *retención previa de fondos* al presionar pagar y luego procesan el cobro definitivo. La retención se libera y anula automáticamente en un plazo de **24 a 48 horas hábiles**.\n'
-          '• En La Diabla confirmamos que únicamente se efectúa **un solo cobro real** por cada pedido confirmado.\n\n'
-          '• **Métodos aceptados:** Tarjetas de Crédito/Débito (Visa, Mastercard), Nequi, Daviplata, PSE, Addi (pago a cuotas) y Efectivo contra entrega.\n\n'
-          'Si necesitas un comprobante oficial de pago para tu banco, presiona el botón de WhatsApp y te lo enviamos en minutos.';
+      return '💳 **Aclaración sobre cobros bancarios:**\n'
+          'Los bancos en Colombia generan una retención temporal previa que se libera en 24-48h hábiles. En La Diabla nunca realizamos cobros dobles reales. Si necesitas comprobante, pulsa WhatsApp abajo.';
     }
 
     // 3. Comida Incompleta, Fría o Equivocada (Garantía Diabla)
     if (q.contains('incomplet') || q.contains('equivocad') || q.contains('falto') || q.contains('faltó') || q.contains('fria') || q.contains('fría') || q.contains('mal') || q.contains('dañad') || q.contains('queja')) {
-      return '📦 **Garantía Total La Diabla — Solución Inmediata:**\n\n'
-          '¡Lamentamos profundamente cualquier novedad ${shortId.isNotEmpty ? "con tu pedido #$shortId" : "con tu pedido"}! En La Diabla la calidad de la comida es sagrada y te ofrecemos 2 soluciones inmediatas:\n\n'
-          '1️⃣ **Reenvío prioritario express** del platillo correcto o faltante sin costo alguno.\n'
-          '2️⃣ **Reembolso inmediato** del valor del producto a tu medio de pago o saldo en billetera.\n\n'
-          'Por favor pulsa el botón de WhatsApp abajo y envíanos una foto del paquete para que el supervisor te lo resuelva al instante.';
+      return '📦 **Garantía Total La Diabla:**\n'
+          '¡Lamentamos cualquier inconveniente! Te ofrecemos reenvío prioritario inmediato o reembolso. Pulsa el botón de WhatsApp abajo con una foto para resolverlo al instante.';
     }
 
     // 4. Cancelaciones y Reembolsos
     if (q.contains('cancel') || q.contains('reembolso') || q.contains('devolu')) {
-      return '🚫 **Políticas de Cancelación y Reembolso:**\n\n'
-          '• **Si el pedido está pendiente o recién confirmado:** Se puede cancelar inmediatamente y el dinero se reintegra al 100% por el mismo canal (Nequi, Daviplata, PSE o Tarjeta).\n'
-          '• **Si el pedido ya está en cocción o en camino:** Por normas de alimentos preparados no se puede cancelar el envío en ruta, salvo que presente demora injustificada.\n\n'
-          'Para solicitar la anulación inmediata de un pedido en proceso, toca el botón de WhatsApp para que cocina detenga el despacho.';
+      return '🚫 **Cancelaciones y Reembolsos:**\n'
+          'Si tu pedido está recién hecho y aún no entra a cocción, podemos cancelarlo y reintegrar el 100%. Toca el botón de WhatsApp abajo para que cocina detenga el despacho de inmediato.';
     }
 
     // 5. Cambio de Dirección, Teléfono o Datos de Entrega
     if (q.contains('direccion') || q.contains('dirección') || q.contains('cambiar') || q.contains('telefono') || q.contains('celular') || q.contains('apartamento') || q.contains('torre') || q.contains('porteria') || q.contains('portería')) {
-      return '📍 **Actualización de Dirección o Teléfono:**\n\n'
-          'Podemos actualizar la dirección o darle indicaciones adicionales al repartidor (como torre, apartamento o dejar en portería) siempre que esté dentro de nuestra zona de cobertura en Bucaramanga y su área metropolitana.\n\n'
-          'Escríbenos directamente por WhatsApp con la nueva información para notificar al domiciliario de inmediato.';
+      return '📍 **Actualización de datos:**\n'
+          'Podemos actualizar dirección o indicaciones de portería/torre dentro de nuestra zona de cobertura. Escríbenos por WhatsApp con los nuevos datos para avisar al repartidor.';
     }
 
-    // 6. Horarios y Ubicación del Restaurante
+    // 6. Horarios y Ubicación
     if (q.contains('horario') || q.contains('abren') || q.contains('cierran') || q.contains('abierto') || q.contains('donde estan') || q.contains('dónde están') || q.contains('ubicacion') || q.contains('ubicación')) {
-      return '🕒 **Horarios & Cobertura de La Diabla:**\n\n'
-          '• **Horario de atención:** Lunes a Domingo de **11:30 AM a 10:30 PM** en jornada continua.\n'
-          '• **Cobertura de Domicilios:** Bucaramanga (Cabecera, Centro, Provenza, San Francisco, Ciudadela), Floridablanca, Cañaveral y Girón.\n'
-          '• Todos los pedidos van empacados en recipientes térmicos sellados para mantener la temperatura y frescura.';
+      return '🕒 **Horarios La Diabla:**\n'
+          'Atendemos de Lunes a Domingo de **11:30 AM a 10:30 PM** en jornada continua en Bucaramanga, Floridablanca, Cañaveral y Girón.';
     }
 
-    // 7. Saludo General o Respuesta Asertiva
+    // 7. Respuesta por defecto
     final orderReference = shortId.isNotEmpty ? ' para tu pedido **#$shortId**' : '';
-    return '👋 ¡Hola! Soy tu **Asistente de Soporte La Diabla**$orderReference.\n\n'
-        'Estoy capacitado para ayudarte con:\n'
-        '• Rastrear el estado de tu pedido y tiempos de llegada 🛵\n'
-        '• Resolver dudas sobre cobros en tarjeta, Nequi o Daviplata 💳\n'
-        '• Gestionar garantías si tu comida llegó incompleta o fría 📦\n'
-        '• Actualizar direcciones, teléfonos o cancelaciones 📍\n\n'
-        '¿Deseas atención personalizada con nuestro supervisor de turno? Pulsa el botón de WhatsApp abajo y te atenderemos con gusto.';
+    return '👋 ¡Hola! Soy tu asistente de soporte La Diabla$orderReference.\n\n'
+        '¿En qué inquietud sobre tiempos de entrega, cobros bancarios o novedades con tu pedido te puedo colaborar? Si prefieres hablar con una persona, pulsa WhatsApp abajo.';
   }
 }
