@@ -16,7 +16,7 @@ class QrScreen extends StatefulWidget {
 
 class _QrScreenState extends State<QrScreen> {
   final _deepLinkService = DeepLinkService();
-  final _urlController = TextEditingController(text: 'https://ladiabla.app/go?type=product&id=tacos_pastor');
+  final _urlController = TextEditingController(text: 'https://ladiabla.app/go?type=product&id=aguachiles');
 
   @override
   void dispose() {

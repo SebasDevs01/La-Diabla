@@ -1859,161 +1859,184 @@ async function deleteProduct(id) {
   }
 }
 
+// ─── NORMALIZAR NOMBRES PARA COMPARACIÓN ─────────────────────
+function normalizeMenuName(str) {
+  return (str || '')
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/s\b/g, '') // convierte plurales a singulares: enchiladas -> enchilada
+    .replace(/[^a-z0-9]/g, "");
+}
+
 // ─── CATÁLOGO OFICIAL DE 14 PLATILLOS DE LA DIABLA ─────────────
 const OFFICIAL_DIABLA_PRODUCTS = [
   {
     id: 'aguachiles',
     name: 'Aguachiles',
-    description: 'Camarones frescos marinados en jugo de limón recién exprimido con chile habanero y serrano, cebolla morada y pepino.',
-    price: 32000,
+    description: 'Camarón marinado/curtido en especias picantes, cebolla, jalapeño, pepino, jugo de limón fresco y aguacate.',
+    price: 49900,
     imageUrl: 'https://images.unsplash.com/photo-1535400255456-984241443b29?w=600',
     categoryId: 'mariscos',
     spicyLevel: 3, // Diabla 🔥
     available: true,
-    ingredients: ['Camarón fresco', 'Limón', 'Chile habanero y serrano', 'Cebolla morada', 'Pepino']
+    ingredients: ['Camarón', 'Especias picantes', 'Cebolla', 'Jalapeño', 'Pepino', 'Jugo de limón', 'Aguacate']
   },
   {
     id: 'aguachiles_mixtos',
     name: 'Aguachiles mixtos',
-    description: 'Combinación perfecta de camarón y pulpo fresco en salsa verde picosita de limón y chiles tatemados.',
-    price: 36000,
+    description: 'Camarones y pulpo marinados en especias picantes, limón, jalapeño, cebolla, pepino y aguacate.',
+    price: 69900,
     imageUrl: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600',
     categoryId: 'mariscos',
     spicyLevel: 3, // Diabla 🔥
     available: true,
-    ingredients: ['Camarón', 'Pulpo', 'Limón fresco', 'Chile habanero', 'Cebolla morada', 'Pepino']
+    ingredients: ['Pulpo', 'Camarón', 'Especias picantes', 'Cebolla', 'Jalapeño', 'Pepino', 'Jugo de limón', 'Aguacate']
   },
   {
     id: 'pulpaditas',
     name: 'Pulpaditas',
-    description: 'Exquisitas tostadas crocantes con pulpo tierno sazonado a la plancha, guacamole artesanal y toque cítrico suave sin picante.',
-    price: 34000,
+    description: 'Tres mini tostadas de pulpo acompañadas de cebolla, mango, pepino y aguacate.',
+    price: 39900,
     imageUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600',
     categoryId: 'mariscos',
     spicyLevel: 0, // Sin picante
     available: true,
-    ingredients: ['Pulpo a la plancha', 'Guacamole artesanal', 'Tostada de maíz', 'Pico de gallo']
+    ingredients: ['Tres mini tostadas de pulpo con cebolla', 'mango', 'pepino', 'aguacate']
   },
   {
     id: 'enchiladas_pollo',
-    name: 'Enchiladas de pollo',
-    description: 'Tortillas de maíz suaves rellenas de pechuga de pollo desmechada, bañadas en salsa tradicional suave con crema y queso fresco.',
-    price: 26000,
+    name: 'Enchilada de pollo',
+    description: 'Enchilada rellena de pollo deshebrado, cubierta con salsa de mole y queso, con salsa verde opcional.',
+    price: 19900,
     imageUrl: 'https://images.unsplash.com/photo-1584031036380-3fb6f2d51880?w=600',
     categoryId: 'enchiladas',
     spicyLevel: 1, // Suave 🌶️
     available: true,
-    ingredients: ['Tortillas de maíz', 'Pechuga de pollo', 'Salsa de enchilada suave', 'Crema ácida', 'Queso fresco']
+    ingredients: ['Pollo deshebrado', 'salsa de mole', 'queso jack', 'salsa verde (opcional)']
   },
   {
     id: 'enchiladas_queso',
-    name: 'Enchiladas de queso',
-    description: 'Tortillas rellenas de abundante queso campesino y mozzarella derretido con salsa casera suave y crema.',
-    price: 23000,
+    name: 'Enchilada de queso',
+    description: 'Enchilada rellena de queso y cubierta con salsa de mole y queso, con salsa verde opcional.',
+    price: 18900,
     imageUrl: 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=600',
     categoryId: 'enchiladas',
     spicyLevel: 1, // Suave 🌶️
     available: true,
-    ingredients: ['Tortillas de maíz', 'Queso mozzarella', 'Queso campesino', 'Salsa suave', 'Crema de leche']
+    ingredients: ['Queso', 'Salsa de mole', 'Queso Jack', 'Salsa verde (opcional)']
   },
   {
     id: 'enchiladas_res',
-    name: 'Enchiladas de res',
-    description: 'Jugosa carne de res deshebrada envuelta en tortillas de maíz bañadas en salsa suave y gratinadas al horno.',
-    price: 28000,
+    name: 'Enchilada de res',
+    description: 'Enchilada rellena de carne de res deshebrada, cubierta con salsa de mole y queso, con salsa verde opcional.',
+    price: 22000,
     imageUrl: 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600',
     categoryId: 'enchiladas',
     spicyLevel: 1, // Suave 🌶️
     available: true,
-    ingredients: ['Carne de res desmechada', 'Tortillas de maíz', 'Salsa casera suave', 'Queso gratinado']
+    ingredients: ['Carne de res deshebrada', 'Salsa de mole', 'Queso Jack', 'Salsa verde (opcional)']
   },
   {
     id: 'burrito_carne_asada',
     name: 'Burrito de carne asada',
-    description: 'Enorme tortilla de harina rellena de carne asada marinada, arroz sazonado, frijol refrito, queso y guacamole sin picante.',
-    price: 28000,
+    description: 'Burrito de tortilla de harina relleno de carne asada, arroz, frijoles y queso.',
+    price: 39500,
     imageUrl: 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=600',
     categoryId: 'burritos',
     spicyLevel: 0, // Sin picante
     available: true,
-    ingredients: ['Carne asada', 'Tortilla de harina grande', 'Arroz sazonado', 'Frijol refrito', 'Queso fundido', 'Guacamole']
+    ingredients: ['Carne Black Angus', 'Arroz', 'Frijoles', 'Queso']
   },
   {
     id: 'burrito_pollo',
     name: 'Burrito de pollo',
-    description: 'Pechuga de pollo a la plancha con vegetales frescos, arroz, frijoles refritos y queso fundido sin picante.',
-    price: 25000,
+    description: 'Burrito de tortilla de harina relleno de pollo deshebrado, frijoles, arroz y queso.',
+    price: 29900,
     imageUrl: 'https://images.unsplash.com/photo-1584031036380-3fb6f2d51880?w=600',
     categoryId: 'burritos',
     spicyLevel: 0, // Sin picante
     available: true,
-    ingredients: ['Pechuga de pollo a la plancha', 'Tortilla de harina', 'Arroz', 'Frijol refrito', 'Queso fundido']
+    ingredients: ['Pollo', 'Arroz', 'Frijoles', 'Queso Jack']
   },
   {
     id: 'burrito_res',
     name: 'Burrito de res',
-    description: 'Carne deshebrada de res en salsa criolla suave con arroz, frijoles refritos y queso derretido sin picante.',
-    price: 27000,
+    description: 'Burrito de tortilla de harina relleno de carne de res deshebrada, frijoles, arroz y queso.',
+    price: 32900,
     imageUrl: 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=600',
     categoryId: 'burritos',
     spicyLevel: 0, // Sin picante
     available: true,
-    ingredients: ['Carne de res desmechada', 'Tortilla de harina', 'Arroz', 'Frijoles refritos', 'Queso']
+    ingredients: ['Carne de res deshebrada', 'Arroz', 'Frijoles', 'Queso Jack']
   },
   {
     id: 'pollo_asado',
-    name: 'Pollo asado',
-    description: 'Porción dorada y jugosa de pollo marinado con especias tradicionales, acompañado de papas y ensalada fresca sin picante.',
-    price: 24000,
+    name: 'Burrito de pollo asado (A la mexicana)',
+    description: 'Burrito de tortilla de harina relleno de pollo asado, arroz, frijoles, aguacate, vegetales y queso cheddar.',
+    price: 39900,
     imageUrl: 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=600',
-    categoryId: 'platos_fuertes',
+    categoryId: 'burritos',
     spicyLevel: 0, // Sin picante
     available: true,
-    ingredients: ['Pollo marinado al horno', 'Papas doradas', 'Ensalada fresca', 'Toque de limón']
+    ingredients: [
+      'pollo asado en tiras',
+      'tortilla de trigo',
+      'frijoles',
+      'aguacate',
+      'lechuga romana',
+      'tomate',
+      'cebolla morada',
+      'maíz dulce',
+      'queso cheddar',
+      'pico de gallo',
+      'limón verde',
+      'crema agria'
+    ]
   },
   {
     id: 'fajitas_pollo',
     name: 'Fajitas de pollo',
-    description: 'Tiras de pechuga de pollo salteadas con pimientos tricolores y cebolla caramelizada, con sazón mexicana de picante medio.',
-    price: 27000,
+    description: 'Fajitas de pollo preparadas al momento con pimientos, cebolla asada, tomate y salsa especial de la casa.',
+    price: 42900,
     imageUrl: 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=600',
     categoryId: 'fajitas',
     spicyLevel: 2, // Medio 🌶️🌶️
     available: true,
-    ingredients: ['Pechuga de pollo en tiras', 'Pimientos verde y rojo', 'Cebolla', 'Tortillas calientes', 'Salsa de picante medio']
+    ingredients: ['Pollo', 'Pimientos', 'Cebolla asada', 'Tomate', 'Salsa de fajitas', 'Arroz', 'Frijoles', 'Crema', 'Queso', 'Guacamole', 'Tortilla de maíz o harina']
   },
   {
     id: 'fajitas_camaron',
     name: 'Fajitas de camarón',
-    description: 'Camarones jugosos salteados a fuego vivo con pimientos y cebolla, servidos chisporroteantes con sazón medio picante.',
-    price: 34000,
+    description: 'Camarones salteados al estilo fajita con pimientos, cebolla asada, tomate y salsa especial de la casa.',
+    price: 49900,
     imageUrl: 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600',
     categoryId: 'fajitas',
     spicyLevel: 2, // Medio 🌶️🌶️
     available: true,
-    ingredients: ['Camarón fresco', 'Pimientos salteados', 'Cebolla', 'Tortillas de harina', 'Salsa de la casa media']
+    ingredients: ['Camarón', 'Pimientos', 'Cebolla asada', 'Tomate', 'Salsa de fajitas', 'Arroz', 'Frijoles', 'Crema', 'Queso', 'Guacamole', 'Tortilla de maíz o harina']
   },
   {
     id: 'fajitas_mixtas',
     name: 'Fajitas mixtas',
-    description: 'La combinación estelar: carne de res, pechuga de pollo y camarones salteados con pimientos y cebolla, nivel medio picante.',
-    price: 35000,
+    description: 'Combinación de carne asada, camarón y pollo preparados con pimientos, cebolla, tomate y salsa especial de la casa.',
+    price: 54900,
     imageUrl: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600',
     categoryId: 'fajitas',
     spicyLevel: 2, // Medio 🌶️🌶️
     available: true,
-    ingredients: ['Carne de res', 'Pechuga de pollo', 'Camarón', 'Pimientos', 'Cebolla', 'Tortillas']
+    ingredients: ['Carne asada', 'Pollo', 'Camarón', 'Pimientos', 'Cebolla asada', 'Tomate', 'Salsa de fajitas', 'Arroz', 'Frijoles', 'Crema', 'Queso', 'Guacamole', 'Tortilla de maíz o harina']
   },
   {
     id: 'fajitas_asada',
     name: 'Fajitas de asada',
-    description: 'Tiras tiernas de carne asada marinada, salteadas a la plancha con pimientos y cebollitas tiernas con picante medio.',
-    price: 30000,
+    description: 'Tiras tiernas de carne asada preparadas al momento con pimientos, cebolla asada, tomate y salsa especial de la casa.',
+    price: 47900,
     imageUrl: 'https://images.unsplash.com/photo-1599974579688-8dbdd335c77f?w=600',
     categoryId: 'fajitas',
     spicyLevel: 2, // Medio 🌶️🌶️
     available: true,
-    ingredients: ['Carne asada de res', 'Pimientos tricolores', 'Cebolla', 'Tortillas', 'Salsa picante medio']
+    ingredients: ['Carne asada', 'Pimientos', 'Cebolla asada', 'Tomate', 'Salsa de fajitas', 'Arroz', 'Frijoles', 'Crema', 'Queso', 'Guacamole', 'Tortilla de maíz o harina']
   }
 ];
 
@@ -2042,15 +2065,25 @@ async function purgeToOfficialMenu(isSilent = false) {
     let deletedCount = 0;
     const existingOfficialNames = new Set();
 
+    function findOfficialMatch(norm) {
+      if (officialNamesMap.has(norm)) return officialNamesMap.get(norm);
+      for (const [key, val] of officialNamesMap.entries()) {
+        if (norm.includes(key) || key.includes(norm)) {
+          return val;
+        }
+      }
+      return null;
+    }
+
     snap.forEach(doc => {
       const data = doc.data();
       const normName = normalizeMenuName(data.name || '');
-      if (officialNamesMap.has(normName)) {
-        existingOfficialNames.add(normName);
-        const officialDef = officialNamesMap.get(normName);
-        if (data.spicyLevel !== officialDef.spicyLevel) {
+      const match = findOfficialMatch(normName);
+      if (match) {
+        existingOfficialNames.add(normalizeMenuName(match.name));
+        if (data.spicyLevel !== match.spicyLevel) {
           batch.update(doc.ref, {
-            spicyLevel: officialDef.spicyLevel,
+            spicyLevel: match.spicyLevel,
             updatedAt: Date.now()
           });
         }

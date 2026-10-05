@@ -133,10 +133,10 @@ class AiAssistantService {
 
     // ─── 0.1 Bebidas / Productos no disponibles ────────────────────────────
     if (q.contains('bebida') || q.contains('gaseosa') || q.contains('refresco') || q.contains('tomar') || q.contains('jugo') || q.contains('cerveza')) {
-      final tacos = catalog.where((p) => p.name.toLowerCase().contains('taco') || p.name.toLowerCase().contains('birria')).take(2).toList();
+      final recommended = catalog.where((p) => p.name.toLowerCase().contains('fajita') || p.name.toLowerCase().contains('burrito') || p.name.toLowerCase().contains('aguachile')).take(2).toList();
       return AiRecommendationResult(
-        message: 'Por ahora en nuestra cocina nos enfocamos 100% en los tacos y platillos mexicanos calientes al comal 🔥\n\nNo tenemos bebidas en la carta en este momento, ¡pero te invito a probar nuestros tacos al pastor o birria que están brutales!',
-        products: tacos,
+        message: 'Por ahora en nuestra cocina nos enfocamos 100% en nuestras deliciosas fajitas, burritos, enchiladas y mariscos al estilo La Diabla 🔥\n\nNo tenemos bebidas en la carta en este momento, ¡pero te invito a probar nuestras fajitas o burritos que están brutales!',
+        products: recommended,
       );
     }
 
