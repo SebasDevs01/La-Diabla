@@ -1019,9 +1019,6 @@ function renderProducts() {
             <button onclick="openProductModal()" class="action-btn" style="background:var(--primary); color:white; padding:10px 20px; border-radius:12px; border:none; cursor:pointer; font-weight:700; display:inline-flex; align-items:center; gap:6px;">
               <span class="material-symbols-rounded md-18">add_circle</span> Crear Primer Platillo
             </button>
-            <button onclick="seedBaseProducts()" class="btn-clean" style="padding:10px 20px; border-radius:12px; border:1px solid rgba(255,255,255,0.2); cursor:pointer; font-weight:700; display:inline-flex; align-items:center; gap:6px;">
-              <span class="material-symbols-rounded md-18" style="color:#F59E0B;">bolt</span> Cargar Menú Inicial Base
-            </button>
           </div>
         ` : ''}
       </div>
