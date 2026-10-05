@@ -1,7 +1,6 @@
 // lib/data/repositories/product_repository_impl.dart
 import '../../domain/entities/product_entity.dart';
 import '../../domain/repositories/product_repository.dart';
-import '../../mock/mock_products.dart';
 import '../datasources/remote/product_remote_datasource.dart';
 
 import '../models/product_model.dart';
@@ -11,41 +10,21 @@ class ProductRepositoryImpl implements ProductRepository {
       : _remoteDataSource = remoteDataSource ?? ProductRemoteDataSource();
 
   final ProductRemoteDataSource _remoteDataSource;
-  final List<ProductEntity> _mockProducts = List.from(mockProducts);
 
   @override
   Future<List<ProductEntity>> getProducts() async {
     try {
-      final remoteProducts = await _remoteDataSource.getProducts();
-      if (remoteProducts.isNotEmpty) {
-        // Garantizar que el producto de prueba de $50 COP esté siempre disponible para pruebas de pago con tarjeta
-        final hasTest = remoteProducts.any((p) => p.id == 'test_tarjeta_50');
-        if (!hasTest) {
-          final testProduct = _mockProducts.firstWhere(
-            (p) => p.id == 'test_tarjeta_50',
-            orElse: () => mockProducts.first,
-          );
-          return [testProduct, ...remoteProducts];
-        }
-        return remoteProducts;
-      }
-    } catch (_) {}
-    return _mockProducts.where((p) => p.available).toList();
+      return await _remoteDataSource.getProducts();
+    } catch (_) {
+      return [];
+    }
   }
 
   @override
   Stream<List<ProductEntity>> watchAllProducts({bool availableOnly = true}) {
-    return _remoteDataSource
-        .watchAllProducts(availableOnly: availableOnly)
-        .map((products) {
-      if (products.isEmpty) {
-        // Fallback al mock si la colección en Firestore está vacía aún
-        return availableOnly
-            ? _mockProducts.where((p) => p.available).toList()
-            : _mockProducts;
-      }
-      return products;
-    });
+    // Solo muestra lo que hay en Firestore. Si está vacío, muestra vacío.
+    // Nunca resucita productos eliminados desde código local.
+    return _remoteDataSource.watchAllProducts(availableOnly: availableOnly);
   }
 
   @override

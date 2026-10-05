@@ -2042,89 +2042,8 @@ const OFFICIAL_DIABLA_PRODUCTS = [
 
 const BASE_DIABLA_PRODUCTS = OFFICIAL_DIABLA_PRODUCTS;
 
-// ─── DEPURAR MENÚ Y MANTENER SOLO LOS 14 OFICIALES ─────────────
-async function purgeToOfficialMenu(isSilent = false) {
-  if (!db) return;
-  if (!isSilent) {
-    if (!confirm('¿Deseas depurar el menú para eliminar platillos viejos/borrados y dejar exactamente los 14 platillos oficiales de La Diabla?')) {
-      return;
-    }
-  }
 
-  try {
-    await ensureAdminAuth();
-    if (!isSilent) showToast("Depurando menú en Firestore...", "info");
 
-    const snap = await db.collection('products').get();
-    const officialNamesMap = new Map();
-    OFFICIAL_DIABLA_PRODUCTS.forEach(p => {
-      officialNamesMap.set(normalizeMenuName(p.name), p);
-    });
-
-    const batch = db.batch();
-    let deletedCount = 0;
-    const existingOfficialNames = new Set();
-
-    function findOfficialMatch(norm) {
-      if (officialNamesMap.has(norm)) return officialNamesMap.get(norm);
-      for (const [key, val] of officialNamesMap.entries()) {
-        if (norm.includes(key) || key.includes(norm)) {
-          return val;
-        }
-      }
-      return null;
-    }
-
-    snap.forEach(doc => {
-      const data = doc.data();
-      const normName = normalizeMenuName(data.name || '');
-      const match = findOfficialMatch(normName);
-      if (match) {
-        existingOfficialNames.add(normalizeMenuName(match.name));
-        if (data.spicyLevel !== match.spicyLevel) {
-          batch.update(doc.ref, {
-            spicyLevel: match.spicyLevel,
-            updatedAt: Date.now()
-          });
-        }
-      } else {
-        batch.delete(doc.ref);
-        deletedCount++;
-      }
-    });
-
-    const now = Date.now();
-    let createdCount = 0;
-    OFFICIAL_DIABLA_PRODUCTS.forEach(p => {
-      const normName = normalizeMenuName(p.name);
-      if (!existingOfficialNames.has(normName)) {
-        const ref = db.collection('products').doc(p.id);
-        batch.set(ref, {
-          ...p,
-          extras: [],
-          createdAt: now,
-          updatedAt: now
-        }, { merge: true });
-        createdCount++;
-      }
-    });
-
-    await batch.commit();
-    const msg = `¡Menú depurado! ${deletedCount} platillos viejos eliminados. Exactamente 14 platillos oficiales activos.`;
-    console.log(`✅ ${msg}`);
-    if (!isSilent) {
-      showToast(msg, "success");
-    }
-  } catch (err) {
-    console.error("Error al depurar menú:", err);
-    if (!isSilent) showToast("Error al depurar menú: " + err.message, "danger");
-  }
-}
-
-// Compatibilidad con invocaciones anteriores
-async function seedBaseProducts(force = false) {
-  await purgeToOfficialMenu(false);
-}
 
 // ─── INITIALIZATION ────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {

@@ -55,3 +55,6 @@ LaDiabla-v*.apk
 *.env.*
 functions/.env
 functions/.env.*
+
+/android/build/
+.firebase/
