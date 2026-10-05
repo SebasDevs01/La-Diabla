@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
   <title>Dashboard en Vivo 🌶️ | La Diabla Admin</title>
   <meta name="description"
     content="Panel de administración en tiempo real de La Diabla App. Gestiona pedidos, reembolsos y estadísticas.">
@@ -249,11 +249,11 @@
             <span class="material-symbols-rounded md-20">add_circle</span>
             <span>Nuevo Platillo</span>
           </button>
-          <button onclick="seedBaseProducts(true)" class="action-btn"
-            style="background: linear-gradient(135deg, #059669, #047857); color:white; font-weight:700; padding: 10px 18px; border-radius:12px; display:inline-flex; align-items:center; gap:8px; border:none; cursor:pointer; box-shadow: 0 4px 14px rgba(5,150,105,0.35);"
-            title="Sincronizar y abastecer el catálogo completo de platillos y bebidas desde la App">
-            <span class="material-symbols-rounded md-20">cloud_sync</span>
-            <span>Abastecer Menú de la App (Platillos & Bebidas)</span>
+          <button onclick="purgeToOfficialMenu()" class="action-btn"
+            style="background: rgba(220,38,38,0.15); color: #DC2626; border: 1px solid rgba(220,38,38,0.3); font-weight:700; padding: 10px 18px; border-radius:12px; display:inline-flex; align-items:center; gap:8px; cursor:pointer;"
+            title="Depurar el menú para eliminar platillos viejos y mantener exactamente los 14 platillos oficiales">
+            <span class="material-symbols-rounded md-20">auto_fix_high</span>
+            <span>Depurar a 14 Platillos Oficiales</span>
           </button>
         </div>
       </div>

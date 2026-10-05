@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
   <title>La Diabla App 🌶️ | Delivery de Comida Mexicana en Bucaramanga</title>
   <meta name="description"
     content="Pide los mejores tacos al pastor, burritos diabólicos, quesadillas fundidas y birria artesanal en Bucaramanga con rastreo GPS en tiempo real.">
@@ -796,8 +796,15 @@
     /* ── FOOD MENU SHOWCASE GRID (ESTILO RAPPI / PRODUCTOS CARGADOS) ── */
     .menu-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-      gap: 2.2rem;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 640px) {
+      .menu-grid {
+        grid-template-columns: 1fr !important;
+        gap: 1.2rem;
+      }
     }
 
     .menu-card {
@@ -3953,6 +3960,29 @@
         showToast('¡Enlace del menú copiado al portapapeles!');
       }
     }
+
+    // ─── BLOQUEO DE ZOOM TÁCTIL / PELLIZCO EN MÓVILES Y TABLETS ──
+    document.addEventListener('touchstart', function (e) {
+      if (e.touches && e.touches.length > 1) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    document.addEventListener('touchmove', function (e) {
+      if (e.touches && e.touches.length > 1) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    document.addEventListener('gesturestart', function (e) {
+      e.preventDefault();
+    });
+    document.addEventListener('gesturechange', function (e) {
+      e.preventDefault();
+    });
+    document.addEventListener('gestureend', function (e) {
+      e.preventDefault();
+    });
   </script>
 
 </body>

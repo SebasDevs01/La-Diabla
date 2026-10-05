@@ -3,13 +3,13 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
   <title>Acceso Admin | La Diabla 🌶️</title>
   <meta name="description" content="Panel de acceso administrativo de La Diabla App.">
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="../assets/logo/LaDiabla.png">
-  <link rel="shortcut icon" type="image/png" href="../assets/logo/LaDiabla.png">
-  <link rel="apple-touch-icon" href="../assets/logo/LaDiabla.png">
+  <link rel="icon" type="image/png" href="assets/logo/LaDiabla.png">
+  <link rel="shortcut icon" type="image/png" href="assets/logo/LaDiabla.png">
+  <link rel="apple-touch-icon" href="assets/logo/LaDiabla.png">
   <!-- Google Fonts: Bangers & Outfit -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,7 +18,7 @@
   <!-- Google Material Symbols Rounded -->
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
-  <link rel="stylesheet" href="../styles.css?v=4.0">
+  <link rel="stylesheet" href="styles.css?v=4.0">
   <script>
     (function () {
       const savedTheme = localStorage.getItem('diabla_web_theme') || 'light';
@@ -271,7 +271,7 @@
       justify-content: center;
       padding: 5px;
       border-radius: 8px;
-      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
       z-index: 2;
     }
 
@@ -372,9 +372,9 @@
   <!-- HEADER -->
   <header>
     <div class="navbar" style="padding: 0.65rem 1.5rem;">
-      <a href="../index.html" class="logo-container brand-logo-link">
-        <img src="../assets/logo/LaDiabla.png" alt="La Diabla" class="brand-logo-img"
-          onerror="this.src='../logo/LaDiabla.png';" style="width: 42px; height: 42px; flex-shrink: 0;">
+      <a href="index.html" class="logo-container brand-logo-link">
+        <img src="assets/logo/LaDiabla.png" alt="La Diabla" class="brand-logo-img"
+          onerror="this.src='logo/LaDiabla.png';" style="width: 42px; height: 42px; flex-shrink: 0;">
         <span class="logo-text diabla-font" style="color: #FFFFFF !important; font-size: 1.7rem;">LA DIABLA ADMIN</span>
       </a>
       <div style="display: flex; gap: 10px; align-items: center;">
@@ -382,7 +382,7 @@
           <span class="material-symbols-rounded md-20" id="themeIcon">light_mode</span>
           <span id="themeLabel">Claro</span>
         </button>
-        <a href="../index.html" class="btn-icon-text" style="text-decoration: none;">
+        <a href="index.html" class="btn-icon-text" style="text-decoration: none;">
           <span class="material-symbols-rounded md-20">arrow_back</span>
           <span>Inicio</span>
         </a>
@@ -396,8 +396,8 @@
 
       <!-- Logo Normalito & Encabezado -->
       <div class="login-header">
-        <img src="../assets/logo/LaDiabla.png" alt="La Diabla" class="brand-logo-img login-brand-logo"
-          onerror="this.src='../logo/LaDiabla.png';">
+        <img src="assets/logo/LaDiabla.png" alt="La Diabla" class="brand-logo-img login-brand-logo"
+          onerror="this.src='logo/LaDiabla.png';">
         <h1 class="login-title">PANEL DE CONTROL</h1>
         <p class="login-subtitle">Acceso exclusivo para administradores de La Diabla</p>
       </div>
@@ -557,7 +557,7 @@
             try { await firebase.auth().signInAnonymously(); } catch (_) { }
           }
         }
-        window.location.href = '../admin/';
+        window.location.href = 'dashboard.html';
       } else {
         errorDiv.style.display = 'flex';
         btn.innerHTML = '<span class="material-symbols-rounded md-20">login</span> Ingresar al Dashboard';

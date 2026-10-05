@@ -941,8 +941,6 @@ function switchAdminView(view) {
 }
 
 // ─── PRODUCTS FIRESTORE REALTIME SYNC ─────────────────────────
-let hasAutoStocked = false;
-
 function initRealtimeProducts() {
   if (!db) return;
   db.collection('products').onSnapshot(async (snapshot) => {
@@ -954,13 +952,6 @@ function initRealtimeProducts() {
         ...data,
       });
     });
-
-    // Auto-abastecimiento silencioso si Firestore tiene menos productos que el catálogo completo de la App
-    if (!hasAutoStocked && allProducts.length < 40 && typeof BASE_DIABLA_PRODUCTS !== 'undefined' && BASE_DIABLA_PRODUCTS.length > 0) {
-      hasAutoStocked = true;
-      console.log(`📦 Abastecimiento automático activado (${allProducts.length} detectados, sincronizando base completa de ${BASE_DIABLA_PRODUCTS.length})...`);
-      autoStockMissingProducts();
-    }
 
     // Ordenar: creados más recientes primero
     allProducts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -975,32 +966,6 @@ function initRealtimeProducts() {
   }, (err) => {
     console.error("Error al escuchar productos en tiempo real:", err);
   });
-}
-
-// Auto-abastecer silenciosamente los productos faltantes sin interrumpir al usuario
-async function autoStockMissingProducts() {
-  try {
-    await ensureAdminAuth();
-    const existingIds = new Set(allProducts.map(p => p.id));
-    const missing = BASE_DIABLA_PRODUCTS.filter(p => !existingIds.has(p.id));
-    if (missing.length === 0) return;
-
-    const batch = db.batch();
-    const now = Date.now();
-    missing.forEach(p => {
-      const ref = db.collection('products').doc(p.id);
-      batch.set(ref, {
-        ...p,
-        extras: [],
-        createdAt: now,
-        updatedAt: now
-      }, { merge: true });
-    });
-    await batch.commit();
-    console.log(`✅ ¡Auto-abastecidos ${missing.length} productos faltantes con éxito!`);
-  } catch (err) {
-    console.warn("Nota de auto-abastecimiento:", err);
-  }
 }
 
 // ─── PRODUCT CATEGORY & SEARCH FILTERS ─────────────────────────
@@ -1894,552 +1859,238 @@ async function deleteProduct(id) {
   }
 }
 
-// ─── SEED BASE MENU ────────────────────────────────────────────
-// ─── CATÁLOGO COMPLETO DE PRODUCTOS (ABASTECIMIENTO GENERAL) ────
-const BASE_DIABLA_PRODUCTS = [
-  // Test Card (para pruebas de pago)
+// ─── CATÁLOGO OFICIAL DE 14 PLATILLOS DE LA DIABLA ─────────────
+const OFFICIAL_DIABLA_PRODUCTS = [
   {
-    id: 'test_tarjeta_50',
-    name: 'Taco de Prueba 🧪 (Test Tarjeta)',
-    description: 'Producto especial para probar cobro y pasarela de tarjetas sin gastar dinero. Valor simbólico de $50 pesos COP.',
-    price: 50,
-    imageUrl: 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600',
-    categoryId: 'tacos',
-    spicyLevel: 1,
-    available: true,
-    ingredients: ['Prueba de tarjeta', 'Cobro $50 COP', 'Verificación pasarela']
-  },
-
-  // ─── TACOS ───────────────────────────────────────────────────
-  {
-    id: 'tacos_pastor',
-    name: 'Tacos al Pastor Diabla',
-    description: '3 tacos de carne marinada en achiote con piña asada, cebolla, cilantro y un toque especial de salsa habanera.',
-    price: 17000,
-    imageUrl: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600',
-    categoryId: 'tacos',
-    spicyLevel: 2,
-    available: true,
-    ingredients: ['Carne al pastor', 'Piña asada', 'Cebolla', 'Cilantro', 'Tortilla de maíz']
-  },
-  {
-    id: 'tacos_birria',
-    name: 'Tacos de Birria con Consomé',
-    description: '3 tacos dorados de res deshebrada con queso oaxaca derretido, servidos con su consomé caliente para sopear.',
-    price: 22000,
-    imageUrl: 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600',
-    categoryId: 'tacos',
-    spicyLevel: 1,
-    available: true,
-    ingredients: ['Birria de res', 'Queso Oaxaca', 'Consomé caliente', 'Cebolla picada', 'Cilantro']
-  },
-  {
-    id: 'tacos_suadero',
-    name: 'Tacos de Suadero Especial',
-    description: '3 tacos de suadero confitado a fuego lento, jugoso y dorado por fuera con guacamole artesanal.',
-    price: 18000,
-    imageUrl: 'https://images.unsplash.com/photo-1599974579688-8dbdd335c77f?w=600',
-    categoryId: 'tacos',
-    spicyLevel: 1,
-    available: true,
-    ingredients: ['Suadero de res', 'Cebolla', 'Cilantro', 'Salsa verde borracha']
-  },
-
-  // ─── BURRITOS ────────────────────────────────────────────────
-  {
-    id: 'burrito_diablo',
-    name: 'Burrito El Diablo 🔥',
-    description: 'Gigante burrito con carne asada, frijoles refritos, arroz, queso cheddar derretido y salsa habanera La Diabla.',
-    price: 29000,
-    imageUrl: 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=600',
-    categoryId: 'burritos',
-    spicyLevel: 3,
-    available: true,
-    ingredients: ['Carne asada', 'Frijoles refritos', 'Arroz mexicano', 'Queso cheddar', 'Salsa habanera']
-  },
-  {
-    id: 'burrito_pollo_chipotle',
-    name: 'Burrito Pollo al Chipotle',
-    description: 'Pollo desmechado bañado en salsa cremosa de chipotle, arroz mexicano, lechuga y pico de gallo.',
-    price: 26000,
-    imageUrl: 'https://images.unsplash.com/photo-1584031036380-3fb6f2d51880?w=600',
-    categoryId: 'burritos',
-    spicyLevel: 2,
-    available: true,
-    ingredients: ['Pechuga de pollo', 'Salsa chipotle cremosa', 'Arroz mexicano', 'Pico de gallo', 'Lechuga fresca']
-  },
-  {
-    id: 'burrito_supremo',
-    name: 'Burrito Supremo Diabla',
-    description: 'Enorme burrito relleno de carne asada, arroz rojo, frijoles refritos, queso fundido y salsa de la casa.',
-    price: 24000,
-    imageUrl: 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=600',
-    categoryId: 'burritos',
-    spicyLevel: 2,
-    available: true,
-    ingredients: ['Tortilla de harina 30cm', 'Carne asada', 'Arroz mexicano', 'Frijoles refritos', 'Queso gouda', 'Guacamole']
-  },
-
-  // ─── QUESADILLAS ─────────────────────────────────────────────
-  {
-    id: 'gringa_pastor',
-    name: 'Gringa de Pastor',
-    description: 'Doble tortilla de harina rellena de queso fundido, carne al pastor y trozos de piña asada.',
-    price: 19500,
-    imageUrl: 'https://images.unsplash.com/photo-1599974579688-8dbdd335c77f?w=600',
-    categoryId: 'quesadillas',
-    spicyLevel: 1,
-    available: true,
-    ingredients: ['Carne al pastor', 'Queso fundido Oaxaca', 'Piña caramelizada', 'Tortilla de harina']
-  },
-  {
-    id: 'quesadilla_queso_birria',
-    name: 'Quesabirria Gigante',
-    description: 'Tortilla de harina dorada a la plancha con costra de queso y abundante birria marinada.',
-    price: 24000,
-    imageUrl: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600',
-    categoryId: 'quesadillas',
-    spicyLevel: 1,
-    available: true,
-    ingredients: ['Birria de res', 'Costra de queso', 'Cilantro fresco', 'Cebolla', 'Consomé']
-  },
-  {
-    id: 'quesadilla_sincronizada',
-    name: 'Quesadilla Especial Diabla',
-    description: 'Tortilla de harina gigante rellena de mezcla de quesos derretidos, jamón artesanal y pico de gallo.',
-    price: 16000,
-    imageUrl: 'https://images.unsplash.com/photo-1618040996337-56904b7850b9?w=600',
-    categoryId: 'quesadillas',
-    spicyLevel: 0,
-    available: true,
-    ingredients: ['Tortilla de harina artesanal', 'Queso Oaxaca', 'Queso Mozzarella', 'Pico de gallo', 'Crema ácida']
-  },
-
-  // ─── MARISCOS & COCINA DE MAR ────────────────────────────────
-  {
-    id: 'camarones_diabla',
-    name: 'Camarones a la Diabla 🔥🌶️',
-    description: 'Camarones gigantes salteados en salsa explosiva de 3 chiles (árbol, chipotle y guajillo), servidos con arroz blanco.',
-    price: 34000,
-    imageUrl: 'https://images.unsplash.com/photo-1559742811-82286364ceaf?w=600',
-    categoryId: 'mariscos',
-    spicyLevel: 3,
-    available: true,
-    ingredients: ['Camarones tigre', 'Salsa de 3 chiles', 'Ajo rostizado', 'Arroz blanco', 'Ensalada']
-  },
-  {
-    id: 'camarones_al_ajo',
-    name: 'Camarones al Ajo 🧄',
-    description: 'Tiernos camarones bañados en mantequilla dorada, abundante ajo laminado frito, perejil fresco y vino blanco.',
+    id: 'aguachiles',
+    name: 'Aguachiles',
+    description: 'Camarones frescos marinados en jugo de limón recién exprimido con chile habanero y serrano, cebolla morada y pepino.',
     price: 32000,
-    imageUrl: 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=600',
-    categoryId: 'mariscos',
-    spicyLevel: 0,
-    available: true,
-    ingredients: ['Camarones frescos', 'Ajo crocante', 'Mantequilla artesanal', 'Perejil', 'Limón']
-  },
-  {
-    id: 'camarones_cora',
-    name: 'Camarones a la Cora (Estilo Nayarit)',
-    description: 'Receta secreta nayarita: camarones con chile de árbol seco, mantequilla, jugo de naranja agria y especias.',
-    price: 33500,
-    imageUrl: 'https://images.unsplash.com/photo-1551248429-40975aa4de74?w=600',
-    categoryId: 'mariscos',
-    spicyLevel: 2,
-    available: true,
-    ingredients: ['Camarones', 'Chile de árbol seco', 'Jugo de cítricos', 'Mantequilla', 'Cebolla morada']
-  },
-  {
-    id: 'camarones_empanizados',
-    name: 'Camarones Empanizados Doraditos 🍤',
-    description: 'Camarones apanados en panko crujiente al punto dorado, acompañados de salsa tártara de la casa y papas fritas.',
-    price: 31000,
     imageUrl: 'https://images.unsplash.com/photo-1535400255456-984241443b29?w=600',
     categoryId: 'mariscos',
-    spicyLevel: 0,
+    spicyLevel: 3, // Diabla 🔥
     available: true,
-    ingredients: ['Camarones en panko', 'Salsa tártara', 'Papas a la francesa', 'Limón']
+    ingredients: ['Camarón fresco', 'Limón', 'Chile habanero y serrano', 'Cebolla morada', 'Pepino']
   },
   {
-    id: 'ceviche_camaron',
-    name: 'Ceviche de Camarón Mazatlán',
-    description: 'Camarones marinados en limón recién exprimido, pepino en cubos, cebolla morada, tomate, cilantro y aguacate con totopos.',
-    price: 28000,
-    imageUrl: 'https://images.unsplash.com/photo-1535399831218-d5bd36d1a6b3?w=600',
-    categoryId: 'mariscos',
-    spicyLevel: 1,
-    available: true,
-    ingredients: ['Camarón marinado', 'Pepino fresco', 'Cebolla morada', 'Tomate', 'Cilantro', 'Aguacate']
-  },
-  {
-    id: 'coctel_camaron',
-    name: 'Cóctel de Camarón Acapulco 🍸',
-    description: 'Camarones cocidos en salsa coctelera tradicional mexicana con clamato, naranja, cebolla, cilantro, salsa inglesa y aguacate.',
-    price: 29000,
-    imageUrl: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=600',
-    categoryId: 'mariscos',
-    spicyLevel: 1,
-    available: true,
-    ingredients: ['Camarones', 'Salsa coctelera con Clamato', 'Cebolla morada', 'Cilantro', 'Aguacate']
-  },
-  {
-    id: 'levanta_muertos',
-    name: 'Caldo Levanta Muertos 🥣⚡',
-    description: 'Poderoso caldo caliente afrodisíaco de camarón, pulpo y pescado con chile chipotle, epazote y verduras.',
+    id: 'aguachiles_mixtos',
+    name: 'Aguachiles mixtos',
+    description: 'Combinación perfecta de camarón y pulpo fresco en salsa verde picosita de limón y chiles tatemados.',
     price: 36000,
-    imageUrl: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=600',
+    imageUrl: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600',
     categoryId: 'mariscos',
-    spicyLevel: 2,
+    spicyLevel: 3, // Diabla 🔥
     available: true,
-    ingredients: ['Camarón', 'Pulpo', 'Pescado blanco', 'Caldo de mariscos con chipotle', 'Cilantro y limón']
+    ingredients: ['Camarón', 'Pulpo', 'Limón fresco', 'Chile habanero', 'Cebolla morada', 'Pepino']
   },
   {
-    id: 'campechana',
-    name: 'Campechana Mixta Especial',
-    description: 'La reina de los cócteles: generosa combinación de camarón cocido, pulpo tierno, callo, salsa bruja y aguacate.',
-    price: 38000,
-    imageUrl: 'https://images.unsplash.com/photo-1535399831218-d5bd36d1a6b3?w=600',
-    categoryId: 'mariscos',
-    spicyLevel: 1,
-    available: true,
-    ingredients: ['Camarón', 'Pulpo tierno', 'Callo', 'Clamato preparado', 'Aguacate fresco', 'Cilantro']
-  },
-  {
-    id: 'endiablados',
-    name: 'Mariscos Endiablados 🔥🐙',
-    description: 'Surtido ardiente de camarón y pulpo salteados con pimientos asados, cebollitas caramelizadas y salsa de habanero negro.',
-    price: 37000,
-    imageUrl: 'https://images.unsplash.com/photo-1559742811-82286364ceaf?w=600',
-    categoryId: 'mariscos',
-    spicyLevel: 3,
-    available: true,
-    ingredients: ['Camarón tigre', 'Pulpo marinado', 'Pimientos asados', 'Salsa habanero negro', 'Cebolla']
-  },
-  {
-    id: 'aguachile',
-    name: 'Aguachile Sinaloense (Verde / Rojo) 🥑',
-    description: 'Camarones frescos abiertos en mariposa, curtidos en jugo de limón con salsa de chiles serranos/chiltepín, pepino y cebolla morada.',
-    price: 32000,
-    imageUrl: 'https://images.unsplash.com/photo-1535399831218-d5bd36d1a6b3?w=600',
-    categoryId: 'mariscos',
-    spicyLevel: 3,
-    available: true,
-    ingredients: ['Camarón crudo curtido', 'Jugo de limón', 'Salsa de chile serrano', 'Pepino', 'Cebolla morada']
-  },
-  {
-    id: 'pulpadita',
-    name: 'Pulpadita a las Brasas 🐙',
-    description: 'Tentáculos de pulpo tierno marinados en paprika ahumada y ajo, sellados a la plancha sobre cama de puré rústico de papa.',
-    price: 39000,
+    id: 'pulpaditas',
+    name: 'Pulpaditas',
+    description: 'Exquisitas tostadas crocantes con pulpo tierno sazonado a la plancha, guacamole artesanal y toque cítrico suave sin picante.',
+    price: 34000,
     imageUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600',
     categoryId: 'mariscos',
-    spicyLevel: 1,
+    spicyLevel: 0, // Sin picante
     available: true,
-    ingredients: ['Pulpo a la plancha', 'Paprika ahumada', 'Ajo confitado', 'Puré de papa', 'Aceite de oliva']
-  },
-
-  // ─── ENSALADAS ───────────────────────────────────────────────
-  {
-    id: 'ensalada_cesar',
-    name: 'Ensalada César con Pollo Grill 🥗',
-    description: 'Fresca lechuga romana crujiente, pechuga de pollo a la parrilla, croutons dorados, queso parmesano en lajas y aderezo César.',
-    price: 22000,
-    imageUrl: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600',
-    categoryId: 'ensaladas',
-    spicyLevel: 0,
-    available: true,
-    ingredients: ['Pechuga de pollo', 'Lechuga romana', 'Croutons', 'Queso parmesano', 'Aderezo César']
+    ingredients: ['Pulpo a la plancha', 'Guacamole artesanal', 'Tostada de maíz', 'Pico de gallo']
   },
   {
-    id: 'ensalada_mango',
-    name: 'Ensalada Tropical Mango y Aguacate 🥭🥑',
-    description: 'Mix de lechugas orgánicas, cubos de mango Tommy dulce, aguacate, nueces caramelizadas, queso feta y vinagreta de maracuyá.',
-    price: 21000,
-    imageUrl: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600',
-    categoryId: 'ensaladas',
-    spicyLevel: 0,
+    id: 'enchiladas_pollo',
+    name: 'Enchiladas de pollo',
+    description: 'Tortillas de maíz suaves rellenas de pechuga de pollo desmechada, bañadas en salsa tradicional suave con crema y queso fresco.',
+    price: 26000,
+    imageUrl: 'https://images.unsplash.com/photo-1584031036380-3fb6f2d51880?w=600',
+    categoryId: 'enchiladas',
+    spicyLevel: 1, // Suave 🌶️
     available: true,
-    ingredients: ['Mango dulce', 'Aguacate', 'Mix de lechugas', 'Nueces caramelizadas', 'Queso feta', 'Vinagreta maracuyá']
+    ingredients: ['Tortillas de maíz', 'Pechuga de pollo', 'Salsa de enchilada suave', 'Crema ácida', 'Queso fresco']
   },
   {
-    id: 'taco_salad',
-    name: 'Taco Salad Especial Diabla 🌮🥗',
-    description: 'Gran canasta de tortilla crujiente rellena de carne o pollo, frijoles, pico de gallo, maíz dulce, guacamole y crema agria.',
+    id: 'enchiladas_queso',
+    name: 'Enchiladas de queso',
+    description: 'Tortillas rellenas de abundante queso campesino y mozzarella derretido con salsa casera suave y crema.',
+    price: 23000,
+    imageUrl: 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=600',
+    categoryId: 'enchiladas',
+    spicyLevel: 1, // Suave 🌶️
+    available: true,
+    ingredients: ['Tortillas de maíz', 'Queso mozzarella', 'Queso campesino', 'Salsa suave', 'Crema de leche']
+  },
+  {
+    id: 'enchiladas_res',
+    name: 'Enchiladas de res',
+    description: 'Jugosa carne de res deshebrada envuelta en tortillas de maíz bañadas en salsa suave y gratinadas al horno.',
+    price: 28000,
+    imageUrl: 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600',
+    categoryId: 'enchiladas',
+    spicyLevel: 1, // Suave 🌶️
+    available: true,
+    ingredients: ['Carne de res desmechada', 'Tortillas de maíz', 'Salsa casera suave', 'Queso gratinado']
+  },
+  {
+    id: 'burrito_carne_asada',
+    name: 'Burrito de carne asada',
+    description: 'Enorme tortilla de harina rellena de carne asada marinada, arroz sazonado, frijol refrito, queso y guacamole sin picante.',
+    price: 28000,
+    imageUrl: 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=600',
+    categoryId: 'burritos',
+    spicyLevel: 0, // Sin picante
+    available: true,
+    ingredients: ['Carne asada', 'Tortilla de harina grande', 'Arroz sazonado', 'Frijol refrito', 'Queso fundido', 'Guacamole']
+  },
+  {
+    id: 'burrito_pollo',
+    name: 'Burrito de pollo',
+    description: 'Pechuga de pollo a la plancha con vegetales frescos, arroz, frijoles refritos y queso fundido sin picante.',
+    price: 25000,
+    imageUrl: 'https://images.unsplash.com/photo-1584031036380-3fb6f2d51880?w=600',
+    categoryId: 'burritos',
+    spicyLevel: 0, // Sin picante
+    available: true,
+    ingredients: ['Pechuga de pollo a la plancha', 'Tortilla de harina', 'Arroz', 'Frijol refrito', 'Queso fundido']
+  },
+  {
+    id: 'burrito_res',
+    name: 'Burrito de res',
+    description: 'Carne deshebrada de res en salsa criolla suave con arroz, frijoles refritos y queso derretido sin picante.',
     price: 27000,
-    imageUrl: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600',
-    categoryId: 'ensaladas',
-    spicyLevel: 1,
+    imageUrl: 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=600',
+    categoryId: 'burritos',
+    spicyLevel: 0, // Sin picante
     available: true,
-    ingredients: ['Canasta de tortilla', 'Frijoles negros', 'Pico de gallo', 'Maíz dulce', 'Guacamole', 'Crema agria', 'Lechuga']
-  },
-
-  // ─── BEBIDAS & COCTELERÍA ────────────────────────────────────
-  {
-    id: 'agua_jamaica',
-    name: 'Agua de Jamaica Artesanal (500ml) 🌺',
-    description: 'Infusión natural de flor de jamaica mexicana con toque cítrico y endulzada al punto perfecto. Muy refrescante.',
-    price: 6500,
-    imageUrl: 'https://images.unsplash.com/photo-1556881286-fc6915169721?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
-    available: true,
-    ingredients: ['Flor de jamaica natural', 'Limón', 'Agua filtrada', 'Hielo']
+    ingredients: ['Carne de res desmechada', 'Tortilla de harina', 'Arroz', 'Frijoles refritos', 'Queso']
   },
   {
-    id: 'agua_horchata',
-    name: 'Agua de Horchata Tradicional (500ml) 🥛',
-    description: 'Bebida cremosa tradicional a base de arroz, leche, canela en rama y esencia de vainilla mexicana.',
-    price: 7000,
-    imageUrl: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
+    id: 'pollo_asado',
+    name: 'Pollo asado',
+    description: 'Porción dorada y jugosa de pollo marinado con especias tradicionales, acompañado de papas y ensalada fresca sin picante.',
+    price: 24000,
+    imageUrl: 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=600',
+    categoryId: 'platos_fuertes',
+    spicyLevel: 0, // Sin picante
     available: true,
-    ingredients: ['Arroz', 'Leche condensada', 'Canela en polvo', 'Vainilla', 'Hielo']
+    ingredients: ['Pollo marinado al horno', 'Papas doradas', 'Ensalada fresca', 'Toque de limón']
   },
   {
-    id: 'agua_tamarindo',
-    name: 'Agua de Tamarindo (500ml) 🫘',
-    description: 'Pulpa de tamarindo natural hervida y macerada con azúcar de caña. El balance agridulce perfecto.',
-    price: 6500,
-    imageUrl: 'https://images.unsplash.com/photo-1556881286-fc6915169721?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
+    id: 'fajitas_pollo',
+    name: 'Fajitas de pollo',
+    description: 'Tiras de pechuga de pollo salteadas con pimientos tricolores y cebolla caramelizada, con sazón mexicana de picante medio.',
+    price: 27000,
+    imageUrl: 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=600',
+    categoryId: 'fajitas',
+    spicyLevel: 2, // Medio 🌶️🌶️
     available: true,
-    ingredients: ['Pulpa de tamarindo 100% natural', 'Azúcar de caña', 'Hielo']
+    ingredients: ['Pechuga de pollo en tiras', 'Pimientos verde y rojo', 'Cebolla', 'Tortillas calientes', 'Salsa de picante medio']
   },
   {
-    id: 'pina_colada',
-    name: 'Piña Colada La Diabla 🍍🥥',
-    description: 'Cremosa mezcla de piña fresca triturada, crema de coco gourmet, leche condensada y hielo frappé. ¡Elige con o sin licor!',
-    price: 15000,
-    imageUrl: 'https://images.unsplash.com/photo-1546171753-97d7676e4602?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
+    id: 'fajitas_camaron',
+    name: 'Fajitas de camarón',
+    description: 'Camarones jugosos salteados a fuego vivo con pimientos y cebolla, servidos chisporroteantes con sazón medio picante.',
+    price: 34000,
+    imageUrl: 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600',
+    categoryId: 'fajitas',
+    spicyLevel: 2, // Medio 🌶️🌶️
     available: true,
-    ingredients: ['Piña natural', 'Crema de coco', 'Cereza marrasquino', 'Hielo frappé']
+    ingredients: ['Camarón fresco', 'Pimientos salteados', 'Cebolla', 'Tortillas de harina', 'Salsa de la casa media']
   },
   {
-    id: 'malteada_fresa',
-    name: 'Malteada de Fresa Cremosa 🍓🥤',
-    description: 'Helado artesanal de fresa batido con leche entera, sirope de fresas naturales, crema chantilly y chispas.',
-    price: 13500,
-    imageUrl: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
+    id: 'fajitas_mixtas',
+    name: 'Fajitas mixtas',
+    description: 'La combinación estelar: carne de res, pechuga de pollo y camarones salteados con pimientos y cebolla, nivel medio picante.',
+    price: 35000,
+    imageUrl: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600',
+    categoryId: 'fajitas',
+    spicyLevel: 2, // Medio 🌶️🌶️
     available: true,
-    ingredients: ['Helado de fresa', 'Leche entera', 'Sirope de fresa', 'Crema chantilly']
-  },
-
-  // Gaseosas (Coca-Cola, Postobón, etc.)
-  {
-    id: 'coca_cola_personal',
-    name: 'Coca-Cola Sabor Original (400ml) 🥤',
-    description: 'Botella personal bien fría de Coca-Cola original.',
-    price: 4500,
-    imageUrl: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
-    available: true,
-    ingredients: ['Coca-Cola 400ml bien fría']
+    ingredients: ['Carne de res', 'Pechuga de pollo', 'Camarón', 'Pimientos', 'Cebolla', 'Tortillas']
   },
   {
-    id: 'coca_cola_zero',
-    name: 'Coca-Cola Zero Azúcar (400ml) 🖤',
-    description: 'Todo el sabor de Coca-Cola sin calorías ni azúcar.',
-    price: 4500,
-    imageUrl: 'https://images.unsplash.com/photo-1554866585-cd94860890b7?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
+    id: 'fajitas_asada',
+    name: 'Fajitas de asada',
+    description: 'Tiras tiernas de carne asada marinada, salteadas a la plancha con pimientos y cebollitas tiernas con picante medio.',
+    price: 30000,
+    imageUrl: 'https://images.unsplash.com/photo-1599974579688-8dbdd335c77f?w=600',
+    categoryId: 'fajitas',
+    spicyLevel: 2, // Medio 🌶️🌶️
     available: true,
-    ingredients: ['Coca-Cola Zero 400ml']
-  },
-  {
-    id: 'coca_cola_1_5l',
-    name: 'Coca-Cola Sabor Original (1.5 Litros) 🍾',
-    description: 'Presentación familiar de 1.5 Litros para compartir.',
-    price: 8500,
-    imageUrl: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
-    available: true,
-    ingredients: ['Coca-Cola Original 1.5L']
-  },
-  {
-    id: 'coca_cola_3l',
-    name: 'Coca-Cola Mega Fiesta (3 Litros) 🎉',
-    description: 'Botella gigante de 3 Litros para toda la familia.',
-    price: 13000,
-    imageUrl: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
-    available: true,
-    ingredients: ['Coca-Cola Mega 3L']
-  },
-  {
-    id: 'postobon_manzana',
-    name: 'Postobón Manzana (400ml / 1.5L) 🍎',
-    description: 'La clásica gaseosa colombiana sabor manzana, dulce y burbujeante.',
-    price: 4000,
-    imageUrl: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
-    available: true,
-    ingredients: ['Postobón Manzana fría']
-  },
-  {
-    id: 'colombiana_la_nuestra',
-    name: 'Colombiana La Nuestra (400ml / 1.5L) 🇨🇴',
-    description: 'Gaseosa sabor cola champaña tradicional de Colombia.',
-    price: 4000,
-    imageUrl: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
-    available: true,
-    ingredients: ['Colombiana La Nuestra fría']
-  },
-  {
-    id: 'postobon_uva',
-    name: 'Postobón Uva (400ml) 🍇',
-    description: 'Gaseosa sabor a uva refrescante y helada.',
-    price: 4000,
-    imageUrl: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
-    available: true,
-    ingredients: ['Postobón Uva fría']
-  },
-  {
-    id: 'postobon_naranja',
-    name: 'Postobón Naranja (400ml) 🍊',
-    description: 'Intenso sabor a naranja burbujeante.',
-    price: 4000,
-    imageUrl: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
-    available: true,
-    ingredients: ['Postobón Naranja fría']
-  },
-  {
-    id: 'sprite_limon',
-    name: 'Sprite Lima-Limón (400ml) 🍋',
-    description: 'Burbujas cristalinas sabor lima limón bien helada.',
-    price: 4500,
-    imageUrl: 'https://images.unsplash.com/photo-1625772299848-391b6a87d7b3?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
-    available: true,
-    ingredients: ['Sprite Lima Limón']
-  },
-  {
-    id: 'quatro_toronja',
-    name: 'Quatro Toronja (Cuatro 400ml) 🍊',
-    description: 'Sabor único cítrico y amargo de toronja natural.',
-    price: 4500,
-    imageUrl: 'https://images.unsplash.com/photo-1625772299848-391b6a87d7b3?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
-    available: true,
-    ingredients: ['Quatro Toronja helada']
-  },
-  {
-    id: 'premio_gaseosa',
-    name: 'Gaseosa Premio Roja (400ml) 🍓',
-    description: 'Clásico sabor rojo dulce tradicional.',
-    price: 3500,
-    imageUrl: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
-    available: true,
-    ingredients: ['Premio Roja helada']
-  },
-  {
-    id: 'ginger_ale',
-    name: 'Canada Dry Ginger Ale (300ml) 🫚',
-    description: 'Agua carbonatada con extracto suave de jengibre.',
-    price: 5000,
-    imageUrl: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
-    available: true,
-    ingredients: ['Canada Dry Ginger Ale']
-  },
-  {
-    id: 'agua_brisa_gas',
-    name: 'Agua Brisa con Gas y Limón (600ml) 💧🍋',
-    description: 'Agua mineral con burbujas finas y toque de limón natural.',
-    price: 3500,
-    imageUrl: 'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
-    available: true,
-    ingredients: ['Agua mineral con gas', 'Limón']
-  },
-  {
-    id: 'agua_cristal_sin_gas',
-    name: 'Agua Cristal Pura sin Gas (600ml) 💧',
-    description: 'Agua pura de manantial tratada, fresca y ligera.',
-    price: 3000,
-    imageUrl: 'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
-    available: true,
-    ingredients: ['Agua pura de manantial']
-  },
-  {
-    id: 'jugo_del_valle',
-    name: 'Jugo Del Valle Néctar (400ml) 🧃',
-    description: 'Delicioso néctar de fruta listo para tomar: Mora, Mango, Naranja o Guayaba.',
-    price: 4500,
-    imageUrl: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=600',
-    categoryId: 'bebidas',
-    spicyLevel: 0,
-    available: true,
-    ingredients: ['Pulpa de fruta pasteurizada', 'Vitamina C']
-  },
-
-  // ─── ESPECIALES ──────────────────────────────────────────────
-  {
-    id: 'especial_nachos_diabla',
-    name: 'Nachos Supremos La Diabla',
-    description: 'Totopos crocantes de maíz bañados en abundante queso cheddar fundido, frijoles negros, jalapeños y guacamole.',
-    price: 21000,
-    imageUrl: 'https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?w=600',
-    categoryId: 'especiales',
-    spicyLevel: 2,
-    available: true,
-    ingredients: ['Totopos de maíz', 'Queso cheddar', 'Jalapeños encurtidos', 'Frijoles negros', 'Pico de gallo', 'Guacamole']
+    ingredients: ['Carne asada de res', 'Pimientos tricolores', 'Cebolla', 'Tortillas', 'Salsa picante medio']
   }
 ];
 
-// ─── ABASTECIMIENTO / SEED BASE MENU ───────────────────────────
-async function seedBaseProducts(force = false) {
+const BASE_DIABLA_PRODUCTS = OFFICIAL_DIABLA_PRODUCTS;
+
+// ─── DEPURAR MENÚ Y MANTENER SOLO LOS 14 OFICIALES ─────────────
+async function purgeToOfficialMenu(isSilent = false) {
   if (!db) return;
-  if (!force) {
-    if (!confirm(`¿Deseas abastecer y sincronizar el catálogo completo de La Diabla (${BASE_DIABLA_PRODUCTS.length} platillos y bebidas, incluyendo Coca-Colas, burritos, mariscos y ensaladas) en la base de datos?`)) {
+  if (!isSilent) {
+    if (!confirm('¿Deseas depurar el menú para eliminar platillos viejos/borrados y dejar exactamente los 14 platillos oficiales de La Diabla?')) {
       return;
     }
   }
 
   try {
     await ensureAdminAuth();
-    showToast("Sincronizando y abasteciendo menú completo...", "info");
-    const batch = db.batch();
-    const now = Date.now();
-    BASE_DIABLA_PRODUCTS.forEach(p => {
-      const ref = db.collection('products').doc(p.id);
-      batch.set(ref, {
-        ...p,
-        extras: [],
-        createdAt: now,
-        updatedAt: now
-      }, { merge: true });
+    if (!isSilent) showToast("Depurando menú en Firestore...", "info");
+
+    const snap = await db.collection('products').get();
+    const officialNamesMap = new Map();
+    OFFICIAL_DIABLA_PRODUCTS.forEach(p => {
+      officialNamesMap.set(normalizeMenuName(p.name), p);
     });
+
+    const batch = db.batch();
+    let deletedCount = 0;
+    const existingOfficialNames = new Set();
+
+    snap.forEach(doc => {
+      const data = doc.data();
+      const normName = normalizeMenuName(data.name || '');
+      if (officialNamesMap.has(normName)) {
+        existingOfficialNames.add(normName);
+        const officialDef = officialNamesMap.get(normName);
+        if (data.spicyLevel !== officialDef.spicyLevel) {
+          batch.update(doc.ref, {
+            spicyLevel: officialDef.spicyLevel,
+            updatedAt: Date.now()
+          });
+        }
+      } else {
+        batch.delete(doc.ref);
+        deletedCount++;
+      }
+    });
+
+    const now = Date.now();
+    let createdCount = 0;
+    OFFICIAL_DIABLA_PRODUCTS.forEach(p => {
+      const normName = normalizeMenuName(p.name);
+      if (!existingOfficialNames.has(normName)) {
+        const ref = db.collection('products').doc(p.id);
+        batch.set(ref, {
+          ...p,
+          extras: [],
+          createdAt: now,
+          updatedAt: now
+        }, { merge: true });
+        createdCount++;
+      }
+    });
+
     await batch.commit();
-    showToast(`¡Catálogo completo (${BASE_DIABLA_PRODUCTS.length} platillos y bebidas) abastecido en Firestore!`, "success");
+    const msg = `¡Menú depurado! ${deletedCount} platillos viejos eliminados. Exactamente 14 platillos oficiales activos.`;
+    console.log(`✅ ${msg}`);
+    if (!isSilent) {
+      showToast(msg, "success");
+    }
   } catch (err) {
-    console.error("Error al abastecer menú:", err);
-    showToast("Error al abastecer menú: " + err.message, "danger");
+    console.error("Error al depurar menú:", err);
+    if (!isSilent) showToast("Error al depurar menú: " + err.message, "danger");
   }
+}
+
+// Compatibilidad con invocaciones anteriores
+async function seedBaseProducts(force = false) {
+  await purgeToOfficialMenu(false);
 }
 
 // ─── INITIALIZATION ────────────────────────────────────────────
@@ -2455,5 +2106,28 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.body.addEventListener('click', () => isAudioUnlocked = true, { once: true });
   initRealtimeOrders();
   initRealtimeProducts();
+});
+
+// ─── BLOQUEO DE ZOOM TÁCTIL / PELLIZCO EN MÓVILES Y TABLETS ──
+document.addEventListener('touchstart', function (e) {
+  if (e.touches && e.touches.length > 1) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+document.addEventListener('touchmove', function (e) {
+  if (e.touches && e.touches.length > 1) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+document.addEventListener('gesturestart', function (e) {
+  e.preventDefault();
+});
+document.addEventListener('gesturechange', function (e) {
+  e.preventDefault();
+});
+document.addEventListener('gestureend', function (e) {
+  e.preventDefault();
 });
 
