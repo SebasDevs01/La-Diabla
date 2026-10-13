@@ -1,12 +1,15 @@
-// lib/features/auth/presentation/screens/login_screen.dart
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_responsive.dart';
 import '../../../../app/theme/app_typography.dart';
+import '../../../../core/services/location_service.dart';
+import '../../../../core/services/maps_service.dart';
 import '../../../../core/widgets/diabla_text_field.dart';
 import '../../providers/auth_notifier.dart';
 
@@ -31,10 +34,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _regPasswordController = TextEditingController();
   final _regConfirmPasswordController = TextEditingController();
 
-  // Invitado Controllers
+  // Invitado Controllers y Ubicación
   final _guestNameController = TextEditingController();
   final _guestPhoneController = TextEditingController();
   final _guestAddressController = TextEditingController();
+  final _guestReferenceController = TextEditingController();
+  final _mapsService = MapsService();
+  final _locationService = LocationService();
+  double? _guestSelectedLat;
+  double? _guestSelectedLng;
   bool _hasNavigated = false;
 
   @override
@@ -49,6 +57,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _guestNameController.dispose();
     _guestPhoneController.dispose();
     _guestAddressController.dispose();
+    _guestReferenceController.dispose();
     super.dispose();
   }
 
@@ -293,13 +302,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final name = _guestNameController.text.trim();
     final phone = _guestPhoneController.text.trim();
     final address = _guestAddressController.text.trim();
+    final reference = _guestReferenceController.text.trim();
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
 
-    if (name.isEmpty || phone.isEmpty || address.isEmpty) {
+    if (name.isEmpty) {
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('Por favor ingresa tu nombre, celular y dirección para tus pedidos'),
+          content: Text('Por favor ingresa tu nombre completo'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (phone.isEmpty || phone.length < 7) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Ingresa un número de celular válido para coordinar la entrega'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (address.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Por favor ingresa tu dirección de entrega'),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
@@ -313,6 +345,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           name: name,
           phone: phone,
           address: address,
+          latitude: _guestSelectedLat,
+          longitude: _guestSelectedLng,
+          reference: reference.isNotEmpty ? reference : null,
         );
 
     if (!mounted) return;
@@ -333,7 +368,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   // ─── MODAL SHEETS GENERATORS ───────────────────────────────────────────────
 
-  /// Bottom sheet para pedir como Invitado
+  /// Bottom sheet para pedir como Invitado con Autocompletado de Google Places y GPS
   void _showGuestBottomSheet() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final redColor = isDark ? const Color(0xFFEF4444) : const Color(0xFFDC2626);
@@ -343,110 +378,277 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetCtx) {
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.surfaceDark : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 20,
-            bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 28,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.dividerDark : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+        List<PlacePrediction> predictions = [];
+        bool isLoadingGps = false;
+        Timer? debounceTimer;
+
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Container(
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.surfaceDark : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 20,
+                bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 28,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 20),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.dividerDark : Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          'PEDIR COMO INVITADO',
+                          style: TextStyle(
+                            fontFamily: AppTypography.displayFamily,
+                            fontSize: 24,
+                            color: redColor,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('🛵', style: TextStyle(fontSize: 22)),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Sin contraseña ni registros. Solo tus datos para llevarte tu comida caliente.',
+                      style: TextStyle(
+                        fontFamily: AppTypography.bodyFamily,
+                        fontSize: 12.5,
+                        color: isDark ? AppColors.textMutedDark : Colors.grey.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    DiablaTextField(
+                      key: const ValueKey('guest_name_field'),
+                      controller: _guestNameController,
+                      label: 'Tu Nombre Completo',
+                      keyboardType: TextInputType.name,
+                      textInputAction: TextInputAction.next,
+                      prefixIcon: Icon(Icons.person_outline_rounded, color: redColor),
+                    ),
+                    const SizedBox(height: 12),
+                    DiablaTextField(
+                      key: const ValueKey('guest_phone_field'),
+                      controller: _guestPhoneController,
+                      label: 'Número de Celular (Para el repartidor)',
+                      keyboardType: TextInputType.phone,
+                      textInputAction: TextInputAction.next,
+                      prefixIcon: Icon(Icons.phone_iphone_rounded, color: redColor),
+                    ),
+                    const SizedBox(height: 12),
+                    DiablaTextField(
+                      key: const ValueKey('guest_address_field'),
+                      controller: _guestAddressController,
+                      label: 'Dirección de Entrega (Ej: Calle 105a #21-14)',
+                      keyboardType: TextInputType.streetAddress,
+                      textInputAction: TextInputAction.next,
+                      prefixIcon: Icon(Icons.location_on_outlined, color: redColor),
+                      onChanged: (val) {
+                        _guestSelectedLat = null;
+                        _guestSelectedLng = null;
+                        debounceTimer?.cancel();
+                        if (val.trim().length >= 3) {
+                          debounceTimer = Timer(const Duration(milliseconds: 350), () async {
+                            final results = await _mapsService.searchPlaces(val.trim());
+                            if (sheetCtx.mounted) {
+                              setSheetState(() {
+                                predictions = results;
+                              });
+                            }
+                          });
+                        } else {
+                          setSheetState(() {
+                            predictions = [];
+                          });
+                        }
+                      },
+                    ),
+
+                    // ─── Sugerencias de Google Places ─────────────────────────
+                    if (predictions.isNotEmpty) ...[
+                      Container(
+                        margin: const EdgeInsets.only(top: 8),
+                        constraints: const BoxConstraints(maxHeight: 180),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.cardDark : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: redColor.withAlpha(80)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withAlpha(isDark ? 50 : 25),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          itemCount: predictions.length,
+                          separatorBuilder: (context, index) => Divider(
+                            height: 1,
+                            color: isDark ? Colors.white12 : Colors.grey.shade200,
+                          ),
+                          itemBuilder: (ctx, idx) {
+                            final p = predictions[idx];
+                            return ListTile(
+                              dense: true,
+                              leading: Icon(Icons.location_on_rounded, size: 18, color: redColor),
+                              title: Text(
+                                p.description,
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                              onTap: () async {
+                                _guestAddressController.text = p.description;
+                                setSheetState(() => predictions = []);
+                                final latLng = await _mapsService.getPlaceLatLng(p.placeId);
+                                if (latLng != null) {
+                                  _guestSelectedLat = latLng.latitude;
+                                  _guestSelectedLng = latLng.longitude;
+                                }
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 8),
+
+                    // ─── Botón rápido: Usar GPS actual ────────────────────────
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: isLoadingGps
+                            ? null
+                            : () async {
+                                setSheetState(() => isLoadingGps = true);
+                                try {
+                                  final pos = await _locationService.getCurrentPosition();
+                                  final latLng = LatLng(pos.latitude, pos.longitude);
+                                  _guestSelectedLat = pos.latitude;
+                                  _guestSelectedLng = pos.longitude;
+                                  final resolved = await _mapsService.reverseGeocode(latLng);
+                                  if (sheetCtx.mounted) {
+                                    setSheetState(() {
+                                      if (resolved.isNotEmpty && resolved != 'Ubicación seleccionada') {
+                                        _guestAddressController.text = resolved;
+                                      }
+                                      predictions = [];
+                                      isLoadingGps = false;
+                                    });
+                                  }
+                                } catch (e) {
+                                  if (sheetCtx.mounted) {
+                                    setSheetState(() => isLoadingGps = false);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('No se pudo obtener el GPS: $e'),
+                                        backgroundColor: AppColors.error,
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: redColor.withAlpha(20),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: redColor.withAlpha(80)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isLoadingGps)
+                                SizedBox(
+                                  width: 13,
+                                  height: 13,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: redColor),
+                                )
+                              else
+                                Icon(Icons.my_location_rounded, size: 15, color: redColor),
+                              const SizedBox(width: 6),
+                              Text(
+                                isLoadingGps ? 'Obteniendo GPS...' : '📍 Usar mi ubicación actual (GPS)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: redColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // ─── Campo de Referencia / Barrio Opcional ────────────────
+                    DiablaTextField(
+                      key: const ValueKey('guest_reference_field'),
+                      controller: _guestReferenceController,
+                      label: 'Barrio / Apto / Torre / Detalle (Opcional)',
+                      keyboardType: TextInputType.text,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _handleGuestLogin(sheetCtx),
+                      prefixIcon: Icon(Icons.home_work_outlined, color: redColor),
+                    ),
+
+                    const SizedBox(height: 22),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFDC2626),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(26),
+                          ),
+                        ),
+                        onPressed: () => _handleGuestLogin(sheetCtx),
+                        child: const Text(
+                          '¡ENTRAR Y PEDIR YA!',
+                          style: TextStyle(
+                            fontFamily: AppTypography.displayFamily,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Row(
-                children: [
-                  Text(
-                    'PEDIR COMO INVITADO',
-                    style: TextStyle(
-                      fontFamily: AppTypography.displayFamily,
-                      fontSize: 24,
-                      color: redColor,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text('🛵', style: TextStyle(fontSize: 22)),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Sin contraseña ni registros. Solo tus datos para llevarte tu comida caliente.',
-                style: TextStyle(
-                  fontFamily: AppTypography.bodyFamily,
-                  fontSize: 12.5,
-                  color: isDark ? AppColors.textMutedDark : Colors.grey.shade700,
-                ),
-              ),
-              const SizedBox(height: 18),
-              DiablaTextField(
-                key: const ValueKey('guest_name_field'),
-                controller: _guestNameController,
-                label: 'Tu Nombre Completo',
-                keyboardType: TextInputType.name,
-                textInputAction: TextInputAction.next,
-                prefixIcon: Icon(Icons.person_outline_rounded, color: redColor),
-              ),
-              const SizedBox(height: 12),
-              DiablaTextField(
-                key: const ValueKey('guest_phone_field'),
-                controller: _guestPhoneController,
-                label: 'Número de Celular (Para el repartidor)',
-                keyboardType: TextInputType.phone,
-                textInputAction: TextInputAction.next,
-                prefixIcon: Icon(Icons.phone_iphone_rounded, color: redColor),
-              ),
-              const SizedBox(height: 12),
-              DiablaTextField(
-                key: const ValueKey('guest_address_field'),
-                controller: _guestAddressController,
-                label: 'Dirección de Entrega (Ej: Calle 45 #23-67)',
-                keyboardType: TextInputType.streetAddress,
-                textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) => _handleGuestLogin(sheetCtx),
-                prefixIcon: Icon(Icons.location_on_outlined, color: redColor),
-              ),
-              const SizedBox(height: 22),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFDC2626),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(26),
-                    ),
-                  ),
-                  onPressed: () => _handleGuestLogin(sheetCtx),
-                  child: const Text(
-                    '¡ENTRAR Y PEDIR YA!',
-                    style: TextStyle(
-                      fontFamily: AppTypography.displayFamily,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );

@@ -1125,9 +1125,9 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           await _flutterTts.speak('Ruta iniciada. Conduce con precaución hacia el destino del cliente.');
         } catch (_) {}
       } else if (mode == 'waze' && destLat != null && destLng != null) {
-        await MapsService.openInWaze(destLat, destLng);
+        await MapsService.openInWaze(destLat, destLng, addressQuery: order.address?.formattedAddress);
       } else if (mode == 'maps' && destLat != null && destLng != null) {
-        await MapsService.openInGoogleMaps(destLat, destLng, label: 'Entrega La Diabla');
+        await MapsService.openInGoogleMaps(destLat, destLng, label: 'Entrega La Diabla', addressQuery: order.address?.formattedAddress);
       }
 
       if (mounted) {
@@ -3851,7 +3851,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               // Botón rápido Waze
               InkWell(
                 borderRadius: BorderRadius.circular(8),
-                onTap: () => MapsService.openInWaze(destLat, destLng),
+                onTap: () => MapsService.openInWaze(destLat, destLng, addressQuery: activeOrder.address?.formattedAddress),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(

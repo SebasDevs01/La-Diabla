@@ -28,14 +28,14 @@ class NavigationAppPicker extends StatelessWidget {
     String? addressText,
   }) async {
     // Intentar abrir Waze directo (prioridad máxima para repartidores)
-    final wazeUri = Uri.parse('waze://?ll=$latitude,$longitude&navigate=yes');
-    try {
-      final canWaze = await canLaunchUrl(wazeUri);
-      if (canWaze) {
-        await launchUrl(wazeUri, mode: LaunchMode.externalApplication);
-        return; // Waze abierto, no mostrar picker
-      }
-    } catch (_) {}
+    final launchedWaze = await MapsService.openInWaze(
+      latitude,
+      longitude,
+      addressQuery: addressText,
+    );
+    if (launchedWaze) {
+      return; // Waze abierto, no mostrar picker
+    }
 
     // Waze no instalado → mostrar picker (Waze primero, Google Maps segundo)
     if (context.mounted) {
@@ -193,7 +193,7 @@ class NavigationAppPicker extends StatelessWidget {
             isDark: isDark,
             onTap: () async {
               Navigator.of(context).pop();
-              await MapsService.openInWaze(latitude, longitude);
+              await MapsService.openInWaze(latitude, longitude, addressQuery: addressText);
             },
           ),
 
@@ -222,6 +222,7 @@ class NavigationAppPicker extends StatelessWidget {
                 latitude,
                 longitude,
                 label: destinationName,
+                addressQuery: addressText,
               );
             },
           ),

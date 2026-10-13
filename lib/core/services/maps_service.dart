@@ -113,6 +113,76 @@ class MapsService {
     }
   }
 
+  /// Geocodificación directa: convierte texto de dirección libre en LatLng exacto y dirección formal.
+  Future<({LatLng? coordinates, String formattedAddress})> geocodeAddress(String rawAddress) async {
+    final clean = rawAddress.trim();
+    if (clean.isEmpty) {
+      return (coordinates: null, formattedAddress: clean);
+    }
+
+    // 1º Intentar con Google Geocoding API para máxima precisión en el Área Metropolitana
+    try {
+      final queryWithContext = clean.toLowerCase().contains('bucaramanga') ||
+              clean.toLowerCase().contains('floridablanca') ||
+              clean.toLowerCase().contains('girón') ||
+              clean.toLowerCase().contains('giron') ||
+              clean.toLowerCase().contains('piedecuesta')
+          ? clean
+          : '$clean, Bucaramanga, Santander, Colombia';
+
+      final uri = Uri.https(
+        'maps.googleapis.com',
+        '/maps/api/geocode/json',
+        {
+          'address': queryWithContext,
+          'key': _mapsApiKey,
+          'language': 'es',
+          'components': 'country:CO',
+        },
+      );
+
+      final response = await http.get(uri).timeout(const Duration(seconds: 6));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        if (data['status'] == 'OK' && (data['results'] as List).isNotEmpty) {
+          final result = data['results'][0] as Map<String, dynamic>;
+          final geometry = result['geometry'] as Map<String, dynamic>;
+          final loc = geometry['location'] as Map<String, dynamic>;
+          final lat = (loc['lat'] as num).toDouble();
+          final lng = (loc['lng'] as num).toDouble();
+          final formatted = (result['formatted_address'] as String?) ?? clean;
+
+          return (coordinates: LatLng(lat, lng), formattedAddress: formatted);
+        }
+      }
+    } catch (e) {
+      _logger.w('Google Geocode API error: $e');
+    }
+
+    // 2º Fallback con paquete nativo geocoding de Flutter
+    try {
+      final query = clean.toLowerCase().contains('bucaramanga')
+          ? clean
+          : '$clean, Bucaramanga, Santander, Colombia';
+      final locations = await geo.locationFromAddress(query).timeout(const Duration(seconds: 4));
+      if (locations.isNotEmpty) {
+        final loc = locations.first;
+        final latLng = LatLng(loc.latitude, loc.longitude);
+        final reversed = await reverseGeocode(latLng);
+        return (
+          coordinates: latLng,
+          formattedAddress: reversed.isNotEmpty && reversed != 'Ubicación seleccionada'
+              ? reversed
+              : clean,
+        );
+      }
+    } catch (e) {
+      _logger.w('Native geocoding error: $e');
+    }
+
+    return (coordinates: null, formattedAddress: clean);
+  }
+
   // ─── Places Autocomplete ─────────────────────────────────────────────────
   Future<List<PlacePrediction>> searchPlaces(String query) async {
     if (query.trim().length < 3) return [];
@@ -322,9 +392,17 @@ class MapsService {
   // ─── Navegación Externa Oficial (Google Maps & Waze) ─────────────────────
 
   /// Abre Google Maps nativo (app). Evita abrir en el navegador web usando esquemas nativos.
-  static Future<bool> openInGoogleMaps(double lat, double lng, {String? label}) async {
+  static Future<bool> openInGoogleMaps(double lat, double lng, {String? label, String? addressQuery}) async {
+    // Si la coordenada recibida es la cocina central y se suministró una dirección, navegar por dirección
+    final isKitchen = (lat - defaultLocation.latitude).abs() < 0.0005 &&
+        (lng - defaultLocation.longitude).abs() < 0.0005;
+
+    final targetQuery = (isKitchen && addressQuery != null && addressQuery.trim().isNotEmpty)
+        ? Uri.encodeComponent('${addressQuery.trim()}, Bucaramanga, Santander')
+        : '$lat,$lng';
+
     // 1º Android: Esquema nativo de navegación paso a paso en app
-    final androidNavUri = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
+    final androidNavUri = Uri.parse('google.navigation:q=$targetQuery&mode=d');
     try {
       if (await canLaunchUrl(androidNavUri)) {
         return await launchUrl(androidNavUri, mode: LaunchMode.externalApplication);
@@ -332,7 +410,7 @@ class MapsService {
     } catch (_) {}
 
     // 2º Android: Esquema geo universal para Maps app
-    final geoUri = Uri.parse('geo:$lat,$lng?q=$lat,$lng${label != null ? '($label)' : ''}');
+    final geoUri = Uri.parse('geo:$lat,$lng?q=$targetQuery${label != null ? '($label)' : ''}');
     try {
       if (await canLaunchUrl(geoUri)) {
         return await launchUrl(geoUri, mode: LaunchMode.externalApplication);
@@ -340,7 +418,7 @@ class MapsService {
     } catch (_) {}
 
     // 3º iOS: Esquema nativo de Google Maps para iOS
-    final iosMapsUri = Uri.parse('comgooglemaps://?daddr=$lat,$lng&directionsmode=driving');
+    final iosMapsUri = Uri.parse('comgooglemaps://?daddr=$targetQuery&directionsmode=driving');
     try {
       if (await canLaunchUrl(iosMapsUri)) {
         return await launchUrl(iosMapsUri, mode: LaunchMode.externalApplication);
@@ -349,7 +427,7 @@ class MapsService {
 
     // 4º Fallback final: URL web externa
     final webUri = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
+      'https://www.google.com/maps/dir/?api=1&destination=$targetQuery&travelmode=driving',
     );
     try {
       return await launchUrl(webUri, mode: LaunchMode.externalApplication);
@@ -359,9 +437,18 @@ class MapsService {
   }
 
   /// Abre Waze nativo (prioridad absoluta). Fallback a app de Google Maps si Waze no está instalado.
-  static Future<bool> openInWaze(double lat, double lng) async {
-    // 1º App nativa de Waze
-    final wazeUri = Uri.parse('waze://?ll=$lat,$lng&navigate=yes');
+  static Future<bool> openInWaze(double lat, double lng, {String? addressQuery}) async {
+    final isKitchen = (lat - defaultLocation.latitude).abs() < 0.0005 &&
+        (lng - defaultLocation.longitude).abs() < 0.0005;
+
+    Uri wazeUri;
+    if (isKitchen && addressQuery != null && addressQuery.trim().isNotEmpty) {
+      final query = Uri.encodeComponent('${addressQuery.trim()}, Bucaramanga');
+      wazeUri = Uri.parse('waze://?q=$query&navigate=yes');
+    } else {
+      wazeUri = Uri.parse('waze://?ll=$lat,$lng&navigate=yes');
+    }
+
     try {
       if (await canLaunchUrl(wazeUri)) {
         return await launchUrl(wazeUri, mode: LaunchMode.externalApplication);
@@ -369,7 +456,7 @@ class MapsService {
     } catch (_) {}
 
     // 2º Fallback directo a Google Maps App nativa
-    return await openInGoogleMaps(lat, lng, label: 'La Diabla Entrega');
+    return await openInGoogleMaps(lat, lng, label: 'La Diabla Entrega', addressQuery: addressQuery);
   }
 }
 

@@ -15,6 +15,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "724540997267-kafk750cp86t191jlak4iqbjtv8i6igs.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ladiabla.app",
+            "certificate_hash": "eb1bbdb9d668ab5beb9161ce5b37955f82968e0d"
+          }
+        },
+        {
+          "client_id": "724540997267-pdc4ubg3cbuj90ho0ti4l0cqn6f22bif.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ladiabla.app",
+            "certificate_hash": "08f17cf998f2ee50afcdb3a11fa4537e9d813d99"
+          }
+        },
+        {
           "client_id": "724540997267-q0p0h566stjg1rrd59ldas17unpseop9.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

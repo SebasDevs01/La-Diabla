@@ -62,7 +62,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     final avatarPath = (user?.photoUrl != null && user!.photoUrl!.isNotEmpty)
         ? user.photoUrl!
-        : (user?.isGuest == true ? 'assets/images/fotoperfilinvitados.png' : 'assets/images/diabloperfil.png');
+        : (user?.isGuest == true ? 'assets/images/logo.png' : 'assets/images/diabloperfil.png');
 
     // Fecha de registro
     final registerDate = user?.createdAt ?? DateTime(2024, 5, 1);
@@ -498,10 +498,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           width: double.infinity,
           height: double.infinity,
           fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/fotoperfilinvitados.png', width: double.infinity, height: double.infinity, fit: BoxFit.cover),
+          errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/logo.png', width: double.infinity, height: double.infinity, fit: BoxFit.cover),
         );
       } catch (_) {
-        return Image.asset('assets/images/fotoperfilinvitados.png', width: double.infinity, height: double.infinity, fit: BoxFit.cover);
+        return Image.asset('assets/images/logo.png', width: double.infinity, height: double.infinity, fit: BoxFit.cover);
       }
     } else if (path.startsWith('http')) {
       return Image.network(
@@ -509,7 +509,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         width: double.infinity,
         height: double.infinity,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/fotoperfilinvitados.png', width: double.infinity, height: double.infinity, fit: BoxFit.cover),
+        errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/logo.png', width: double.infinity, height: double.infinity, fit: BoxFit.cover),
       );
     } else if (path.startsWith('assets/')) {
       return Image.asset(
@@ -517,7 +517,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         width: double.infinity,
         height: double.infinity,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/fotoperfilinvitados.png', width: double.infinity, height: double.infinity, fit: BoxFit.cover),
+        errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/logo.png', width: double.infinity, height: double.infinity, fit: BoxFit.cover),
       );
     }
     final file = File(path);
@@ -527,10 +527,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         width: double.infinity,
         height: double.infinity,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/fotoperfilinvitados.png', width: double.infinity, height: double.infinity, fit: BoxFit.cover),
+        errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/logo.png', width: double.infinity, height: double.infinity, fit: BoxFit.cover),
       );
     }
-    return Image.asset('assets/images/fotoperfilinvitados.png', width: double.infinity, height: double.infinity, fit: BoxFit.cover);
+    return Image.asset('assets/images/logo.png', width: double.infinity, height: double.infinity, fit: BoxFit.cover);
   }
 
   Widget _buildStatCard({

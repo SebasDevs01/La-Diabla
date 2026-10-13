@@ -1,6 +1,5 @@
 // lib/features/orders/providers/orders_provider.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/repositories/order_repository_impl.dart';
 import '../../../data/models/order_model.dart';
@@ -14,31 +13,15 @@ final orderRepositoryProvider = Provider<OrderRepository>((ref) {
   return OrderRepositoryImpl();
 });
 
-// Stream de Pedidos del Usuario (cliente)
-// Solo muestra pedidos del usuario autenticado real. Invitados y sesiones
-// anónimas reciben lista vacía para evitar filtración de datos de otros usuarios.
+// Stream de Pedidos del Usuario (cliente registrado o invitado)
+// Muestra los pedidos asociados al ID del usuario actual en tiempo real.
 final userOrdersStreamProvider = StreamProvider<List<OrderEntity>>((ref) async* {
   final authState = ref.watch(authNotifierProvider);
   final currentUser = authState.user;
   final repo = ref.watch(orderRepositoryProvider);
 
-  // No mostrar pedidos a usuarios no autenticados, invitados o sesiones anónimas
-  if (currentUser == null || currentUser.isGuest) {
-    if (repo is OrderRepositoryImpl) repo.clearCache();
-    yield [];
-    return;
-  }
-
-  final userId = currentUser.id;
-  if (userId.isEmpty) {
-    if (repo is OrderRepositoryImpl) repo.clearCache();
-    yield [];
-    return;
-  }
-
-  // Verificar que el Firebase user actual NO sea anónimo
-  final fbUser = FirebaseAuth.instance.currentUser;
-  if (fbUser != null && fbUser.isAnonymous) {
+  // Si no hay usuario activo o el ID está vacío, devolver lista vacía
+  if (currentUser == null || currentUser.id.isEmpty) {
     if (repo is OrderRepositoryImpl) repo.clearCache();
     yield [];
     return;
@@ -47,7 +30,7 @@ final userOrdersStreamProvider = StreamProvider<List<OrderEntity>>((ref) async* 
   // Limpiar caché antes de cargar los pedidos del usuario actual
   if (repo is OrderRepositoryImpl) repo.clearCache();
 
-  yield* repo.watchActiveOrders(userId);
+  yield* repo.watchActiveOrders(currentUser.id);
 });
 
 // Stream de Pedidos PENDIENTES para el Repartidor (TODOS los clientes)

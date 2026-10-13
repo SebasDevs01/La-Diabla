@@ -103,17 +103,33 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
 
     // 1. VALIDACIÓN OBLIGATORIA DE DIRECCIÓN
-    AddressEntity? effectiveOrderAddress = selectedAddress;
+    AddressEntity? effectiveOrderAddress = selectedAddress ?? addressesState.addresses.firstOrNull;
     if (effectiveOrderAddress == null && user?.guestAddress != null && user!.guestAddress!.trim().isNotEmpty) {
+      double lat = 7.119349;
+      double lng = -73.122741;
+      String formatted = user.guestAddress!.trim();
+      try {
+        final geocoded = await MapsService().geocodeAddress(user.guestAddress!);
+        if (geocoded.coordinates != null) {
+          lat = geocoded.coordinates!.latitude;
+          lng = geocoded.coordinates!.longitude;
+          if (geocoded.formattedAddress.isNotEmpty) {
+            formatted = geocoded.formattedAddress;
+          }
+        }
+      } catch (_) {}
+
       effectiveOrderAddress = AddressEntity(
         id: 'addr_guest_${DateTime.now().millisecondsSinceEpoch}',
         userId: user.id,
         label: AddressLabel.home,
-        latitude: 7.092758,
-        longitude: -73.142590,
-        formattedAddress: user.guestAddress!.trim(),
+        latitude: lat,
+        longitude: lng,
+        formattedAddress: formatted,
       );
     }
+
+    if (!mounted) return;
 
     if (effectiveOrderAddress == null || effectiveOrderAddress.formattedAddress.trim().isEmpty) {
       messenger.showSnackBar(
@@ -328,6 +344,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       paymentStatus: isPaid ? PaymentStatus.paid : PaymentStatus.pending,
       orderType: OrderType.delivery,
       address: effectiveOrderAddress,
+      latitude: effectiveOrderAddress.latitude,
+      longitude: effectiveOrderAddress.longitude,
       cashPaymentAmount: cashPayment,
       cashChangeAmount: cashChange,
       transactionReference: mpTransactionRef ??

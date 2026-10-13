@@ -58,31 +58,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       final isGuest = prefs.getBool('is_guest_user') ?? false;
       final isGuestId = savedId != null && (savedId.startsWith('guest_') || savedId == 'guest');
       final isGuestEmail = savedEmail.contains('@invitado.ladiabla.app') || savedEmail.contains('guest');
+      final isGuestSession = (isGuest || isGuestId || isGuestEmail) && savedId != null && savedId.isNotEmpty;
 
-      // Si SharedPreferences o el estado contiene cualquier rastro de usuario invitado,
-      // DEBE ser purgado de inmediato. Los invitados nunca tienen sesión persistente al abrir la app.
-      if (isGuest || isGuestId || isGuestEmail) {
-        await prefs.clear();
-        if (fbUser != null) {
-          try {
-            await FirebaseAuth.instance.signOut();
-          } catch (_) {}
-        }
-        if (!mounted) return;
-        context.go('/auth');
-        return;
-      }
-
-      // Un usuario anónimo de Firebase NO cuenta como sesión válida.
+      // Un usuario real autenticado de Firebase (no anónimo)
       final isRealFirebaseUser = fbUser != null && !fbUser.isAnonymous;
 
-      // Sesión válida ÚNICAMENTE si hay un usuario real autenticado guardado
-      final hasSession = isRealFirebaseUser &&
-          isLoggedIn &&
-          savedId != null &&
-          savedId.isNotEmpty;
+      // Sesión válida: usuario registrado con Firebase O invitado con sesión guardada
+      final hasSession = (isRealFirebaseUser &&
+              isLoggedIn &&
+              savedId != null &&
+              savedId.isNotEmpty) ||
+          isGuestSession;
 
-      // Si no hay sesión válida pero hay usuario huérfano anónimo, lo cerramos
+      // Si no hay ninguna sesión válida activa pero hay sesión huérfana de Firebase, cerrarla
       if (!hasSession && fbUser != null) {
         try {
           await FirebaseAuth.instance.signOut();

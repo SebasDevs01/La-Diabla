@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/notification_service.dart';
+import '../../../core/services/maps_service.dart';
 import '../../../domain/entities/user_entity.dart';
 import '../../../domain/entities/address_entity.dart';
 import '../../addresses/providers/addresses_provider.dart';
@@ -165,6 +166,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         phone: guestPhone,
         isGuest: true,
         guestAddress: guestAddress,
+        photoUrl: 'assets/images/logo.png',
         createdAt: DateTime.now(),
       );
 
@@ -233,20 +235,51 @@ class AuthNotifier extends StateNotifier<AuthState> {
     super.dispose();
   }
 
-  /// Inicia sesion como Invitado con Nombre, Telefono y Direccion.
+  /// Inicia sesion como Invitado con Nombre, Telefono, Direccion y Coordenadas GPS opcionales.
   Future<bool> signInAsGuest({
     required String name,
     required String phone,
     required String address,
+    double? latitude,
+    double? longitude,
+    String? reference,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
+      final cleanAddress = address.trim();
+      double effectiveLat = latitude ?? 0.0;
+      double effectiveLng = longitude ?? 0.0;
+      String effectiveAddress = cleanAddress;
+
+      // Si no vienen coordenadas reales válidas, geocodificar en segundo plano
+      final isDefaultKitchen = (effectiveLat - 7.092758).abs() < 0.0005 &&
+          (effectiveLng - (-73.142590)).abs() < 0.0005;
+      if (effectiveLat == 0.0 || effectiveLng == 0.0 || isDefaultKitchen) {
+        try {
+          final geocoded = await MapsService().geocodeAddress(cleanAddress);
+          if (geocoded.coordinates != null) {
+            effectiveLat = geocoded.coordinates!.latitude;
+            effectiveLng = geocoded.coordinates!.longitude;
+            if (geocoded.formattedAddress.isNotEmpty &&
+                geocoded.formattedAddress != 'Ubicación seleccionada') {
+              effectiveAddress = geocoded.formattedAddress;
+            }
+          }
+        } catch (_) {}
+      }
+
+      // Fallback final de seguridad: Centro de Bucaramanga (no la cocina) para evitar 0m
+      if (effectiveLat == 0.0 || effectiveLng == 0.0) {
+        effectiveLat = 7.119349;
+        effectiveLng = -73.122741;
+      }
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_guest_user', true);
-      await prefs.setBool('is_logged_in', false);
+      await prefs.setBool('is_logged_in', true);
       await prefs.setString('guest_name', name);
       await prefs.setString('guest_phone', phone);
-      await prefs.setString('guest_address', address);
+      await prefs.setString('guest_address', effectiveAddress);
       await prefs.setString('user_registered_name', name);
 
       final cleanPhone = phone.replaceAll(RegExp(r'\D'), '');
@@ -267,8 +300,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         role: UserRole.customer,
         phone: phone,
         isGuest: true,
-        guestAddress: address,
+        guestAddress: effectiveAddress,
         referralCode: referral,
+        photoUrl: 'assets/images/logo.png',
         createdAt: DateTime.now(),
       );
 
@@ -276,14 +310,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await _saveUserSession(guestUser);
 
       // Guardar la dirección en addressesProvider y Firestore para que esté disponible en Checkout y toda la app
-      if (address.trim().isNotEmpty) {
+      if (cleanAddress.isNotEmpty) {
         final initialAddress = AddressEntity(
           id: 'addr_${DateTime.now().millisecondsSinceEpoch}',
           userId: guestUid,
           label: AddressLabel.home,
-          formattedAddress: address.trim(),
-          latitude: 7.092758,
-          longitude: -73.142590,
+          formattedAddress: effectiveAddress,
+          reference: reference,
+          latitude: effectiveLat,
+          longitude: effectiveLng,
           isDefault: true,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
